@@ -1,0 +1,27 @@
+Ejecuta el skill `windows-legacy-discovery` desde su versión actualizada en `.github/skills/windows-legacy-discovery/SKILL.md`.
+
+Quiero generar la primera pantalla de una aplicación Windows heredada, creando una interfaz WinUI 3 con C# y .NET.
+
+Sigue el flujo completo definido en el skill:
+
+1. **Detectar:** identifica las ventanas disponibles y determina cuál debe inspeccionarse. Si hay varias y no puedes identificar la correcta, solicítame que la deje visible o que la confirme.
+2. **Inspeccionar:** utiliza las herramientas Windows UI Automation definidas en el skill para obtener los controles, etiquetas, tipos, propiedades y estructura disponibles.
+3. **Guardar evidencia:** genera los archivos de evidencia y documentación en las rutas establecidas por el skill.
+4. **Analizar:** identifica los controles y sus comportamientos. Distingue entre comportamiento confirmado, inferido y pendiente de validar. No inventes reglas de negocio.
+5. **Generar la interfaz:** crea la pantalla en WinUI 3 con C# y .NET, utilizando una estructura limpia, mantenible y responsive.
+6. **Implementar funcionalidad:** los botones, campos de texto, checkboxes, listas y demás controles deben tener un comportamiento real cuando esté respaldado por la evidencia o los requisitos disponibles. No te limites a crear una interfaz visual estática.
+7. **Compilar:** compila el proyecto y corrige los errores encontrados.
+8. **Ejecutar y verificar:** ejecuta la aplicación generada y comprueba las interacciones mediante las herramientas disponibles. No declares pruebas exitosas si no se ejecutaron realmente.
+9. **Documentar:** registra los archivos generados, las funcionalidades implementadas, los resultados de las pruebas y las limitaciones pendientes.
+
+**Criterios importantes:**
+
+- Si no existe un proyecto, créalo. Si ya existe uno, inspecciónalo antes de modificarlo.
+- La prioridad es la funcionalidad, no la reproducción exacta del diseño original.
+- La interfaz debe verse bien, tener etiquetas legibles y adaptarse a distintos tamaños de ventana.
+- No dejes controles sin comportamiento definido ni inventes operaciones que dependan de servicios o backends inexistentes.
+- No interactúes con la aplicación original mediante acciones que puedan modificar su estado.
+- No sobrescribas archivos o implementaciones existentes sin una justificación clara.
+- Ejecuta las acciones con las herramientas disponibles en el entorno; no te limites a describir lo que habría que hacer.
+
+Al finalizar, presenta un resumen de la pantalla generada, los archivos creados, el resultado de la compilación, las pruebas funcionales ejecutadas y cualquier limitación pendiente.

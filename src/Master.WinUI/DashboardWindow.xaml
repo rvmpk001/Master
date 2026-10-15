@@ -1,0 +1,440 @@
+<Window
+    x:Class="Master.WinUI.DashboardWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="Enterprise Suite - Dashboard">
+    <NavigationView
+        x:Name="DashboardNavigation"
+        AutomationProperties.AutomationId="dashboardNavigation"
+        Background="#FF171A21"
+        IsBackButtonVisible="Collapsed"
+        IsSettingsVisible="False"
+        PaneDisplayMode="Auto"
+        Loaded="OnDashboardLoaded"
+        SelectionChanged="OnNavigationSelectionChanged">
+        <NavigationView.MenuItems>
+            <NavigationViewItem
+                x:Name="navDashboard"
+                AutomationProperties.AutomationId="btnNavDashboard"
+                Content="Dashboard General"
+                IsSelected="True"
+                Tag="dashboard">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Home" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem
+                AutomationProperties.AutomationId="btnNavClientes"
+                Content="Módulo Clientes"
+                Tag="Clientes">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Contact" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem
+                AutomationProperties.AutomationId="btnNavProductos"
+                Content="Inventario / Productos"
+                Tag="Productos">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Shop" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem
+                AutomationProperties.AutomationId="btnNavVentas"
+                Content="Facturación / Ventas"
+                Tag="Ventas">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Document" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem
+                AutomationProperties.AutomationId="btnNavReportes"
+                Content="Reportes Gráficos"
+                Tag="Reportes">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Document" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem
+                AutomationProperties.AutomationId="btnNavConfig"
+                Content="Configuración"
+                Tag="Configuración">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Setting" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem
+                AutomationProperties.AutomationId="btnNavUtilidades"
+                Content="Utilidades"
+                Tag="Utilidades">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Repair" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem
+                AutomationProperties.AutomationId="btnNavArchivos"
+                Content="Gestión de Archivos"
+                Tag="Gestión de Archivos">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Folder" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem
+                AutomationProperties.AutomationId="btnNavAvanzados"
+                Content="Controles Avanzados"
+                Tag="Controles Avanzados">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="AllApps" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+        </NavigationView.MenuItems>
+        <NavigationView.FooterMenuItems>
+            <NavigationViewItem
+                x:Name="navBackToLogin"
+                AutomationProperties.AutomationId="navBackToLogin"
+                Content="Volver al Login"
+                Tag="backToLogin">
+                <NavigationViewItem.Icon>
+                    <SymbolIcon Symbol="Back" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+        </NavigationView.FooterMenuItems>
+        <NavigationView.Content>
+            <Grid
+                x:Name="DashboardContent"
+                AutomationProperties.AutomationId="dashboardContent"
+                Background="#FF171A21"
+                SizeChanged="OnDashboardContentSizeChanged">
+                <Grid RowDefinitions="Auto,*">
+                    <CommandBar
+                        Grid.Row="0"
+                        Background="Transparent"
+                        DefaultLabelPosition="Right"
+                        IsDynamicOverflowEnabled="True">
+                        <AppBarButton
+                            x:Name="btnActualizar"
+                            AutomationProperties.AutomationId="btnActualizar"
+                            Click="OnRefreshClick"
+                            Icon="Refresh"
+                            Label="Actualizar" />
+                        <AppBarButton
+                            AutomationProperties.AutomationId="btnToolbarClientes"
+                            Click="OnModuleToolbarClick"
+                            Icon="Contact"
+                            Label="Clientes"
+                            Tag="Clientes" />
+                        <AppBarButton
+                            AutomationProperties.AutomationId="btnToolbarProductos"
+                            Click="OnModuleToolbarClick"
+                            Icon="Shop"
+                            Label="Productos"
+                            Tag="Productos" />
+                        <AppBarButton
+                            AutomationProperties.AutomationId="btnToolbarVentas"
+                            Click="OnModuleToolbarClick"
+                            Icon="Document"
+                            Label="Ventas"
+                            Tag="Ventas" />
+                        <AppBarButton
+                            AutomationProperties.AutomationId="btnToolbarReportes"
+                            Click="OnModuleToolbarClick"
+                            Icon="Document"
+                            Label="Reportes"
+                            Tag="Reportes" />
+                    </CommandBar>
+
+                    <ScrollViewer
+                        x:Name="DashboardScrollViewer"
+                        Grid.Row="1"
+                        AutomationProperties.AutomationId="dashboardScrollViewer"
+                        HorizontalScrollBarVisibility="Disabled"
+                        VerticalScrollBarVisibility="Auto">
+                        <StackPanel
+                            MaxWidth="1100"
+                            HorizontalAlignment="Stretch"
+                            Padding="20,8,20,24"
+                            Spacing="18">
+                            <Grid
+                                x:Name="pnlTop"
+                                AutomationProperties.AutomationId="pnlTop"
+                                ColumnDefinitions="*,Auto"
+                                ColumnSpacing="12">
+                                <StackPanel Spacing="4">
+                                    <TextBlock
+                                        x:Name="lblTitulo"
+                                        AutomationProperties.AutomationId="lblTitulo"
+                                        FontSize="28"
+                                        FontWeight="SemiBold"
+                                        Foreground="#FFF2F4F7"
+                                        Text="Dashboard de Control KPI"
+                                        TextWrapping="Wrap" />
+                                    <TextBlock
+                                        x:Name="lblSubtitulo"
+                                        AutomationProperties.AutomationId="lblSubtitulo"
+                                        FontSize="14"
+                                        Foreground="#FFB7C0CC"
+                                        Text="Resumen de datos en SQL Server."
+                                        TextWrapping="Wrap" />
+                                </StackPanel>
+                                <Border
+                                    Grid.Column="1"
+                                    Padding="10,6"
+                                    Background="#FF24364A"
+                                    BorderBrush="#FF3A5878"
+                                    BorderThickness="1"
+                                    CornerRadius="8"
+                                    VerticalAlignment="Top">
+                                    <TextBlock
+                                        FontSize="12"
+                                        Foreground="#FF9DD5FF"
+                                        Text="MUESTRA"
+                                        VerticalAlignment="Center" />
+                                </Border>
+                            </Grid>
+
+                            <InfoBar
+                                x:Name="dashboardStatus"
+                                IsClosable="True"
+                                IsOpen="False"
+                                AutomationProperties.AutomationId="dashboardStatus"
+                                Message=""
+                                Severity="Informational"
+                                Title="" />
+
+                            <Grid
+                                x:Name="flpTarjetas"
+                                AutomationProperties.AutomationId="flpTarjetas"
+                                ColumnDefinitions="*,*"
+                                ColumnSpacing="14"
+                                RowDefinitions="Auto,Auto,Auto,Auto"
+                                RowSpacing="14">
+                                <Border
+                                    x:Name="pnlKpiClientes"
+                                    Grid.Row="0"
+                                    Grid.Column="0"
+                                    AutomationProperties.AutomationId="pnlKpiClientes"
+                                    Background="#FF252A33"
+                                    BorderBrush="#FF3B434F"
+                                    BorderThickness="1"
+                                    CornerRadius="10">
+                                    <Grid Padding="18" ColumnDefinitions="*,Auto">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock
+                                                x:Name="lblTituloClientes"
+                                                AutomationProperties.AutomationId="lblTituloClientes"
+                                                FontSize="14"
+                                                Foreground="#FFB7C0CC"
+                                                Text="Total Clientes" />
+                                            <TextBlock
+                                                x:Name="lblValorClientes"
+                                                AutomationProperties.AutomationId="lblValorClientes"
+                                                FontSize="30"
+                                                FontWeight="SemiBold"
+                                                Foreground="#FFF2F4F7"
+                                                Text="—" />
+                                        </StackPanel>
+                                        <FontIcon
+                                            x:Name="picKpiClientes"
+                                            Grid.Column="1"
+                                            AutomationProperties.AutomationId="picKpiClientes"
+                                            FontSize="28"
+                                            Foreground="#FF62B5F2"
+                                            Glyph="&#xE77B;"
+                                            VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                                <Border
+                                    x:Name="pnlKpiProductos"
+                                    Grid.Row="0"
+                                    Grid.Column="1"
+                                    AutomationProperties.AutomationId="pnlKpiProductos"
+                                    Background="#FF252A33"
+                                    BorderBrush="#FF3B434F"
+                                    BorderThickness="1"
+                                    CornerRadius="10">
+                                    <Grid Padding="18" ColumnDefinitions="*,Auto">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock
+                                                x:Name="lblTituloProductos"
+                                                AutomationProperties.AutomationId="lblTituloProductos"
+                                                FontSize="14"
+                                                Foreground="#FFB7C0CC"
+                                                Text="Total Productos" />
+                                            <TextBlock
+                                                x:Name="lblValorProductos"
+                                                AutomationProperties.AutomationId="lblValorProductos"
+                                                FontSize="30"
+                                                FontWeight="SemiBold"
+                                                Foreground="#FFF2F4F7"
+                                                Text="—" />
+                                        </StackPanel>
+                                        <FontIcon
+                                            x:Name="picKpiProductos"
+                                            Grid.Column="1"
+                                            AutomationProperties.AutomationId="picKpiProductos"
+                                            FontSize="28"
+                                            Foreground="#FF83D1A4"
+                                            Glyph="&#xE719;"
+                                            VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                                <Border
+                                    x:Name="pnlKpiVentas"
+                                    Grid.Row="1"
+                                    Grid.Column="0"
+                                    AutomationProperties.AutomationId="pnlKpiVentas"
+                                    Background="#FF252A33"
+                                    BorderBrush="#FF3B434F"
+                                    BorderThickness="1"
+                                    CornerRadius="10">
+                                    <Grid Padding="18" ColumnDefinitions="*,Auto">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock
+                                                x:Name="lblTituloVentas"
+                                                AutomationProperties.AutomationId="lblTituloVentas"
+                                                FontSize="14"
+                                                Foreground="#FFB7C0CC"
+                                                Text="Total Facturado" />
+                                            <TextBlock
+                                                x:Name="lblValorVentas"
+                                                AutomationProperties.AutomationId="lblValorVentas"
+                                                FontSize="30"
+                                                FontWeight="SemiBold"
+                                                Foreground="#FFF2F4F7"
+                                                Text="—" />
+                                        </StackPanel>
+                                        <FontIcon
+                                            x:Name="picKpiVentas"
+                                            Grid.Column="1"
+                                            AutomationProperties.AutomationId="picKpiVentas"
+                                            FontSize="28"
+                                            Foreground="#FFF4BE6B"
+                                            Glyph="&#xE8C7;"
+                                            VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                                <Border
+                                    x:Name="pnlKpiIngresos"
+                                    Grid.Row="1"
+                                    Grid.Column="1"
+                                    AutomationProperties.AutomationId="pnlKpiIngresos"
+                                    Background="#FF252A33"
+                                    BorderBrush="#FF3B434F"
+                                    BorderThickness="1"
+                                    CornerRadius="10">
+                                    <Grid Padding="18" ColumnDefinitions="*,Auto">
+                                        <StackPanel Spacing="8">
+                                            <TextBlock
+                                                x:Name="lblTituloIngresos"
+                                                AutomationProperties.AutomationId="lblTituloIngresos"
+                                                FontSize="14"
+                                                Foreground="#FFB7C0CC"
+                                                Text="Ingresos Totales" />
+                                            <TextBlock
+                                                x:Name="lblValorIngresos"
+                                                AutomationProperties.AutomationId="lblValorIngresos"
+                                                FontSize="26"
+                                                FontWeight="SemiBold"
+                                                Foreground="#FFF2F4F7"
+                                                Text="—" />
+                                        </StackPanel>
+                                        <FontIcon
+                                            x:Name="picKpiIngresos"
+                                            Grid.Column="1"
+                                            AutomationProperties.AutomationId="picKpiIngresos"
+                                            FontSize="28"
+                                            Foreground="#FFC3A6F2"
+                                            Glyph="&#xE8D4;"
+                                            VerticalAlignment="Center" />
+                                    </Grid>
+                                </Border>
+                            </Grid>
+
+                            <Border
+                                x:Name="pnlMeta"
+                                AutomationProperties.AutomationId="pnlMeta"
+                                AutomationProperties.Name="Meta mensual no disponible"
+                                Background="#FF252A33"
+                                BorderBrush="#FF3B434F"
+                                BorderThickness="1"
+                                CornerRadius="10">
+                                <StackPanel Padding="20" Spacing="12">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock
+                                            x:Name="lblTituloMeta"
+                                            AutomationProperties.AutomationId="lblTituloMeta"
+                                            FontSize="16"
+                                            FontWeight="SemiBold"
+                                            Foreground="#FFF2F4F7"
+                                            Text="Progreso de Meta Mensual Global" />
+                                        <TextBlock
+                                            x:Name="lblDetalleMeta"
+                                            Grid.Column="1"
+                                            AutomationProperties.AutomationId="lblDetalleMeta"
+                                            FontSize="14"
+                                            Foreground="#FFB7C0CC"
+                                            Text="El esquema no define una meta mensual." />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <Border
+                                x:Name="pnlGraficas"
+                                AutomationProperties.AutomationId="pnlGraficas"
+                                AutomationProperties.Name="100% de $60,000.00 USD"
+                                Background="#FF252A33"
+                                BorderBrush="#FF3B434F"
+                                BorderThickness="1"
+                                CornerRadius="10">
+                                <StackPanel Padding="20" Spacing="12">
+                                    <TextBlock
+                                        FontSize="18"
+                                        FontWeight="SemiBold"
+                                        Foreground="#FFF2F4F7"
+                                        Text="Gráfica de Ventas" />
+                                    <Border
+                                        x:Name="chartVentas"
+                                        MinHeight="180"
+                                        AutomationProperties.AutomationId="chartVentas"
+                                        AutomationProperties.Name="Gráfica de Ventas"
+                                        Background="#FF1C2129"
+                                        BorderBrush="#FF3B434F"
+                                        BorderThickness="1"
+                                        CornerRadius="8">
+                                        <Grid Padding="20">
+                                            <StackPanel
+                                                HorizontalAlignment="Center"
+                                                Spacing="8"
+                                                VerticalAlignment="Center">
+                                                <TextBlock
+                                                    HorizontalAlignment="Center"
+                                                    FontSize="15"
+                                                    Foreground="#FFE8ECF2"
+                                                    Text="No hay series de datos disponibles para graficar."
+                                                    TextAlignment="Center"
+                                                    TextWrapping="Wrap" />
+                                                <TextBlock
+                                                    HorizontalAlignment="Center"
+                                                    FontSize="13"
+                                                    Foreground="#FFB7C0CC"
+                                                    Text="Se requiere una fuente de datos conectada."
+                                                    TextAlignment="Center"
+                                                    TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </Grid>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="#FF9AA4B2"
+                                Text="Los demás módulos todavía no cuentan con pantallas ni operaciones de persistencia."
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
+        </NavigationView.Content>
+    </NavigationView>
+</Window>

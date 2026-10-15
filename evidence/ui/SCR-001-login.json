@@ -1,0 +1,413 @@
+{
+  "captured_at_utc": "2026-10-14T15:09:29.850497+00:00",
+  "backend": "pywinauto UI Automation (uia)",
+  "read_only": true,
+  "window_handle": 525482,
+  "limits": {
+    "max_depth": 4,
+    "max_nodes": 250
+  },
+  "nodes_returned": 18,
+  "truncated": false,
+  "tree": {
+    "handle": 525482,
+    "process_id": 8416,
+    "name": "WinForms Control Showcase - Login",
+    "automation_id": "FrmLogin",
+    "control_type": "Window",
+    "class_name": "WindowsForms10.Window.8.app.0.29e8405_r3_ad1",
+    "framework_id": "WinForm",
+    "is_enabled": true,
+    "is_visible": true,
+    "has_keyboard_focus": false,
+    "rectangle": {
+      "left": 733,
+      "top": 125,
+      "right": 1330,
+      "bottom": 793,
+      "width": 597,
+      "height": 668
+    },
+    "depth": 0,
+    "children": [
+      {
+        "handle": 1050140,
+        "process_id": 8416,
+        "name": "Showcase Corporativo de Controles WinForms",
+        "automation_id": "pnlCard",
+        "control_type": "Pane",
+        "class_name": "WindowsForms10.Window.8.app.0.29e8405_r3_ad1",
+        "framework_id": "WinForm",
+        "is_enabled": true,
+        "is_visible": true,
+        "has_keyboard_focus": false,
+        "rectangle": {
+          "left": 774,
+          "top": 332,
+          "right": 1289,
+          "bottom": 757,
+          "width": 515,
+          "height": 425
+        },
+        "depth": 1,
+        "children": [
+          {
+            "handle": 1639686,
+            "process_id": 8416,
+            "name": "Mostrar ojo",
+            "automation_id": "chkVerPassword",
+            "control_type": "CheckBox",
+            "class_name": "WindowsForms10.Button.app.0.29e8405_r3_ad1",
+            "framework_id": "WinForm",
+            "is_enabled": true,
+            "is_visible": true,
+            "has_keyboard_focus": false,
+            "rectangle": {
+              "left": 1112,
+              "top": 526,
+              "right": 1236,
+              "bottom": 553,
+              "width": 124,
+              "height": 27
+            },
+            "depth": 2,
+            "children": []
+          },
+          {
+            "handle": 1705414,
+            "process_id": 8416,
+            "name": "Cancelar",
+            "automation_id": "btnCancelar",
+            "control_type": "Button",
+            "class_name": "WindowsForms10.Button.app.0.29e8405_r3_ad1",
+            "framework_id": "WinForm",
+            "is_enabled": true,
+            "is_visible": true,
+            "has_keyboard_focus": false,
+            "rectangle": {
+              "left": 1049,
+              "top": 676,
+              "right": 1243,
+              "bottom": 724,
+              "width": 194,
+              "height": 48
+            },
+            "depth": 2,
+            "children": []
+          },
+          {
+            "handle": 788068,
+            "process_id": 8416,
+            "name": "Ingresar al Sistema",
+            "automation_id": "btnIngresar",
+            "control_type": "Button",
+            "class_name": "WindowsForms10.Button.app.0.29e8405_r3_ad1",
+            "framework_id": "WinForm",
+            "is_enabled": true,
+            "is_visible": true,
+            "has_keyboard_focus": false,
+            "rectangle": {
+              "left": 812,
+              "top": 676,
+              "right": 1024,
+              "bottom": 724,
+              "width": 212,
+              "height": 48
+            },
+            "depth": 2,
+            "children": []
+          },
+          {
+            "handle": 1246462,
+            "process_id": 8416,
+            "name": "Recordar usuario",
+            "automation_id": "chkRecordar",
+            "control_type": "CheckBox",
+            "class_name": "WindowsForms10.Button.app.0.29e8405_r3_ad1",
+            "framework_id": "WinForm",
+            "is_enabled": true,
+            "is_visible": true,
+            "has_keyboard_focus": false,
+            "rectangle": {
+              "left": 812,
+              "top": 626,
+              "right": 983,
+              "bottom": 655,
+              "width": 171,
+              "height": 29
+            },
+            "depth": 2,
+            "children": []
+          },
+          {
+            "handle": 460402,
+            "process_id": 8416,
+            "name": "",
+            "automation_id": "mtxtPin",
+            "control_type": "Edit",
+            "class_name": "WindowsForms10.Edit.app.0.29e8405_r3_ad1",
+            "framework_id": "WinForm",
+            "is_enabled": true,
+            "is_visible": true,
+            "has_keyboard_focus": false,
+            "rectangle": {
+              "left": 812,
+              "top": 576,
+              "right": 962,
+              "bottom": 610,
+              "width": 150,
+              "height": 34
+            },
+            "depth": 2,
+            "children": []
+          },
+          {
+            "handle": 394428,
+            "process_id": 8416,
+            "name": "PIN de Seguridad (2FA)",
+            "automation_id": "lblPin",
+            "control_type": "Text",
+            "class_name": "WindowsForms10.Static.app.0.29e8405_r3_ad1",
+            "framework_id": "WinForm",
+            "is_enabled": true,
+            "is_visible": true,
+            "has_keyboard_focus": false,
+            "rectangle": {
+              "left": 806,
+              "top": 547,
+              "right": 1011,
+              "bottom": 572,
+              "width": 205,
+              "height": 25
+            },
+            "depth": 2,
+            "children": []
+          },
+          {
+            "handle": 722408,
+            "process_id": 8416,
+            "name": "Contraseña",
+            "automation_id": "txtPassword",
+            "control_type": "Edit",
+            "class_name": "WindowsForms10.Edit.app.0.29e8405_r3_ad1",
+            "framework_id": "WinForm",
+            "is_enabled": true,
+            "is_visible": true,
+            "has_keyboard_focus": false,
+            "rectangle": {
+              "left": 812,
+              "top": 482,
+              "right": 1243,
+              "bottom": 516,
+              "width": 431,
+              "height": 34
+            },
+            "depth": 2,
+            "children": []
+          },
+          {
+            "handle": 589978,
+            "process_id": 8416,
+            "name": "Contraseña",
+            "automation_id": "lblPassword",
+            "control_type": "Text",
+            "class_name": "WindowsForms10.Static.app.0.29e8405_r3_ad1",
+            "framework_id": "WinForm",
+            "is_enabled": true,
+            "is_visible": true,
+            "has_keyboard_focus": false,
+            "rectangle": {
+              "left": 806,
+              "top": 453,
+              "right": 912,
+              "bottom": 478,
+              "width": 106,
+              "height": 25
+            },
+            "depth": 2,
+            "children": []
+          },
+          {
+            "handle": 1050114,
+            "process_id": 8416,
+            "name": "Usuario",
+            "automation_id": "txtUsuario",
+            "control_type": "Edit",
+            "class_name": "WindowsForms10.Edit.app.0.29e8405_r3_ad1",
+            "framework_id": "WinForm",
+            "is_enabled": true,
+            "is_visible": true,
+            "has_keyboard_focus": false,
+            "rectangle": {
+              "left": 812,
+              "top": 392,
+              "right": 1243,
+              "bottom": 426,
+              "width": 431,
+              "height": 34
+            },
+            "depth": 2,
+            "children": []
+          },
+          {
+            "handle": 1115388,
+            "process_id": 8416,
+            "name": "Usuario",
+            "automation_id": "lblUsuario",
+            "control_type": "Text",
+            "class_name": "WindowsForms10.Static.app.0.29e8405_r3_ad1",
+            "framework_id": "WinForm",
+            "is_enabled": true,
+            "is_visible": true,
+            "has_keyboard_focus": false,
+            "rectangle": {
+              "left": 806,
+              "top": 363,
+              "right": 882,
+              "bottom": 388,
+              "width": 76,
+              "height": 25
+            },
+            "depth": 2,
+            "children": []
+          }
+        ]
+      },
+      {
+        "handle": 722170,
+        "process_id": 8416,
+        "name": "",
+        "automation_id": "pnlHeader",
+        "control_type": "Pane",
+        "class_name": "WindowsForms10.Window.8.app.0.29e8405_r3_ad1",
+        "framework_id": "WinForm",
+        "is_enabled": true,
+        "is_visible": true,
+        "has_keyboard_focus": false,
+        "rectangle": {
+          "left": 744,
+          "top": 170,
+          "right": 1319,
+          "bottom": 308,
+          "width": 575,
+          "height": 138
+        },
+        "depth": 1,
+        "children": [
+          {
+            "handle": 853528,
+            "process_id": 8416,
+            "name": "Showcase Corporativo de Controles WinForms",
+            "automation_id": "lblSubtitulo",
+            "control_type": "Text",
+            "class_name": "WindowsForms10.Static.app.0.29e8405_r3_ad1",
+            "framework_id": "WinForm",
+            "is_enabled": true,
+            "is_visible": true,
+            "has_keyboard_focus": false,
+            "rectangle": {
+              "left": 875,
+              "top": 242,
+              "right": 1257,
+              "bottom": 267,
+              "width": 382,
+              "height": 25
+            },
+            "depth": 2,
+            "children": []
+          },
+          {
+            "handle": 460282,
+            "process_id": 8416,
+            "name": "Inicio de Sesión",
+            "automation_id": "lblTitulo",
+            "control_type": "Text",
+            "class_name": "WindowsForms10.Static.app.0.29e8405_r3_ad1",
+            "framework_id": "WinForm",
+            "is_enabled": true,
+            "is_visible": true,
+            "has_keyboard_focus": false,
+            "rectangle": {
+              "left": 873,
+              "top": 200,
+              "right": 1095,
+              "bottom": 238,
+              "width": 222,
+              "height": 38
+            },
+            "depth": 2,
+            "children": []
+          },
+          {
+            "handle": 1181170,
+            "process_id": 8416,
+            "name": "",
+            "automation_id": "picLogo",
+            "control_type": "Pane",
+            "class_name": "WindowsForms10.Window.8.app.0.29e8405_r3_ad1",
+            "framework_id": "WinForm",
+            "is_enabled": true,
+            "is_visible": true,
+            "has_keyboard_focus": false,
+            "rectangle": {
+              "left": 774,
+              "top": 198,
+              "right": 855,
+              "bottom": 279,
+              "width": 81,
+              "height": 81
+            },
+            "depth": 2,
+            "children": []
+          }
+        ]
+      },
+      {
+        "handle": null,
+        "process_id": 8416,
+        "name": "",
+        "automation_id": "",
+        "control_type": "TitleBar",
+        "class_name": "",
+        "framework_id": "",
+        "is_enabled": true,
+        "is_visible": true,
+        "has_keyboard_focus": false,
+        "rectangle": {
+          "left": 744,
+          "top": 128,
+          "right": 1319,
+          "bottom": 170,
+          "width": 575,
+          "height": 42
+        },
+        "depth": 1,
+        "children": [
+          {
+            "handle": null,
+            "process_id": 8416,
+            "name": "Cerrar",
+            "automation_id": "",
+            "control_type": "Button",
+            "class_name": "",
+            "framework_id": "",
+            "is_enabled": true,
+            "is_visible": true,
+            "has_keyboard_focus": false,
+            "rectangle": {
+              "left": 1268,
+              "top": 126,
+              "right": 1320,
+              "bottom": 170,
+              "width": 52,
+              "height": 44
+            },
+            "depth": 2,
+            "children": []
+          }
+        ]
+      }
+    ]
+  },
+  "privacy_note": "El árbol incluye nombres accesibles y metadatos de controles, pero no lee explícitamente el valor de los campos Edit. Revisa los nombres antes de compartir el informe porque algunas aplicaciones pueden exponer texto sensible como nombre accesible."
+}

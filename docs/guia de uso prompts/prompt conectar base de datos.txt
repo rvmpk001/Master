@@ -1,0 +1,57 @@
+Ejecuta el skill `windows-legacy-discovery` desde `.github/skills/windows-legacy-discovery/SKILL.md`.
+
+Quiero integrar el script SQL existente en `Database/Scripts/` como esquema inicial de la aplicación WinUI 3.
+
+**Contexto:**
+- La base de datos objetivo es SQL Server local.
+- La autenticación hacia SQL Server debe utilizar autenticación integrada de Windows.
+- El archivo SQL existente crea la base de datos y sus tablas.
+- Quiero utilizar esta base de datos para todas las pantallas que necesiten persistencia.
+
+**Fase 1: inspección obligatoria**
+
+1. Inspecciona el proyecto y sus mecanismos de persistencia actuales.
+2. Lee el archivo SQL completo, incluyendo las instrucciones de creación de base de datos, tablas, relaciones, índices, restricciones, procedimientos, datos iniciales y permisos.
+3. Identifica instrucciones destructivas, cambios de permisos, credenciales incluidas, dependencias y posibles incompatibilidades.
+4. Determina si la base de datos ya existe en la instancia local configurada.
+5. Compara el esquema del script con el de la base existente cuando tengas acceso autorizado.
+6. No asumas nombres de instancia, base de datos, tablas ni columnas sin verificarlos.
+
+**Fase 2: diagnóstico y plan**
+
+Presenta un resumen del esquema y de los riesgos detectados. Explica si el script puede utilizarse como instalación inicial o si necesita adaptaciones para trabajar con una base existente.
+
+No ejecutes el script, no crees bases ni tablas, no modifiques datos, no cambies permisos y no apliques migraciones durante esta fase.
+
+**Fase 3: integración de código**
+
+Después del diagnóstico, prepara la integración necesaria en el proyecto existente:
+
+- Centraliza la configuración de SQL Server y utiliza autenticación integrada de Windows.
+- Implementa la capa de acceso a datos con la tecnología compatible con la arquitectura actual.
+- Separa las consultas y operaciones de persistencia de las pantallas y ViewModels.
+- Conecta las funcionalidades del Login y del Dashboard a operaciones reales solo cuando los requisitos y el esquema lo permitan.
+- No inventes tablas, reglas de negocio ni usuarios predeterminados.
+- No regeneres ni sobrescribas las pantallas existentes.
+- Conserva el script original y documenta cualquier modificación propuesta por separado.
+
+**Fase 4: aplicación del esquema**
+
+No ejecutes automáticamente el script original.
+
+Si se necesita crear una base nueva o modificar una base existente, presenta primero el plan y solicita autorización antes de ejecutar los cambios. Para una base existente, prioriza cambios incrementales y no destructivos.
+
+**Fase 5: validación**
+
+Compila el proyecto y ejecuta las pruebas que permitan las herramientas disponibles. Si no tienes acceso real a SQL Server, indica que la conectividad y la persistencia quedan pendientes de verificar.
+
+Al terminar, informa:
+- Archivo SQL analizado.
+- Nombre de la base y esquema identificados, si pudieron verificarse.
+- Objetos y dependencias relevantes.
+- Archivos creados o modificados.
+- Cambios de esquema propuestos y si fueron aplicados.
+- Resultado real de la compilación y de las pruebas.
+- Limitaciones pendientes.
+
+No afirmes que la base de datos fue creada ni que la aplicación quedó conectada si esas operaciones no se ejecutaron y verificaron realmente.

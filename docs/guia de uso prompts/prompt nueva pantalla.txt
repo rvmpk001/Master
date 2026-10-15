@@ -1,0 +1,27 @@
+Ejecuta el skill `windows-legacy-discovery` para incorporar una nueva pantalla a la aplicación WinUI 3 que ya existe.
+
+**Contexto:**
+- La pantalla Login ya está implementada y funciona.
+- Ahora quiero continuar con el Dashboard o pantalla principal de la aplicación original.
+- Debes reutilizar el proyecto, la arquitectura y los componentes existentes.
+
+**Instrucciones:**
+
+1. Inspecciona las ventanas disponibles y utiliza la herramienta Windows UI Automation definida en el skill para identificar la ventana correspondiente al Dashboard.
+2. Inspecciona sus controles, textos, estructura y propiedades disponibles. Guarda la evidencia siguiendo las convenciones del proyecto.
+3. Analiza el código existente antes de modificarlo. Identifica cómo están implementados la navegación, los estilos, los componentes compartidos y el estado de la aplicación.
+4. Implementa el Dashboard dentro del proyecto actual, respetando su arquitectura y evitando duplicar componentes.
+5. Mantén el Login existente. No lo regeneres ni reemplaces archivos que ya funcionan, salvo que un cambio sea estrictamente necesario para integrar ambas pantallas.
+6. Haz que los controles del Dashboard sean funcionales cuando su comportamiento esté respaldado por la evidencia o los requisitos disponibles. No inventes operaciones de negocio ni simules integraciones inexistentes.
+7. Integra la navegación entre Login y Dashboard cuando corresponda. Si el flujo de autenticación real no está disponible, conserva esa limitación explícitamente y no inventes un mecanismo de autenticación.
+8. Asegura que ambas pantallas sean limpias, responsive y coherentes visualmente. No es necesario reproducir exactamente el diseño original.
+9. Compila el proyecto, corrige los errores y ejecuta las pruebas que permitan las herramientas disponibles. Verifica que el Login siga funcionando después de integrar el Dashboard.
+10. Registra la nueva evidencia y documenta el estado de ambas pantallas.
+
+**Restricciones:**
+- No crees un proyecto nuevo.
+- No sobrescribas la implementación funcional del Login.
+- No interactúes mediante automatización con la aplicación original si eso puede modificar su estado.
+- No declares una prueba como exitosa si realmente no se ejecutó.
+
+Al terminar, informa qué archivos agregaste o modificaste, cómo se navega entre las pantallas, qué pruebas se ejecutaron y qué limitaciones siguen pendientes.
