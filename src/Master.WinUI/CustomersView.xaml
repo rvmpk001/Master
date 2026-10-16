@@ -1,0 +1,397 @@
+<UserControl
+    x:Class="Master.WinUI.CustomersView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid
+        x:Name="RootLayout"
+        Background="#FF171A21"
+        Padding="20"
+        RowDefinitions="Auto,Auto,*,Auto"
+        RowSpacing="16">
+        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" ColumnSpacing="12">
+            <StackPanel Spacing="4">
+                <TextBlock
+                    AutomationProperties.AutomationId="lblTituloClientes"
+                    FontSize="28"
+                    FontWeight="SemiBold"
+                    Foreground="#FFF2F4F7"
+                    Text="Administración de Clientes"
+                    TextWrapping="Wrap" />
+                <TextBlock
+                    FontSize="14"
+                    Foreground="#FFB7C0CC"
+                    Text="Mantenimiento integral, filtros, validaciones y exportación en CSV."
+                    TextWrapping="Wrap" />
+            </StackPanel>
+            <Button
+                x:Name="btnVolverDashboard"
+                Grid.Column="1"
+                AutomationProperties.AutomationId="btnVolverDashboard"
+                Content="Volver al Dashboard"
+                Click="OnBackToDashboardClick"
+                VerticalAlignment="Center" />
+        </Grid>
+
+        <Grid
+            x:Name="FilterBar"
+            Grid.Row="1"
+            ColumnDefinitions="2*,1.4*,Auto,Auto,Auto,Auto"
+            ColumnSpacing="8"
+            RowDefinitions="Auto">
+            <TextBox
+                x:Name="txtBuscar"
+                AutomationProperties.AutomationId="txtBuscar"
+                AutomationProperties.Name="Buscar clientes"
+                PlaceholderText="Buscar documento, nombre, teléfono o email"
+                VerticalAlignment="Center" />
+            <Grid
+                Grid.Column="1"
+                MinHeight="72">
+                <TextBlock
+                    HorizontalAlignment="Center"
+                    Foreground="#FFE8ECF2"
+                    Text="Ciudad"
+                    TextAlignment="Center"
+                    VerticalAlignment="Top" />
+                <ComboBox
+                    x:Name="cmbFiltroCiudad"
+                    AutomationProperties.AutomationId="cmbFiltroCiudad"
+                    AutomationProperties.Name="Filtrar por ciudad"
+                    VerticalAlignment="Center" />
+            </Grid>
+            <Button
+                x:Name="btnBuscar"
+                Grid.Column="2"
+                AutomationProperties.AutomationId="btnBuscar"
+                Content="Filtrar"
+                Click="OnFilterClick"
+                VerticalAlignment="Center" />
+            <Button
+                x:Name="btnLimpiarFiltro"
+                Grid.Column="3"
+                AutomationProperties.AutomationId="btnLimpiarFiltro"
+                Content="Todos"
+                Click="OnClearFilterClick"
+                VerticalAlignment="Center" />
+            <Button
+                x:Name="btnExportarCsv"
+                Grid.Column="4"
+                AutomationProperties.AutomationId="btnExportarCsv"
+                Content="Exportar CSV"
+                Click="OnExportCsvClick"
+                VerticalAlignment="Center" />
+            <Button
+                x:Name="btnImportarCsv"
+                Grid.Column="5"
+                AutomationProperties.AutomationId="btnImportarCsv"
+                Content="Importar CSV"
+                Click="OnImportCsvClick"
+                VerticalAlignment="Center" />
+        </Grid>
+
+        <Grid
+            x:Name="ContentLayout"
+            Grid.Row="2"
+            ColumnDefinitions="1.1*,1.2*"
+            ColumnSpacing="16"
+            RowDefinitions="*,*"
+            RowSpacing="16"
+            SizeChanged="OnContentSizeChanged">
+            <Border
+                x:Name="pnlListaClientes"
+                AutomationProperties.AutomationId="pnlListaClientes"
+                Background="#FF252A33"
+                BorderBrush="#FF3B434F"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="14">
+                <Grid RowDefinitions="Auto,Auto,*" RowSpacing="10">
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock
+                            FontSize="18"
+                            FontWeight="SemiBold"
+                            Foreground="#FFF2F4F7"
+                            Text="Clientes" />
+                        <TextBlock
+                            x:Name="lblConteo"
+                            Grid.Column="1"
+                            AutomationProperties.AutomationId="lblConteoClientes"
+                            Foreground="#FFB7C0CC"
+                            VerticalAlignment="Center" />
+                    </Grid>
+                    <Grid
+                        Grid.Row="1"
+                        ColumnDefinitions="52,1.1*,1.2*,1*,1.5*,1*"
+                        ColumnSpacing="8">
+                        <TextBlock Foreground="#FFB7C0CC" Text="ID" />
+                        <TextBlock Grid.Column="1" Foreground="#FFB7C0CC" Text="Documento" />
+                        <TextBlock Grid.Column="2" Foreground="#FFB7C0CC" Text="Nombre" />
+                        <TextBlock Grid.Column="3" Foreground="#FFB7C0CC" Text="Teléfono" />
+                        <TextBlock Grid.Column="4" Foreground="#FFB7C0CC" Text="Email" />
+                        <TextBlock Grid.Column="5" Foreground="#FFB7C0CC" Text="Ciudad" />
+                    </Grid>
+                    <ListView
+                        x:Name="lstClientes"
+                        Grid.Row="2"
+                        AutomationProperties.AutomationId="dgvClientes"
+                        AutomationProperties.Name="Clientes"
+                        IsItemClickEnabled="False"
+                        ScrollViewer.IsVerticalScrollChainingEnabled="False"
+                        ScrollViewer.VerticalScrollMode="Enabled"
+                        SelectionChanged="OnCustomerSelectionChanged"
+                        SelectionMode="Single">
+                        <ListView.ItemTemplate>
+                            <DataTemplate>
+                                <Grid
+                                    ColumnDefinitions="52,1.1*,1.2*,1*,1.5*,1*"
+                                    ColumnSpacing="8"
+                                    Padding="0,6">
+                                    <TextBlock
+                                        Text="{Binding Id}"
+                                        TextTrimming="CharacterEllipsis"
+                                        VerticalAlignment="Center" />
+                                    <TextBlock
+                                        Grid.Column="1"
+                                        Text="{Binding Document}"
+                                        TextTrimming="CharacterEllipsis"
+                                        VerticalAlignment="Center" />
+                                    <TextBlock
+                                        Grid.Column="2"
+                                        Text="{Binding FullName}"
+                                        TextTrimming="CharacterEllipsis"
+                                        VerticalAlignment="Center" />
+                                    <TextBlock
+                                        Grid.Column="3"
+                                        Text="{Binding Phone}"
+                                        TextTrimming="CharacterEllipsis"
+                                        VerticalAlignment="Center" />
+                                    <TextBlock
+                                        Grid.Column="4"
+                                        Text="{Binding Email}"
+                                        TextTrimming="CharacterEllipsis"
+                                        VerticalAlignment="Center" />
+                                    <TextBlock
+                                        Grid.Column="5"
+                                        Text="{Binding City}"
+                                        TextTrimming="CharacterEllipsis"
+                                        VerticalAlignment="Center" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListView.ItemTemplate>
+                    </ListView>
+                </Grid>
+            </Border>
+
+            <Border
+                x:Name="pnlFormulario"
+                Grid.Column="1"
+                AutomationProperties.AutomationId="gbFormulario"
+                Background="#FF252A33"
+                BorderBrush="#FF3B434F"
+                BorderThickness="1"
+                CornerRadius="10"
+                Padding="16">
+                <ScrollViewer
+                    AutomationProperties.AutomationId="customerFormScrollViewer"
+                    IsVerticalScrollChainingEnabled="False"
+                    HorizontalScrollBarVisibility="Disabled"
+                    VerticalScrollMode="Enabled"
+                    VerticalScrollBarVisibility="Auto">
+                    <StackPanel Spacing="12">
+                        <TextBlock
+                            FontSize="18"
+                            FontWeight="SemiBold"
+                            Foreground="#FFF2F4F7"
+                            Text="Detalles del Cliente" />
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <StackPanel Spacing="4">
+                                <TextBlock Foreground="#FFE8ECF2" Text="Documento *" />
+                                <TextBox
+                                    x:Name="txtDocumento"
+                                    MaxLength="20"
+                                    AutomationProperties.AutomationId="txtDocumento" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="4">
+                                <TextBlock Foreground="#FFE8ECF2" Text="Ciudad *" />
+                                <TextBox
+                                    x:Name="txtCiudad"
+                                    MaxLength="80"
+                                    AutomationProperties.AutomationId="cmbCiudad" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <StackPanel Spacing="4">
+                                <TextBlock Foreground="#FFE8ECF2" Text="Nombres *" />
+                                <TextBox
+                                    x:Name="txtNombres"
+                                    MaxLength="100"
+                                    AutomationProperties.AutomationId="txtNombres" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="4">
+                                <TextBlock Foreground="#FFE8ECF2" Text="Apellidos *" />
+                                <TextBox
+                                    x:Name="txtApellidos"
+                                    MaxLength="100"
+                                    AutomationProperties.AutomationId="txtApellidos" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <StackPanel Spacing="4">
+                                <TextBlock Foreground="#FFE8ECF2" Text="Teléfono" />
+                                <TextBox
+                                    x:Name="txtTelefono"
+                                    MaxLength="30"
+                                    AutomationProperties.AutomationId="txtTelefono" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="4">
+                                <TextBlock Foreground="#FFE8ECF2" Text="Email" />
+                                <TextBox
+                                    x:Name="txtEmail"
+                                    MaxLength="100"
+                                    AutomationProperties.AutomationId="txtEmail" />
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="10">
+                            <StackPanel Spacing="4">
+                                <TextBlock Foreground="#FFE8ECF2" Text="Límite de crédito" />
+                                <TextBox
+                                    x:Name="txtLimiteCredito"
+                                    AutomationProperties.AutomationId="nudLimiteCredito"
+                                    Text="5000.00" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="4">
+                                <TextBlock Foreground="#FFE8ECF2" Text="Fecha de nacimiento / constitución" />
+                                <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
+                                    <CheckBox
+                                        x:Name="chkIncluirFecha"
+                                        AutomationProperties.AutomationId="chkIncluirFecha"
+                                        Content="Incluir"
+                                        Checked="OnIncludeDateChanged"
+                                        Unchecked="OnIncludeDateChanged" />
+                                    <DatePicker
+                                        x:Name="dtpFechaNacimiento"
+                                        Grid.Column="1"
+                                        AutomationProperties.AutomationId="dtpFechaNacimiento"
+                                        IsEnabled="False" />
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Foreground="#FFE8ECF2" Text="Dirección" />
+                            <TextBox
+                                x:Name="txtDireccion"
+                                AcceptsReturn="True"
+                                AutomationProperties.AutomationId="rtbDireccion"
+                                MaxLength="200"
+                                MinHeight="64"
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Foreground="#FFE8ECF2" Text="Preferencias de compra" />
+                            <Grid
+                                x:Name="clbPreferencias"
+                                AutomationProperties.AutomationId="clbPreferencias"
+                                ColumnDefinitions="*,*,*"
+                                RowDefinitions="Auto,Auto">
+                                <CheckBox x:Name="chkPrefLaptops" Content="Laptops" />
+                                <CheckBox x:Name="chkPrefMonitores" Grid.Column="1" Content="Monitores" />
+                                <CheckBox x:Name="chkPrefComponentes" Grid.Column="2" Content="Componentes" />
+                                <CheckBox x:Name="chkPrefAlmacenamiento" Grid.Row="1" Content="Almacenamiento" />
+                                <CheckBox x:Name="chkPrefAudio" Grid.Row="1" Grid.Column="1" Content="Audio" />
+                                <CheckBox x:Name="chkPrefRedes" Grid.Row="1" Grid.Column="2" Content="Redes" />
+                            </Grid>
+                        </StackPanel>
+
+                        <Grid ColumnDefinitions="*,*" ColumnSpacing="12">
+                            <CheckBox
+                                x:Name="chkActivo"
+                                AutomationProperties.AutomationId="chkActivo"
+                                Content="Cliente activo"
+                                IsChecked="True" />
+                            <CheckBox
+                                x:Name="chkClienteVip"
+                                Grid.Column="1"
+                                AutomationProperties.AutomationId="chkClienteVip"
+                                Content="Cliente VIP"
+                                IsThreeState="True">
+                                <ToolTipService.ToolTip>
+                                    <ToolTip Content="Estado desconocido para clientes existentes sin clasificación previa." />
+                                </ToolTipService.ToolTip>
+                            </CheckBox>
+                        </Grid>
+
+                        <StackPanel Spacing="4">
+                            <TextBlock Foreground="#FFE8ECF2" Text="Tipo de persona" />
+                            <StackPanel Orientation="Horizontal" Spacing="16">
+                                <RadioButton
+                                    x:Name="rbPersonaFisica"
+                                    AutomationProperties.AutomationId="rbPersonaFisica"
+                                    Content="Persona Física"
+                                    GroupName="TipoPersona" />
+                                <RadioButton
+                                    x:Name="rbPersonaJuridica"
+                                    AutomationProperties.AutomationId="rbPersonaJuridica"
+                                    Content="Persona Jurídica"
+                                    GroupName="TipoPersona" />
+                            </StackPanel>
+                            <TextBlock
+                                FontSize="12"
+                                Foreground="#FFB7C0CC"
+                                Text="Los valores no informados de clientes existentes se mantienen como desconocidos hasta que los clasifiques."
+                                TextWrapping="Wrap" />
+                        </StackPanel>
+
+                        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="8">
+                            <Button
+                                x:Name="btnNuevo"
+                                AutomationProperties.AutomationId="btnNuevo"
+                                Content="Nuevo"
+                                Click="OnNewClick" />
+                            <Button
+                                x:Name="btnGuardar"
+                                Grid.Column="1"
+                                AutomationProperties.AutomationId="btnGuardar"
+                                Content="Guardar"
+                                Click="OnSaveClick" />
+                            <Button
+                                x:Name="btnEliminar"
+                                Grid.Column="2"
+                                AutomationProperties.AutomationId="btnEliminar"
+                                Content="Eliminar"
+                                Click="OnDeleteClick" />
+                            <Button
+                                x:Name="btnCancelar"
+                                Grid.Column="3"
+                                AutomationProperties.AutomationId="btnCancelar"
+                                Content="Cancelar"
+                                Click="OnCancelClick" />
+                        </Grid>
+
+                        <TextBlock
+                            x:Name="lblPersistencia"
+                            AutomationProperties.AutomationId="lblPersistencia"
+                            FontSize="12"
+                            Foreground="#FFB7C0CC"
+                            Text="VIP y tipo de persona se guardan en SQL Server. En clientes existentes, un valor vacío significa que aún no se ha clasificado."
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Grid>
+
+        <InfoBar
+            x:Name="customerStatus"
+            Grid.Row="3"
+            AutomationProperties.AutomationId="customerStatus"
+            IsClosable="True"
+            IsOpen="False"
+            Message=""
+            Title="" />
+    </Grid>
+</UserControl>

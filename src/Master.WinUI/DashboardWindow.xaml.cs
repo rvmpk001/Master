@@ -4,7 +4,6 @@ using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Data.SqlClient;
 using System.Globalization;
-using Windows.Graphics;
 using WinRT.Interop;
 using Master.WinUI.Data;
 
@@ -14,14 +13,28 @@ public sealed partial class DashboardWindow : Window
 {
     private readonly Border[] _kpiCards;
     private readonly DashboardRepository _dashboardRepository;
-    private readonly bool _canReadDatabase;
+    private readonly CustomerRepository _customerRepository;
+    private readonly ProductRepository _productRepository;
+    private readonly AuthenticatedUser _authenticatedUser;
+    private readonly CustomersView _customersView;
+    private readonly ProductsView _productsView;
     private bool _hasLoadedMetrics;
 
-    internal DashboardWindow(DashboardRepository dashboardRepository, bool canReadDatabase)
+    internal event EventHandler? LogoutRequested;
+
+    internal DashboardWindow(
+        DashboardRepository dashboardRepository,
+        CustomerRepository customerRepository,
+        ProductRepository productRepository,
+        AuthenticatedUser authenticatedUser)
     {
         InitializeComponent();
         _dashboardRepository = dashboardRepository;
-        _canReadDatabase = canReadDatabase;
+        _customerRepository = customerRepository;
+        _productRepository = productRepository;
+        _authenticatedUser = authenticatedUser;
+        lblDataMode.Text = "CONECTANDO SQL";
+        lblSubtitulo.Text = $"Sesión: {authenticatedUser.FullName} · {authenticatedUser.Role}.";
 
         _kpiCards =
         [
@@ -32,8 +45,20 @@ public sealed partial class DashboardWindow : Window
         ];
 
         var windowHandle = WindowNative.GetWindowHandle(this);
+        _customersView = new CustomersView(
+            _customerRepository,
+            canAccessDatabase: true,
+            windowHandle: windowHandle);
+        _customersView.BackRequested += (_, _) => ShowDashboard();
+        customersContentHost.Children.Add(_customersView);
+        _productsView = new ProductsView(_productRepository, windowHandle);
+        _productsView.BackRequested += (_, _) => ShowDashboard();
+        customersContentHost.Children.Add(_productsView);
         var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
-        AppWindow.GetFromWindowId(windowId).Resize(new SizeInt32(1100, 700));
+        if (AppWindow.GetFromWindowId(windowId).Presenter is OverlappedPresenter presenter)
+        {
+            presenter.Maximize();
+        }
         ApplyKpiLayout(DashboardContent.ActualWidth);
     }
 
@@ -68,12 +93,19 @@ public sealed partial class DashboardWindow : Window
         switch (item.Tag?.ToString())
         {
             case "dashboard":
-                dashboardStatus.IsOpen = false;
+                ShowDashboard();
                 break;
             case "backToLogin":
-                Close();
+                LogoutRequested?.Invoke(this, EventArgs.Empty);
+                break;
+            case "Clientes":
+                ShowCustomers();
+                break;
+            case "Productos":
+                ShowProducts();
                 break;
             default:
+                ShowDashboard();
                 ShowUnavailableModule(item.Content?.ToString() ?? "Este módulo");
                 break;
         }
@@ -83,34 +115,59 @@ public sealed partial class DashboardWindow : Window
     {
         if (sender is AppBarButton button)
         {
-            ShowUnavailableModule(button.Tag?.ToString() ?? button.Label);
+            if (button.Tag?.ToString() == "Clientes")
+            {
+                ShowCustomers();
+            }
+            else if (button.Tag?.ToString() == "Productos")
+            {
+                ShowProducts();
+            }
+            else
+            {
+                ShowUnavailableModule(button.Tag?.ToString() ?? button.Label);
+            }
         }
+    }
+
+    private void ShowDashboard()
+    {
+        customersContentHost.Visibility = Visibility.Collapsed;
+        _customersView.Visibility = Visibility.Collapsed;
+        _productsView.Visibility = Visibility.Collapsed;
+        DashboardPage.Visibility = Visibility.Visible;
+        dashboardStatus.IsOpen = false;
+        DashboardNavigation.SelectedItem = navDashboard;
+    }
+
+    private void ShowCustomers()
+    {
+        DashboardPage.Visibility = Visibility.Collapsed;
+        customersContentHost.Visibility = Visibility.Visible;
+        _productsView.Visibility = Visibility.Collapsed;
+        _customersView.Visibility = Visibility.Visible;
+        _customersView.ActivateView();
+        DashboardNavigation.SelectedItem = navClientes;
+    }
+
+    private void ShowProducts()
+    {
+        DashboardPage.Visibility = Visibility.Collapsed;
+        customersContentHost.Visibility = Visibility.Visible;
+        _customersView.Visibility = Visibility.Collapsed;
+        _productsView.Visibility = Visibility.Visible;
+        _productsView.ActivateView();
+        DashboardNavigation.SelectedItem = navProductos;
     }
 
     private void OnRefreshClick(object sender, RoutedEventArgs e)
     {
-        if (!_canReadDatabase)
-        {
-            dashboardStatus.Severity = InfoBarSeverity.Informational;
-            dashboardStatus.Title = "Vista previa";
-            dashboardStatus.Message = "Inicia sesión para leer indicadores de SQL Server.";
-            dashboardStatus.IsOpen = true;
-            return;
-        }
-
         _ = LoadMetricsAsync();
     }
 
     private void OnDashboardLoaded(object sender, RoutedEventArgs e)
     {
-        if (!_canReadDatabase)
-        {
-            dashboardStatus.Severity = InfoBarSeverity.Informational;
-            dashboardStatus.Title = "Vista previa sin datos";
-            dashboardStatus.Message = "Inicia sesión para leer indicadores de SQL Server.";
-            dashboardStatus.IsOpen = true;
-        }
-        else if (!_hasLoadedMetrics)
+        if (!_hasLoadedMetrics)
         {
             _ = LoadMetricsAsync();
         }
@@ -128,7 +185,10 @@ public sealed partial class DashboardWindow : Window
             lblValorProductos.Text = metrics.ProductCount.ToString("N0", CultureInfo.CurrentCulture);
             lblValorVentas.Text = metrics.SalesCount.ToString("N0", CultureInfo.CurrentCulture);
             lblValorIngresos.Text = metrics.TotalRevenue.ToString("N2", CultureInfo.CurrentCulture);
-            lblSubtitulo.Text = "Indicadores consultados en la base de datos local.";
+            lblSubtitulo.Text =
+                $"Sesión: {_authenticatedUser.FullName} · {_authenticatedUser.Role}. Indicadores consultados en SQL Server.";
+            RenderMonthlyRevenue(metrics.MonthlyRevenue);
+            lblDataMode.Text = "SQL SERVER ACTUALIZADO";
             dashboardStatus.Severity = InfoBarSeverity.Success;
             dashboardStatus.Title = "Datos actualizados";
             dashboardStatus.Message = "Los indicadores se leyeron desde SQL Server.";
@@ -137,6 +197,14 @@ public sealed partial class DashboardWindow : Window
         }
         catch (SqlException exception)
         {
+            lblDataMode.Text = _hasLoadedMetrics ? "DATOS ANTERIORES" : "ERROR SQL";
+            if (!_hasLoadedMetrics)
+            {
+                salesChart.ItemsSource = null;
+                chartEmptyState.Text = "No se pudieron consultar las ventas en SQL Server.";
+                chartEmptyState.Visibility = Visibility.Visible;
+            }
+
             dashboardStatus.Severity = InfoBarSeverity.Error;
             dashboardStatus.Title = "No se pudo leer SQL Server";
             dashboardStatus.Message = exception.Message;
@@ -148,6 +216,23 @@ public sealed partial class DashboardWindow : Window
         }
     }
 
+    private void RenderMonthlyRevenue(IReadOnlyList<MonthlyRevenue> monthlyRevenue)
+    {
+        var maximum = monthlyRevenue.Max(item => item.Total);
+        salesChart.ItemsSource = monthlyRevenue
+            .Select(item => new RevenueChartBar(
+                item.MonthStart.ToString("MMM", CultureInfo.CurrentCulture)
+                    .ToUpper(CultureInfo.CurrentCulture),
+                maximum > 0
+                    ? Math.Max(3, (double)(item.Total / maximum * 118))
+                    : 3,
+                $"{item.MonthStart.ToString("MMMM yyyy", CultureInfo.CurrentCulture)}: {item.Total:N2}"))
+            .ToList();
+        chartEmptyState.Visibility = monthlyRevenue.Count == 0
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+    }
+
     private void ShowUnavailableModule(string moduleName)
     {
         dashboardStatus.Severity = InfoBarSeverity.Informational;
@@ -155,4 +240,6 @@ public sealed partial class DashboardWindow : Window
         dashboardStatus.Message = $"“{moduleName}” está listado en la aplicación original, pero su pantalla y comportamiento no se han migrado.";
         dashboardStatus.IsOpen = true;
     }
+
+    private sealed record RevenueChartBar(string MonthLabel, double BarHeight, string Description);
 }

@@ -3,7 +3,6 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Data.SqlClient;
-using Windows.Graphics;
 using WinRT.Interop;
 using Master.WinUI.Data;
 
@@ -11,22 +10,36 @@ namespace Master.WinUI;
 
 public sealed partial class MainWindow : Window
 {
+    private static readonly string RememberedUsernamePath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Master.WinUI",
+        "remembered-user.txt");
     private readonly AuthenticationRepository _authenticationRepository;
     private readonly DashboardRepository _dashboardRepository;
-    private DashboardWindow? _dashboardPreview;
-    private bool _dashboardHasDataAccess;
+    private readonly CustomerRepository _customerRepository;
+    private readonly ProductRepository _productRepository;
+    private DashboardWindow? _dashboardWindow;
+    private bool _loadingRememberedUsername;
 
     internal MainWindow(
         AuthenticationRepository authenticationRepository,
-        DashboardRepository dashboardRepository)
+        DashboardRepository dashboardRepository,
+        CustomerRepository customerRepository,
+        ProductRepository productRepository)
     {
         InitializeComponent();
         _authenticationRepository = authenticationRepository;
         _dashboardRepository = dashboardRepository;
+        _customerRepository = customerRepository;
+        _productRepository = productRepository;
+        LoadRememberedUsername();
 
         var windowHandle = WindowNative.GetWindowHandle(this);
         var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
-        AppWindow.GetFromWindowId(windowId).Resize(new SizeInt32(420, 600));
+        if (AppWindow.GetFromWindowId(windowId).Presenter is OverlappedPresenter presenter)
+        {
+            presenter.Maximize();
+        }
     }
 
     private void OnPasswordVisibilityChanged(object sender, RoutedEventArgs e)
@@ -96,14 +109,20 @@ public sealed partial class MainWindow : Window
                 return;
             }
 
+            var rememberError = UpdateRememberedUsername(
+                chkRecordar.IsChecked == true,
+                username);
             ShowLoginStatus(
-                InfoBarSeverity.Success,
-                "Autenticación correcta",
-                $"Sesión iniciada para {user.FullName} ({user.Role}).");
+                rememberError is null ? InfoBarSeverity.Success : InfoBarSeverity.Warning,
+                rememberError is null ? "Autenticación correcta" : "Sesión iniciada",
+                rememberError is null
+                    ? $"Sesión iniciada para {user.FullName} ({user.Role})."
+                    : $"Sesión iniciada para {user.FullName} ({user.Role}), pero no se pudo guardar la preferencia: {rememberError}");
             txtPassword.Password = string.Empty;
             txtPasswordVisible.Text = string.Empty;
             mtxtPin.Text = string.Empty;
-            OpenDashboard(allowDataAccess: true);
+            OpenDashboard(user);
+            Close();
         }
         catch (SqlException exception)
         {
@@ -118,15 +137,11 @@ public sealed partial class MainWindow : Window
         }
     }
 
-    private void OnDashboardPreviewClick(object sender, RoutedEventArgs e)
-    {
-        OpenDashboard(allowDataAccess: false);
-    }
-
     private void OnCancelClick(object sender, RoutedEventArgs e)
     {
         var keepUser = chkRecordar.IsChecked == true;
         var rememberedUser = keepUser ? txtUsuario.Text : string.Empty;
+        var rememberError = UpdateRememberedUsername(keepUser, rememberedUser);
 
         txtUsuario.Text = rememberedUser;
         if (chkVerPassword.IsChecked == true)
@@ -137,39 +152,150 @@ public sealed partial class MainWindow : Window
         txtPassword.Password = string.Empty;
         txtPasswordVisible.Text = string.Empty;
         mtxtPin.Text = string.Empty;
-        chkRecordar.IsChecked = false;
         txtPassword.Visibility = Visibility.Visible;
         txtPasswordVisible.Visibility = Visibility.Collapsed;
 
         formStatus.Severity = InfoBarSeverity.Informational;
         formStatus.Title = "Formulario cancelado";
-        formStatus.Message = keepUser
-            ? "Se limpiaron la contraseña y el PIN. El usuario se conserva solo en esta ventana; no se guardó ni envió información."
-            : "Se limpiaron los campos de esta ventana; no se guardó ni envió información.";
+        formStatus.Message = rememberError is not null
+            ? $"Se limpiaron la contraseña y el PIN, pero no se pudo actualizar el usuario guardado: {rememberError}"
+            : keepUser
+                ? "Se limpiaron la contraseña y el PIN. El usuario se guardó localmente; no se guardó ni envió información a SQL Server."
+                : "Se limpiaron los campos y se eliminó el usuario guardado localmente; no se guardó ni envió información a SQL Server.";
         formStatus.IsOpen = true;
     }
 
-    private void OpenDashboard(bool allowDataAccess)
+    private void OnRememberUserChanged(object sender, RoutedEventArgs e)
     {
-        if (_dashboardPreview is not null)
+        if (_loadingRememberedUsername)
         {
-            if (!allowDataAccess || _dashboardHasDataAccess)
-            {
-                _dashboardPreview.Activate();
-                return;
-            }
-
-            _dashboardPreview.Close();
+            return;
         }
 
-        _dashboardPreview = new DashboardWindow(_dashboardRepository, allowDataAccess);
-        _dashboardHasDataAccess = allowDataAccess;
-        _dashboardPreview.Closed += (_, _) =>
+        if (chkRecordar.IsChecked == true && string.IsNullOrWhiteSpace(txtUsuario.Text))
         {
-            _dashboardPreview = null;
-            _dashboardHasDataAccess = false;
+            return;
+        }
+
+        var error = UpdateRememberedUsername(
+            chkRecordar.IsChecked == true,
+            txtUsuario.Text);
+        if (error is not null)
+        {
+            ShowLoginStatus(InfoBarSeverity.Error, "No se pudo guardar la preferencia", error);
+        }
+    }
+
+    private void LoadRememberedUsername()
+    {
+        _loadingRememberedUsername = true;
+        try
+        {
+            if (File.Exists(RememberedUsernamePath))
+            {
+                var username = File.ReadAllText(RememberedUsernamePath);
+                username = username.Trim();
+                if (username.Length <= 50)
+                {
+                    txtUsuario.Text = username;
+                    chkRecordar.IsChecked = true;
+                }
+                else
+                {
+                    formStatus.Severity = InfoBarSeverity.Warning;
+                    formStatus.Title = "Preferencia ignorada";
+                    formStatus.Message = "El usuario guardado supera el límite admitido y no se cargó.";
+                    formStatus.IsOpen = true;
+                }
+            }
+        }
+        catch (IOException exception)
+        {
+            ShowLoginStatus(InfoBarSeverity.Error, "No se pudo leer la preferencia", exception.Message);
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            ShowLoginStatus(InfoBarSeverity.Error, "No se pudo leer la preferencia", exception.Message);
+        }
+        finally
+        {
+            _loadingRememberedUsername = false;
+        }
+    }
+
+    private static string? UpdateRememberedUsername(bool remember, string username)
+    {
+        try
+        {
+            if (!remember)
+            {
+                if (File.Exists(RememberedUsernamePath))
+                {
+                    File.Delete(RememberedUsernamePath);
+                }
+
+                return null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(username))
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(RememberedUsernamePath)!);
+                File.WriteAllText(RememberedUsernamePath, username.Trim());
+            }
+
+            return null;
+        }
+        catch (IOException exception)
+        {
+            return exception.Message;
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            return exception.Message;
+        }
+    }
+
+    private void OnUsernameLostFocus(object sender, RoutedEventArgs e)
+    {
+        if (chkRecordar.IsChecked != true || string.IsNullOrWhiteSpace(txtUsuario.Text))
+        {
+            return;
+        }
+
+        var error = UpdateRememberedUsername(remember: true, txtUsuario.Text);
+        if (error is not null)
+        {
+            ShowLoginStatus(InfoBarSeverity.Error, "No se pudo guardar la preferencia", error);
+        }
+    }
+
+    private void OpenDashboard(AuthenticatedUser authenticatedUser)
+    {
+        if (_dashboardWindow is not null)
+        {
+            _dashboardWindow.Activate();
+            return;
+        }
+
+        var dashboardWindow = new DashboardWindow(
+            _dashboardRepository,
+            _customerRepository,
+            _productRepository,
+            authenticatedUser);
+        _dashboardWindow = dashboardWindow;
+        dashboardWindow.LogoutRequested += (_, _) =>
+        {
+            ((App)Application.Current).ShowLogin();
+            dashboardWindow.Close();
         };
-        _dashboardPreview.Activate();
+        dashboardWindow.Closed += (_, _) =>
+        {
+            if (ReferenceEquals(_dashboardWindow, dashboardWindow))
+            {
+                _dashboardWindow = null;
+            }
+        };
+        dashboardWindow.Activate();
     }
 
     private void ShowLoginStatus(InfoBarSeverity severity, string title, string message)

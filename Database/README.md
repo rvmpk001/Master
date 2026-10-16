@@ -6,7 +6,8 @@
 - La configuración local verificada es `.\SQLEXPRESS` / `DemoShowcaseDB` y usa autenticación integrada de Windows. La base no existía al inspeccionarla; se creó después de la autorización explícita del usuario.
 - La identidad de Windows que ejecuta la aplicación necesita permisos de lectura sobre `dbo.Usuarios`, `dbo.Clientes`, `dbo.Productos` y `dbo.Ventas`. No se crean usuarios ni se conceden permisos desde la aplicación.
 - El código no crea bases, tablas ni ejecuta scripts al iniciar.
-- Los KPIs cuentan todas las filas de clientes, productos y ventas, y suman `Ventas.Total` sin filtrar `Activo` ni `Estado`; el esquema no define qué estados deben excluirse del total.
+- La conexión de solo lectura se verificó: 20 clientes, 51 productos y 40 ventas.
+- Los KPIs cuentan todas las filas de clientes, productos y ventas y suman `Ventas.Total` sin filtrar `Activo` ni `Estado`. La serie mensual se agrupa por `Ventas.FechaVenta` durante los últimos 12 meses.
 
 ## Script inicial
 
@@ -24,8 +25,14 @@ La instancia consultada no tenía una base preexistente que comparar. Una futura
 
 La ejecución por `sqlcmd` también dejó al menos un texto acentuado con codificación incorrecta: en el producto `CMP-003`, el carácter que debería ser `á` se almacenó como U+00C3 (`Ã`). No se repararon datos. Antes de usar los registros de demostración, hay que revisar el resto de las cadenas sembradas y aprobar una corrección incremental separada; volver a ejecutar el instalador no las corrige.
 
+## Migración de clientes
+
+`Scripts/Migrations/20261015_AddCustomerProfileFields.sql` agrega `EsVip BIT NULL` y `TipoPersona NVARCHAR(20) NULL` y una restricción que admite `Fisica` o `Juridica`. Es incremental e idempotente, exige ejecutarse dentro de `DemoShowcaseDB` y no asigna valores a los registros existentes: esos datos históricos permanecen desconocidos (`NULL`) hasta que se clasifiquen desde la interfaz.
+
+La migración se ejecutó después de la autorización explícita del usuario y se volvió a ejecutar para comprobar su idempotencia. No insertó, actualizó ni eliminó registros de clientes. El código de la aplicación no ejecuta migraciones automáticamente.
+
 ## Autenticación y cifrado
 
 La cadena local usa `Integrated Security=True`: SQL Server autoriza a la cuenta de Windows que ejecuta el proceso, que es distinta de los usuarios de aplicación de `dbo.Usuarios`. `TrustServerCertificate=True` se deja configurado para la instancia local cuyo certificado no está en la cadena de confianza del equipo. Para otro entorno, instale/configure un certificado confiable y desactive esa opción.
 
-El esquema no tiene campos ni tabla para PIN/2FA, metas mensuales o series temporales de ventas. Esas funcionalidades no se simulan en la aplicación.
+El esquema no tiene campos ni tabla para PIN/2FA ni una meta mensual. La gráfica no inventa una meta: consulta los importes existentes de `Ventas` por mes. No hay una columna de moneda, por lo que el Dashboard no atribuye una divisa a los importes.

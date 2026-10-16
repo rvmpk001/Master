@@ -123,8 +123,20 @@ demuestran el comportamiento resultante de invocarlos. La herramienta MCP
 - Interfaz y comportamiento: [`MainWindow.xaml`](../../src/Master.WinUI/MainWindow.xaml) y [`MainWindow.xaml.cs`](../../src/Master.WinUI/MainWindow.xaml.cs).
 - Se conservan las etiquetas, los Automation IDs y los controles principales. El usuario y el PIN usan `TextBox`; la contraseña alterna entre `PasswordBox` y texto visible, sincronizando su contenido en memoria.
 - El formulario usa columnas flexibles, un ancho máximo, controles que se estiran y `ScrollViewer` vertical. La inspección confirma que los controles caben horizontalmente a 360 DIP, el panel queda centrado en una ventana ancha y el desplazamiento permite alcanzar ambos botones.
-- `Cancelar` es una adaptación local: borra contraseña y PIN y, si `Recordar usuario` está marcado, conserva el usuario solo en la ventana actual; si está desmarcado, borra también el usuario. No se escribe información a disco.
-- `Ingresar al Sistema` muestra un aviso explícito de que no hay servicio de autenticación y que no se validaron ni enviaron datos. No se inventaron autenticación ni reglas de validación.
+- `Recordar usuario` almacena solamente el nombre de usuario en `%LocalAppData%\Master.WinUI\remembered-user.txt`; nunca almacena la contraseña. Desmarcarlo elimina esa preferencia.
+- `Cancelar` borra contraseña y PIN; conserva el usuario solo si `Recordar usuario` está marcado.
+- `Ingresar al Sistema` valida las credenciales reales contra `dbo.Usuarios` usando el repositorio existente. En la ejecución del 2026-10-16 se observó la apertura del Dashboard WinUI después de que el usuario proporcionó datos para la prueba; no se registraron los valores en la evidencia ni en esta documentación.
+- En la ejecución del 2026-10-16, la ventana Login generada se abrió y
+  respondió. UI Automation invocó «Ingresar al Sistema» sin valores de usuario
+  ni contraseña y observó el estado «Datos requeridos»; no se enviaron
+  credenciales ni se inició una llamada de autenticación. Después, al
+  proporcionarse datos de prueba, el proceso WinUI abrió el Dashboard, lo que
+  confirma el flujo de autenticación configurado en esta aplicación.
+- Tras una autenticación correcta se abre el Dashboard y se cierra la ventana de Login; si luego se cierra el Dashboard, se crea un nuevo Login. Los errores de autenticación o conexión mantienen el Login disponible.
+- La ventana Login inicia maximizada; el Dashboard también se maximiza al abrirse tras una autenticación correcta.
+- El campo PIN se conserva por compatibilidad visual, pero no se acepta para autenticar: el esquema no implementa 2FA.
+- El Dashboard solo se abre tras autenticar correctamente contra `dbo.Usuarios`;
+  se eliminó la entrada de vista previa sin autenticación.
 - Evidencia UIA de origen reutilizada: [`evidence/ui-inspection/window-525482-20261014-094639.json`](../../evidence/ui-inspection/window-525482-20261014-094639.json), JSON válido, 18 nodos, sin truncamiento. La ventana original no figuraba en las ventanas visibles durante esta ejecución y su PID anterior ya no estaba activo; no se inició ni se manipuló. La evidencia corresponde a la inspección anterior y no a una nueva captura del origen.
 - Evidencia WinUI ejecutada después de la compilación final: [`evidence/ui-inspection/window-2950106-20261014-125904.json`](../../evidence/ui-inspection/window-2950106-20261014-125904.json), JSON válido, 15 nodos, sin truncamiento; [`evidence/ui/SCR-001-login-winui-final-build.png`](../../evidence/ui/SCR-001-login-winui-final-build.png), captura real en estado inicial, `630×900` píxeles.
 - Compilación: correcta con Visual Studio MSBuild 18, `x64/Debug`, sin errores.
@@ -133,19 +145,18 @@ demuestran el comportamiento resultante de invocarlos. La herramienta MCP
 
 | Prueba | Estado | Resultado observado |
 |---|---|---|
-| Abrir la ventana WinUI generada | Correcta | Proceso activo y ventana respondiendo. |
-| Escribir y editar usuario y PIN de prueba | Correcta | Los campos conservaron los cambios. |
-| Mostrar, ocultar y volver a mostrar la contraseña de prueba | Correcta | Se conservó al alternar; el contenido no se incluyó en logs ni evidencias. |
-| Activar y desactivar `Recordar usuario` | Correcta | El estado del checkbox cambió. |
-| Ingresar | Correcta (aviso local) | Se mostró que no existe backend; no se informó autenticación exitosa ni se enviaron datos. |
-| Cancelar con `Recordar usuario` marcado | Correcta | Se borraron contraseña y PIN, y se conservó el usuario en la ventana. |
-| Cancelar con `Recordar usuario` desmarcado | Correcta | Se borraron los campos, incluido el usuario. |
-| Redimensionar estrecho y ancho | Correcta | Sin desbordamiento horizontal; a tamaño estrecho se accedió a las acciones mediante desplazamiento; el panel quedó centrado en ancho grande. |
-| Autenticación real / integración con backend | Bloqueada | No hay servicio ni configuración disponibles; no se intentó conectar a sistemas externos. |
+| Abrir la ventana WinUI generada | Correcta | Proceso activo; la ventana respondió y la inspección UIA guardada quedó sin truncamiento. |
+| Login vacío | Correcta | UI Automation invocó el botón en la app generada y observó el aviso «Datos requeridos»; no se conectó a SQL. |
+| Abrir Dashboard sin autenticación | Retirada | Se eliminó el botón de acceso directo; el Dashboard ahora requiere un `AuthenticatedUser`. |
+| Login → Dashboard tras autenticación con datos de prueba proporcionados por el usuario | Correcta | Se observó que el proceso WinUI pasó de la ventana Login a `Enterprise Suite - Dashboard`; los valores de prueba no se guardaron en evidencia ni documentación. |
+| Escribir/mostrar contraseña y recordar usuario | No ejecutada en esta actualización | Las pruebas históricas preceden a la nueva preferencia local; no se usaron credenciales ni se alteraron preferencias preexistentes. |
+| Autenticación real / navegación autenticada | Correcta | Se observó el Dashboard después de la autenticación configurada; no se registraron los datos usados. |
+| Conexión de solo lectura a la base configurada | Correcta | SQL Server respondió en `DemoShowcaseDB`; se verificaron conteos agregados de clientes, productos y ventas. |
 | Comportamiento de la ventana original | No ejecutada | No se interactuó con la aplicación WinForms ni se conocían sus manejadores. |
 
 ## Limitaciones
 
 - No se pudo obtener una inspección en vivo nueva del origen porque su ventana no estaba abierta. Los resultados y la réplica se basan en la evidencia UIA previamente guardada.
 - El árbol UIA no contiene la imagen original del logotipo ni colores de píxel; `WCS` continúa como marca tipográfica aproximada.
-- La autenticación, la persistencia tras cerrar la ventana y las reglas de validación del PIN siguen sin determinarse. La selección de recordar usuario solo afecta el borrado local en la ventana actual.
+- Las reglas para bloquear cuentas, autorizar roles y validar PIN/2FA no están definidas por el esquema. La autenticación real requiere credenciales válidas de `dbo.Usuarios`.
+- La preferencia local guarda solo el nombre de usuario, sin cifrarlo; no almacena contraseñas.

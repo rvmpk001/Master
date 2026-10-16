@@ -1,27 +1,354 @@
-Ejecuta el skill `windows-legacy-discovery` desde su versión actualizada en `.github/skills/windows-legacy-discovery/SKILL.md`.
+# Generación de aplicaciones Windows con WinUI 3, C# y .NET a partir de aplicaciones heredadas
 
-Quiero generar la primera pantalla de una aplicación Windows heredada, creando una interfaz WinUI 3 con C# y .NET.
+Ejecuta el skill `windows-legacy-discovery` utilizando su versión actualizada en `.github/skills/windows-legacy-discovery/SKILL.md`.
 
-Sigue el flujo completo definido en el skill:
+El objetivo es inspeccionar una aplicación Windows heredada y generar una implementación funcional en **WinUI 3, C# y .NET**, siguiendo las herramientas, los procedimientos y las convenciones establecidos en el skill.
 
-1. **Detectar:** identifica las ventanas disponibles y determina cuál debe inspeccionarse. Si hay varias y no puedes identificar la correcta, solicítame que la deje visible o que la confirme.
-2. **Inspeccionar:** utiliza las herramientas Windows UI Automation definidas en el skill para obtener los controles, etiquetas, tipos, propiedades y estructura disponibles.
-3. **Guardar evidencia:** genera los archivos de evidencia y documentación en las rutas establecidas por el skill.
-4. **Analizar:** identifica los controles y sus comportamientos. Distingue entre comportamiento confirmado, inferido y pendiente de validar. No inventes reglas de negocio.
-5. **Generar la interfaz:** crea la pantalla en WinUI 3 con C# y .NET, utilizando una estructura limpia, mantenible y responsive.
-6. **Implementar funcionalidad:** los botones, campos de texto, checkboxes, listas y demás controles deben tener un comportamiento real cuando esté respaldado por la evidencia o los requisitos disponibles. No te limites a crear una interfaz visual estática.
-7. **Compilar:** compila el proyecto y corrige los errores encontrados.
-8. **Ejecutar y verificar:** ejecuta la aplicación generada y comprueba las interacciones mediante las herramientas disponibles. No declares pruebas exitosas si no se ejecutaron realmente.
-9. **Documentar:** registra los archivos generados, las funcionalidades implementadas, los resultados de las pruebas y las limitaciones pendientes.
+No te limites a reproducir visualmente la pantalla original. Genera una aplicación moderna, funcional, responsive, mantenible y con una experiencia de usuario coherente entre todas sus ventanas.
 
-**Criterios importantes:**
+## 1. Lectura del skill e inspección inicial del proyecto
 
-- Si no existe un proyecto, créalo. Si ya existe uno, inspecciónalo antes de modificarlo.
-- La prioridad es la funcionalidad, no la reproducción exacta del diseño original.
-- La interfaz debe verse bien, tener etiquetas legibles y adaptarse a distintos tamaños de ventana.
-- No dejes controles sin comportamiento definido ni inventes operaciones que dependan de servicios o backends inexistentes.
-- No interactúes con la aplicación original mediante acciones que puedan modificar su estado.
-- No sobrescribas archivos o implementaciones existentes sin una justificación clara.
-- Ejecuta las acciones con las herramientas disponibles en el entorno; no te limites a describir lo que habría que hacer.
+1. Lee el archivo completo `.github/skills/windows-legacy-discovery/SKILL.md` antes de ejecutar acciones.
+2. Sigue sus instrucciones y utiliza las herramientas de inspección y automatización de Windows UI Automation que estén disponibles en el entorno.
+3. Inspecciona la estructura del repositorio, la solución, los proyectos existentes, sus dependencias, sus configuraciones y las implementaciones relacionadas.
+4. Si el proyecto ya existe, conserva su arquitectura y reutiliza los componentes que sean adecuados. No reemplaces código funcional sin una justificación técnica.
+5. Si no existe un proyecto WinUI 3, créalo con una estructura limpia y compatible con las herramientas instaladas.
+6. Identifica las ventanas de la aplicación heredada. Si no puedes determinar con certeza cuál debe inspeccionarse, solicita que el usuario la deje visible o confirme la ventana correcta.
+7. No inventes información sobre el skill, sus herramientas ni los resultados de las inspecciones. Si falta una herramienta o un requisito previo, documenta la limitación.
 
-Al finalizar, presenta un resumen de la pantalla generada, los archivos creados, el resultado de la compilación, las pruebas funcionales ejecutadas y cualquier limitación pendiente.
+## 2. Inspección y documentación de la ventana original
+
+Utiliza las herramientas indicadas por el skill para identificar y registrar:
+
+- Nombre y propósito de la ventana.
+- Controles existentes y sus tipos.
+- Etiquetas, textos, valores y propiedades accesibles.
+- Jerarquía y agrupación de los controles.
+- Botones, campos, listas, tablas, casillas de verificación, menús y demás elementos.
+- Acciones e interacciones observables.
+- Relaciones entre controles y ventanas.
+- Validaciones, mensajes y estados que puedan confirmarse.
+- Dependencias de servicios externos o bases de datos, cuando exista evidencia disponible.
+
+Guarda las evidencias y la documentación en las rutas establecidas por el skill.
+
+Clasifica los hallazgos como:
+
+- **Confirmado:** observado directamente o respaldado por evidencia verificable.
+- **Inferido:** deducido razonablemente a partir de la estructura o el comportamiento observado.
+- **Pendiente de validar:** requiere información adicional o una prueba que todavía no se ha ejecutado.
+
+No presentes comportamientos inferidos como si estuvieran confirmados. No inventes reglas de negocio, consultas, operaciones de base de datos ni integraciones inexistentes.
+
+No realices acciones sobre la aplicación original que puedan modificar datos, guardar cambios, eliminar registros, enviar transacciones o alterar su estado de negocio.
+
+## 3. Reglas obligatorias de ventanas y dimensiones
+
+Estas reglas se deben aplicar a todas las ventanas de la aplicación nueva, incluidas las ventanas principales, secundarias, de consulta, de edición y de autenticación, cuando corresponda.
+
+### 3.1. Apertura maximizada
+
+- Todas las ventanas funcionales deben abrirse maximizadas por defecto.
+- Implementa el comportamiento utilizando los mecanismos compatibles con WinUI 3 y el ciclo de vida real de las ventanas.
+- No confundas una ventana maximizada con una ventana que simplemente tiene un tamaño grande.
+- Evita mostrar brevemente una ventana pequeña antes de maximizarla, siempre que la arquitectura y el ciclo de vida permitan controlarlo.
+- Respeta las limitaciones específicas de las ventanas modales, los diálogos y las ventanas auxiliares del sistema cuando maximizar no sea apropiado.
+- Conserva la posibilidad de restaurar o redimensionar las ventanas cuando corresponda, sin perder la adaptabilidad de su contenido.
+- Si una ventana necesita dimensiones especiales por razones funcionales, documenta la excepción y su justificación.
+
+### 3.2. Diseño responsive
+
+Todas las pantallas deben adaptarse correctamente a distintos tamaños de ventana, resoluciones, escalas de pantalla y configuraciones de DPI.
+
+Implementa un diseño responsive real utilizando los mecanismos adecuados de WinUI 3, como `Grid`, `StackPanel`, `RelativePanel`, `AdaptiveTrigger`, `VisualStateManager`, `ScrollViewer` y otros recursos apropiados según el caso.
+
+Requisitos:
+
+- Evita posiciones absolutas y dimensiones rígidas cuando puedan provocar desbordamientos o desalineaciones.
+- Utiliza filas, columnas, márgenes, espaciados y tamaños flexibles.
+- Define tamaños mínimos razonables para las ventanas.
+- Evita que los controles se superpongan, queden cortados o desaparezcan al cambiar el tamaño.
+- Permite desplazamiento cuando el contenido no quepa vertical u horizontalmente.
+- Mantén los formularios legibles y organizados en pantallas pequeñas.
+- Adapta el número de columnas, la disposición de los campos y el tamaño de las áreas de contenido cuando sea necesario.
+- Evita barras de desplazamiento innecesarias en resoluciones normales.
+- No utilices el tamaño maximizado como sustituto de un diseño responsive.
+
+### 3.3. Alineación y composición visual
+
+La interfaz debe mantener una apariencia profesional, equilibrada y consistente en todas las resoluciones.
+
+- Alinea correctamente los controles relacionados entre sí.
+- Centra los elementos cuando el diseño lo requiera, sin centrar indiscriminadamente toda la interfaz.
+- Mantén alineaciones consistentes entre etiquetas, campos, botones, iconos y encabezados.
+- Utiliza márgenes y espaciados uniformes.
+- Organiza los controles en grupos visuales con una jerarquía clara.
+- Mantén anchos coherentes para los campos de un mismo formulario.
+- Alinea los botones de acción de forma consistente.
+- Evita elementos desplazados, tamaños arbitrarios, espacios vacíos excesivos y distribuciones visualmente desequilibradas.
+- Usa tipografías legibles, tamaños consistentes, contraste adecuado y los recursos visuales propios de WinUI 3.
+- Respeta el tema y los colores del sistema cuando corresponda.
+- Utiliza los controles nativos de WinUI 3 siempre que sean apropiados.
+- No sacrifiques la usabilidad para imitar exactamente la distribución de la aplicación heredada.
+
+Antes de finalizar, inspecciona visualmente cada ventana en los tamaños de pantalla disponibles y corrige los problemas detectados.
+
+## 4. Menú lateral y navegación
+
+Cuando la aplicación utilice un menú lateral izquierdo, implementa un comportamiento consistente en todas las ventanas que compartan la navegación principal.
+
+### Estado inicial
+
+- El menú lateral debe comenzar contraído por defecto.
+- En estado contraído debe mostrar los iconos de navegación y las indicaciones visuales necesarias.
+- Incluye información accesible para identificar cada opción, por ejemplo, mediante `ToolTipService` y nombres accesibles.
+- El estado inicial contraído no debe impedir que el usuario identifique o utilice las opciones.
+
+### Estado expandido
+
+- Al expandirse, el menú debe ocupar únicamente el ancho necesario para mostrar los iconos y las etiquetas.
+- Evita que el menú ocupe una proporción excesiva de la ventana.
+- Utiliza un ancho compacto y razonable, adaptado al contenido.
+- No permitas que el menú reduzca innecesariamente el área útil de trabajo.
+- Define transiciones suaves y consistentes cuando sean apropiadas.
+- Conserva una alineación uniforme de iconos y etiquetas.
+- En resoluciones pequeñas, considera una presentación adaptativa que no oculte el contenido principal.
+
+### Navegación
+
+- Todas las opciones deben conducir a su destino real cuando la funcionalidad esté implementada.
+- Mantén una jerarquía de navegación clara.
+- Resalta la opción correspondiente a la pantalla activa.
+- Evita duplicar ventanas de una misma pantalla cuando la intención sea navegar dentro de la aplicación.
+- Mantén la coherencia del menú, los encabezados, los botones de regreso y las acciones de navegación.
+- No crees opciones que parezcan funcionales si no tienen un destino o un comportamiento definido.
+
+## 5. Autenticación, login y ciclo de vida de las ventanas
+
+Este apartado es obligatorio cuando la aplicación utiliza autenticación.
+
+### 5.1. Inicio de sesión
+
+- El login debe mostrarse al iniciar la aplicación únicamente cuando no exista una sesión válida, según las reglas de autenticación implementadas.
+- Valida las credenciales mediante el servicio o la base de datos realmente disponibles en el proyecto.
+- No consideres válida una autenticación solo porque el usuario haya introducido datos o pulsado el botón de acceso.
+- Si el backend confirma el acceso, establece el estado de sesión y permite el acceso al dashboard o a la ventana principal.
+- Si las credenciales son incorrectas o el servicio falla, permanece en el login y muestra un mensaje claro y apropiado.
+- No simules una validación contra la base de datos si no existe una integración real.
+- No almacenes contraseñas en texto plano ni incluyas credenciales reales en el código fuente.
+
+### 5.2. Cierre del login después de una autenticación correcta
+
+Una vez que la autenticación haya sido confirmada correctamente por el backend o la base de datos:
+
+1. Establece el estado de sesión autenticada.
+2. Crea y prepara la ventana principal o el dashboard.
+3. Muestra la ventana principal en su estado inicial maximizado.
+4. Comprueba que la ventana principal se haya creado y pueda mostrarse correctamente.
+5. Cierra definitivamente la ventana de login.
+6. Evita mantener la ventana de login oculta como una ventana independiente que pueda reaparecer accidentalmente.
+
+La transición debe evitar que ambas ventanas queden visibles simultáneamente o que se produzcan parpadeos innecesarios.
+
+Si la creación de la ventana principal falla, gestiona el error sin dejar la aplicación en un estado inconsistente ni perder innecesariamente la posibilidad de autenticarse.
+
+### 5.3. Cierre de ventanas y prevención de la reaparición del login
+
+Este requisito es crítico:
+
+- El login no debe reaparecer automáticamente cuando se cierre una ventana secundaria.
+- El login no debe reaparecer cuando se cierre el dashboard o la ventana principal.
+- El login no debe reaparecer por eventos de cierre, navegación, cambios de foco o destrucción de otras ventanas.
+- No debe existir lógica global que abra el login simplemente porque una ventana se haya cerrado.
+- El cierre de una ventana secundaria debe afectar únicamente a esa ventana, salvo que exista una regla de negocio explícita.
+- El cierre de la ventana principal debe finalizar la aplicación de forma controlada cuando esa sea la ventana raíz de la sesión.
+- Si se cierra la ventana principal, cierra o libera correctamente las ventanas secundarias que dependan de ella y termina la aplicación según su política de ciclo de vida.
+- Si el usuario cierra la ventana de login antes de autenticarse, finaliza el proceso de inicio de forma limpia.
+- No reabras el login automáticamente después de un cierre voluntario de la aplicación.
+
+### 5.4. Arquitectura recomendada para la sesión
+
+Centraliza el estado de autenticación y la gestión del ciclo de vida en componentes responsables, como un servicio de sesión, un servicio de navegación y un coordinador de ventanas, según la arquitectura del proyecto.
+
+Evita que cada ventana gestione de forma independiente la autenticación o decida abrir el login.
+
+Define explícitamente:
+
+- Cuál es la ventana inicial.
+- Cuál es la ventana raíz de la sesión autenticada.
+- Qué ventanas son secundarias.
+- Qué ocurre al cerrar cada tipo de ventana.
+- Cómo se gestionan los errores de inicialización.
+- Cómo se termina la aplicación.
+- Cómo se gestiona una expiración de sesión, si el sistema realmente la contempla.
+
+Si la sesión expira o el servidor rechaza una sesión previamente válida, sigue la política de seguridad existente. Solo en ese caso, y si está previsto por los requisitos, se debe solicitar autenticación nuevamente.
+
+No confundas el cierre de una ventana con la expiración de una sesión.
+
+## 6. Integración y coherencia entre todas las pantallas
+
+La aplicación debe funcionar como un sistema integrado y no como un conjunto de pantallas independientes.
+
+- Define una estructura de navegación común.
+- Reutiliza estilos, recursos, componentes y patrones de interfaz.
+- Mantén coherencia en encabezados, menús, botones, mensajes, formularios y acciones.
+- Centraliza la navegación y el manejo de ventanas cuando sea apropiado.
+- Utiliza una arquitectura mantenible, preferentemente MVVM cuando aporte valor al proyecto.
+- Separa la interfaz, la lógica de presentación, las reglas de negocio y el acceso a datos.
+- Evita duplicar lógica entre ventanas.
+- Comparte el estado que deba mantenerse consistente entre pantallas.
+- Define claramente el comportamiento de los botones de regresar, cancelar, guardar, cerrar y navegar.
+- Evita crear varias instancias de servicios que deban compartir estado.
+- Mantén una gestión coherente de errores, carga, confirmaciones y mensajes al usuario.
+- Conserva los datos de trabajo al navegar cuando corresponda y cuando esté respaldado por los requisitos.
+- Gestiona correctamente la apertura y el cierre de ventanas secundarias, diálogos y formularios.
+- Evita dependencias circulares entre ventanas y servicios.
+
+No implementes operaciones de negocio inventadas. Cuando falte un backend, una consulta o una regla necesaria, crea una abstracción adecuada si aporta valor y documenta lo que falta, sin simular que la operación se ha completado realmente.
+
+## 7. Generación de la interfaz y funcionalidad
+
+Implementa la pantalla inspeccionada y todos los comportamientos respaldados por la evidencia o por los requisitos explícitos.
+
+Cada control interactivo debe tener un comportamiento definido.
+
+Ejemplos:
+
+- Botones: ejecutar la acción correspondiente o indicar claramente que aún no está disponible.
+- Campos de texto: aceptar entradas, aplicar las validaciones conocidas y presentar mensajes de error útiles.
+- Contraseñas: ocultar el contenido sensible y utilizar mecanismos seguros de autenticación.
+- Checkboxes: mantener y reflejar su estado correctamente.
+- Listas y tablas: presentar los datos reales disponibles y responder a la selección.
+- Formularios: validar los datos antes de ejecutar operaciones.
+- Botones de guardar o eliminar: utilizar las operaciones reales disponibles y solicitar confirmación cuando sea apropiado.
+- Navegación: abrir la pantalla correcta sin generar ventanas duplicadas accidentalmente.
+
+No conectes controles a acciones ficticias ni muestres mensajes de éxito si la operación no se ha realizado.
+
+Si una funcionalidad depende de un servicio no disponible, identifica el punto de integración pendiente y documenta la limitación.
+
+## 8. Calidad del código y estructura del proyecto
+
+- Utiliza C# y WinUI 3 compatibles con la versión de .NET del proyecto.
+- Mantén una estructura clara y modular.
+- Reutiliza componentes en lugar de duplicar implementaciones.
+- Aplica MVVM cuando sea adecuado.
+- Utiliza inyección de dependencias si el proyecto y su complejidad lo justifican.
+- Separa los servicios de autenticación, navegación, acceso a datos y gestión de ventanas.
+- Evita lógica de negocio compleja en el code-behind.
+- Implementa cancelación y gestión de errores en operaciones asíncronas cuando corresponda.
+- Evita bloqueos del hilo de interfaz.
+- Gestiona correctamente el ciclo de vida de las ventanas y los recursos.
+- No agregues dependencias innecesarias.
+- Respeta las convenciones, los analizadores y las configuraciones existentes.
+
+No introduzcas una arquitectura excesivamente compleja para una pantalla sencilla. La estructura debe ser mantenible y proporcional a las necesidades reales.
+
+## 9. Compilación y resolución de errores
+
+- Compila la solución o el proyecto utilizando el SDK y las herramientas disponibles.
+- Comprueba que la configuración de compilación sea la apropiada.
+- Corrige errores de compilación y problemas de configuración relacionados con los cambios.
+- Revisa advertencias relevantes.
+- Verifica que los recursos XAML, los espacios de nombres, las referencias y los paquetes sean correctos.
+- No ocultes errores desactivando comprobaciones o suprimiendo advertencias sin justificación.
+- Si no es posible compilar, identifica la causa concreta y documenta qué falta para hacerlo.
+
+No declares una compilación exitosa sin haber ejecutado realmente el proceso y comprobado su resultado.
+
+## 10. Ejecución y pruebas funcionales
+
+Ejecuta la aplicación y realiza las pruebas que permitan las herramientas disponibles.
+
+Como mínimo, cuando la funcionalidad correspondiente exista, verifica:
+
+### Interfaz y adaptabilidad
+
+- Apertura maximizada de las ventanas funcionales.
+- Diseño en distintas resoluciones y tamaños de ventana disponibles.
+- Alineación de etiquetas, campos, botones e iconos.
+- Ausencia de superposiciones y controles cortados.
+- Funcionamiento del menú lateral contraído y expandido.
+- Navegación entre las pantallas implementadas.
+- Lectura y uso correctos de la interfaz con diferentes escalas de pantalla, cuando sea posible.
+
+### Autenticación y ventanas
+
+- Inicio de la aplicación sin una sesión autenticada.
+- Rechazo de credenciales incorrectas, si se dispone de un entorno de prueba apropiado.
+- Acceso al dashboard únicamente después de una autenticación confirmada.
+- Cierre del login después de una autenticación correcta.
+- Ausencia de reaparición del login al cerrar ventanas secundarias.
+- Cierre controlado de la aplicación al cerrar la ventana principal.
+- Gestión correcta del cierre del login antes de autenticarse.
+- Manejo de errores de conexión y de inicialización, cuando se puedan reproducir de forma segura.
+
+### Funcionalidad
+
+- Ejecución de las acciones principales.
+- Validación de los campos.
+- Navegación y regreso entre pantallas.
+- Apertura y cierre de ventanas secundarias.
+- Tratamiento de errores.
+- Persistencia de los datos cuando la funcionalidad realmente lo requiera y exista un entorno de prueba seguro.
+
+No modifiques datos de producción para realizar pruebas. Utiliza datos de prueba o un entorno aislado cuando sea posible.
+
+Distingue entre pruebas ejecutadas, pruebas fallidas, pruebas bloqueadas y pruebas pendientes. No declares que una prueba pasó si no se ejecutó.
+
+## 11. Documentación de resultados
+
+Actualiza o genera la documentación correspondiente, respetando las rutas y convenciones del skill.
+
+Registra:
+
+- Ventana original inspeccionada.
+- Evidencias y controles identificados.
+- Funcionalidades implementadas.
+- Decisiones de arquitectura relevantes.
+- Ventanas y rutas de navegación.
+- Comportamiento del login y del ciclo de vida.
+- Reglas de diseño responsive.
+- Archivos creados y modificados.
+- Dependencias agregadas.
+- Resultado real de la compilación.
+- Pruebas ejecutadas y sus resultados.
+- Limitaciones, supuestos y comportamientos pendientes de validar.
+
+## 12. Criterios de aceptación
+
+Considera el trabajo terminado únicamente cuando se cumplan los criterios aplicables y se haya comprobado su cumplimiento.
+
+1. El skill se ha leído y aplicado.
+2. La ventana original se ha inspeccionado y su evidencia se ha guardado.
+3. La pantalla se ha implementado en WinUI 3 con C# y .NET.
+4. Las ventanas funcionales se abren maximizadas por defecto, salvo excepciones justificadas.
+5. La interfaz se adapta a distintos tamaños y mantiene alineaciones consistentes.
+6. El menú lateral comienza contraído y se expande sin ocupar espacio excesivo.
+7. La autenticación se confirma mediante el mecanismo real disponible.
+8. Después de autenticar, el login se cierra y no reaparece por el cierre de otras ventanas.
+9. La navegación y el ciclo de vida de las ventanas son coherentes.
+10. Los controles tienen comportamientos definidos y no simulan operaciones inexistentes.
+11. El proyecto compila correctamente, o se documenta con precisión el bloqueo.
+12. La aplicación se ejecuta y se verifican las interacciones que permita el entorno.
+13. La documentación final refleja los resultados reales, sin afirmar pruebas que no se hayan ejecutado.
+
+Si algún criterio no puede cumplirse por falta de herramientas, servicios, credenciales o información, no lo marques como completado. Explica la causa y los pasos necesarios para validarlo posteriormente.
+
+## 13. Entrega final
+
+Al finalizar, presenta un resumen claro que incluya:
+
+1. Ventana heredada inspeccionada.
+2. Pantalla generada y funcionalidades implementadas.
+3. Arquitectura y archivos creados o modificados.
+4. Comportamiento de las ventanas y de la autenticación.
+5. Resultado de la compilación.
+6. Pruebas ejecutadas y resultados reales.
+7. Limitaciones y tareas pendientes.
+8. Ubicación de la evidencia y la documentación generadas.
+
+Ejecuta las acciones directamente en el entorno de trabajo utilizando las herramientas disponibles. No te limites a describir lo que habría que hacer.
+
+**Prioridades generales:** funcionalidad real, estabilidad, experiencia de usuario, coherencia de navegación, diseño responsive, seguridad y mantenibilidad. No sacrifiques la integridad del proyecto por completar una tarea de forma superficial.

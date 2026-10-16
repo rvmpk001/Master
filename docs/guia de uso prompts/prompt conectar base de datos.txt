@@ -1,57 +1,385 @@
-Ejecuta el skill `windows-legacy-discovery` desde `.github/skills/windows-legacy-discovery/SKILL.md`.
+# Integración de SQL Server y persistencia compartida en una aplicación WinUI 3 existente
 
-Quiero integrar el script SQL existente en `Database/Scripts/` como esquema inicial de la aplicación WinUI 3.
+Ejecuta el skill `windows-legacy-discovery` utilizando su versión actualizada en `.github/skills/windows-legacy-discovery/SKILL.md`.
 
-**Contexto:**
-- La base de datos objetivo es SQL Server local.
-- La autenticación hacia SQL Server debe utilizar autenticación integrada de Windows.
-- El archivo SQL existente crea la base de datos y sus tablas.
-- Quiero utilizar esta base de datos para todas las pantallas que necesiten persistencia.
+El objetivo es integrar el script SQL existente en `Database/Scripts/` con la aplicación actual desarrollada en WinUI 3, C# y .NET, utilizando SQL Server local y autenticación integrada de Windows.
 
-**Fase 1: inspección obligatoria**
+La integración debe establecer una capa de persistencia centralizada, segura, mantenible y reutilizable por todas las pantallas que requieran acceso a datos.
 
-1. Inspecciona el proyecto y sus mecanismos de persistencia actuales.
-2. Lee el archivo SQL completo, incluyendo las instrucciones de creación de base de datos, tablas, relaciones, índices, restricciones, procedimientos, datos iniciales y permisos.
-3. Identifica instrucciones destructivas, cambios de permisos, credenciales incluidas, dependencias y posibles incompatibilidades.
-4. Determina si la base de datos ya existe en la instancia local configurada.
-5. Compara el esquema del script con el de la base existente cuando tengas acceso autorizado.
-6. No asumas nombres de instancia, base de datos, tablas ni columnas sin verificarlos.
+Esta tarea es una continuación de la generación de la primera pantalla y de la incorporación incremental de nuevas pantallas. Por tanto, debes respetar toda la arquitectura, navegación, autenticación, gestión de ventanas, diseño responsive y componentes compartidos que ya estén implementados.
 
-**Fase 2: diagnóstico y plan**
+**No crees una aplicación nueva, no reconstruyas las pantallas existentes y no ejecutes modificaciones sobre la base de datos sin autorización explícita.**
 
-Presenta un resumen del esquema y de los riesgos detectados. Explica si el script puede utilizarse como instalación inicial o si necesita adaptaciones para trabajar con una base existente.
+## 1. Lectura del skill e inspección del proyecto
 
-No ejecutes el script, no crees bases ni tablas, no modifiques datos, no cambies permisos y no apliques migraciones durante esta fase.
+Antes de modificar archivos:
 
-**Fase 3: integración de código**
+1. Lee el archivo `.github/skills/windows-legacy-discovery/SKILL.md` y sigue las instrucciones aplicables.
+2. Inspecciona la solución y los proyectos existentes.
+3. Identifica la versión de .NET, el tipo de aplicación WinUI 3, las dependencias y las configuraciones de compilación.
+4. Inspecciona los mecanismos de persistencia que ya existan.
+5. Identifica los servicios, repositorios, modelos, ViewModels y mecanismos de inyección de dependencias existentes.
+6. Inspecciona el Login, el Dashboard y las demás pantallas implementadas para comprender qué operaciones requieren datos.
+7. Revisa la configuración de inicio, la navegación, la gestión centralizada de ventanas y el ciclo de vida de la aplicación.
+8. Localiza los scripts de `Database/Scripts/` y determina cuáles forman parte del esquema inicial y cuáles corresponden a cambios posteriores.
+9. Busca documentación sobre la base de datos, cadenas de conexión, configuraciones locales y convenciones existentes.
 
-Después del diagnóstico, prepara la integración necesaria en el proyecto existente:
+No asumas que el proyecto utiliza Entity Framework Core, Dapper o ADO.NET hasta verificarlo.
 
-- Centraliza la configuración de SQL Server y utiliza autenticación integrada de Windows.
-- Implementa la capa de acceso a datos con la tecnología compatible con la arquitectura actual.
-- Separa las consultas y operaciones de persistencia de las pantallas y ViewModels.
-- Conecta las funcionalidades del Login y del Dashboard a operaciones reales solo cuando los requisitos y el esquema lo permitan.
-- No inventes tablas, reglas de negocio ni usuarios predeterminados.
-- No regeneres ni sobrescribas las pantallas existentes.
-- Conserva el script original y documenta cualquier modificación propuesta por separado.
+Si ya existe una capa de persistencia funcional, evalúa cómo ampliarla antes de introducir una nueva tecnología.
 
-**Fase 4: aplicación del esquema**
+No elimines configuraciones, dependencias ni implementaciones existentes sin una justificación técnica.
 
-No ejecutes automáticamente el script original.
+## 2. Inspección completa de los scripts SQL
 
-Si se necesita crear una base nueva o modificar una base existente, presenta primero el plan y solicita autorización antes de ejecutar los cambios. Para una base existente, prioriza cambios incrementales y no destructivos.
+Lee íntegramente los archivos SQL relevantes, incluyendo todas las instrucciones y dependencias necesarias para entender su ejecución.
 
-**Fase 5: validación**
+Identifica, cuando existan:
 
-Compila el proyecto y ejecuta las pruebas que permitan las herramientas disponibles. Si no tienes acceso real a SQL Server, indica que la conectividad y la persistencia quedan pendientes de verificar.
+- Creación y selección de la base de datos.
+- Tablas, columnas y tipos de datos.
+- Claves primarias y foráneas.
+- Relaciones y reglas de integridad.
+- Restricciones `CHECK`, `UNIQUE`, `DEFAULT` y otras.
+- Índices y sus características.
+- Vistas.
+- Procedimientos almacenados.
+- Funciones y desencadenadores.
+- Esquemas.
+- Datos iniciales o de catálogo.
+- Usuarios, roles y permisos.
+- Dependencias entre objetos.
+- Variables, configuraciones y referencias a otras bases de datos.
+- Instrucciones condicionales, transacciones y gestión de errores.
 
-Al terminar, informa:
-- Archivo SQL analizado.
-- Nombre de la base y esquema identificados, si pudieron verificarse.
-- Objetos y dependencias relevantes.
-- Archivos creados o modificados.
-- Cambios de esquema propuestos y si fueron aplicados.
-- Resultado real de la compilación y de las pruebas.
-- Limitaciones pendientes.
+Identifica explícitamente las instrucciones potencialmente destructivas o sensibles, entre ellas:
 
-No afirmes que la base de datos fue creada ni que la aplicación quedó conectada si esas operaciones no se ejecutaron y verificaron realmente.
+- `DROP DATABASE`, `DROP TABLE` y otros `DROP`.
+- `TRUNCATE TABLE`.
+- `DELETE` y `UPDATE` que puedan afectar datos existentes.
+- `ALTER` que pueda eliminar, truncar o transformar información.
+- Recreación de objetos ya existentes.
+- Cambios de permisos o membresías de roles.
+- Creación de usuarios, logins o credenciales.
+- Configuraciones que habiliten accesos innecesarios.
+- Operaciones que puedan afectar objetos fuera de la base objetivo.
+
+No consideres que un script es seguro únicamente porque contenga comprobaciones de existencia. Evalúa sus efectos reales, el orden de ejecución y sus dependencias.
+
+No ejecutes el script durante esta inspección.
+
+## 3. Diagnóstico de SQL Server y de la base objetivo
+
+Determina la configuración real de SQL Server a partir de los archivos, las configuraciones existentes y la información disponible.
+
+Verifica, cuando sea posible:
+
+- Nombre de la instancia local.
+- Tipo de instancia y disponibilidad del servicio.
+- Nombre real de la base de datos.
+- Existencia de la base.
+- Versión de SQL Server.
+- Compatibilidad del esquema con la versión instalada.
+- Permisos de la identidad de Windows que ejecuta la aplicación.
+- Acceso de lectura y escritura requerido por las operaciones identificadas.
+- Disponibilidad de los objetos necesarios.
+- Diferencias entre el esquema definido por el script y el esquema instalado.
+
+No inventes el nombre de la instancia, la base de datos ni los objetos.
+
+Si no puedes conectarte a SQL Server, distingue entre información obtenida del script, información obtenida de la configuración y datos pendientes de verificar.
+
+No solicites ni incluyas contraseñas de SQL Server si el diseño requiere autenticación integrada de Windows.
+
+No cambies configuraciones de seguridad del servidor para resolver un problema de conectividad sin autorización específica.
+
+## 4. Fase de diagnóstico y autorización
+
+Antes de ejecutar cualquier cambio sobre SQL Server, presenta un diagnóstico con:
+
+1. Archivos SQL encontrados y analizados.
+2. Nombre de la base objetivo y de la instancia, si se pudieron verificar.
+3. Objetos principales y relaciones identificados.
+4. Instrucciones destructivas o sensibles detectadas.
+5. Diferencias entre el esquema esperado y el existente.
+6. Dependencias y requisitos de permisos.
+7. Riesgos y posibles incompatibilidades.
+8. Plan recomendado para integrar el acceso a datos.
+9. Cambios de esquema que podrían ser necesarios.
+10. Pruebas que se pueden realizar sin modificar información.
+
+**Durante esta fase no ejecutes scripts, no crees bases ni tablas, no insertes, actualices ni elimines datos, no modifiques permisos y no apliques migraciones.**
+
+Después del diagnóstico, solicita autorización explícita antes de aplicar cualquier modificación a SQL Server.
+
+La autorización para modificar el código de la aplicación no implica autorización para modificar la base de datos.
+
+## 5. Estrategia de integración con el esquema existente
+
+Utiliza el script SQL como fuente de referencia del esquema previsto, pero verifica su correspondencia con la base real antes de utilizarlo para implementar operaciones.
+
+Establece claramente cuál de estas situaciones aplica:
+
+- La base no existe y se necesita una instalación inicial.
+- La base ya existe y coincide con el esquema esperado.
+- La base existe, pero presenta diferencias.
+- No se pudo comprobar el estado real de la base.
+
+Si la base ya existe:
+
+- No la elimines ni la recrees.
+- No vuelvas a ejecutar indiscriminadamente el script de instalación inicial.
+- Compara el esquema esperado con el instalado.
+- Identifica los cambios mínimos necesarios.
+- Prioriza migraciones incrementales y no destructivas.
+- Conserva los datos existentes.
+- Documenta las incompatibilidades antes de corregirlas.
+
+Si la base no existe:
+
+- Prepara un plan de instalación basado en los scripts verificados.
+- Identifica el orden correcto de ejecución y las dependencias.
+- Revisa las instrucciones sensibles antes de proponer su ejecución.
+- No crees automáticamente la base de datos ni ejecutes el script sin autorización.
+
+Si se requieren cambios de esquema, prepara scripts de migración separados del script original.
+
+No sobrescribas ni modifiques el script original para adaptar la implementación. Conserva el archivo original y registra las modificaciones propuestas en archivos independientes, siguiendo las convenciones del repositorio.
+
+## 6. Arquitectura de persistencia compartida
+
+Integra SQL Server utilizando una arquitectura compatible con el proyecto existente.
+
+Si ya existe una solución de acceso a datos, amplíala en lugar de duplicarla.
+
+Cuando sea apropiado, utiliza una estructura equivalente a la siguiente, adaptada a las convenciones reales del repositorio:
+
+- `Configuration`: configuración de la conexión y opciones de persistencia.
+- `Data`: contexto de datos o componentes de acceso a SQL Server.
+- `Models`: modelos de datos.
+- `Repositories`: consultas y operaciones de persistencia.
+- `Services`: operaciones de aplicación y lógica de negocio.
+- `ViewModels`: coordinación entre la interfaz y los servicios.
+
+Estos nombres son orientativos. No crees todas estas carpetas si la arquitectura existente ya resuelve sus responsabilidades de otra forma.
+
+### Reglas obligatorias
+
+- Centraliza la configuración de la conexión.
+- Evita conexiones independientes implementadas directamente en cada pantalla.
+- No escribas consultas SQL dentro de los controles visuales.
+- Evita colocar operaciones de persistencia directamente en los code-behind de las ventanas.
+- Separa la lógica de acceso a datos de la lógica de presentación.
+- Reutiliza los servicios y repositorios entre pantallas.
+- Utiliza inyección de dependencias si ya existe o si resulta apropiada para la arquitectura.
+- Evita duplicar la configuración, los modelos y las reglas de validación.
+- Utiliza operaciones asíncronas para las consultas y escrituras que puedan bloquear la interfaz.
+- Gestiona adecuadamente los recursos, conexiones, comandos y lectores de datos.
+- Utiliza consultas parametrizadas.
+- Evita construir consultas mediante concatenación de datos proporcionados por el usuario.
+- Maneja las transacciones cuando una operación de negocio requiera atomicidad.
+- Implementa cancelación y tiempos de espera cuando corresponda.
+- Registra errores técnicos sin exponer información sensible al usuario.
+- No implementes abstracciones innecesarias que compliquen una solución sencilla.
+
+El resultado debe permitir que las pantallas actuales y futuras utilicen el mismo mecanismo de persistencia sin tener que volver a implementar la conexión.
+
+## 7. Configuración y autenticación integrada de Windows
+
+La conexión a SQL Server debe utilizar autenticación integrada de Windows.
+
+La cadena de conexión debe configurarse centralmente y utilizar la instancia y la base verificadas.
+
+Cuando se utilice el proveedor de Microsoft.Data.SqlClient, la configuración seguirá el equivalente a:
+
+`Integrated Security=True`
+
+o su forma equivalente compatible con el proveedor elegido.
+
+No inventes el servidor ni el nombre de la base. Utiliza valores verificados y centraliza su configuración.
+
+Requisitos:
+
+- No almacenes contraseñas de SQL Server.
+- No incluyas credenciales en el código fuente.
+- No expongas cadenas de conexión sensibles en los mensajes de error.
+- No uses autenticación SQL con usuario y contraseña como alternativa automática.
+- No habilites permisos excesivos para evitar errores de acceso.
+- No concedas permisos de administrador del servidor a la aplicación.
+- Solicita únicamente los permisos necesarios para las operaciones reales.
+- Utiliza la identidad de Windows con la que se ejecuta la aplicación, salvo que exista una arquitectura de identidad distinta debidamente establecida.
+
+Ten en cuenta que la autenticación integrada de Windows para SQL Server es distinta de la autenticación del usuario dentro de la aplicación.
+
+No confundas una conexión exitosa a SQL Server con una autenticación exitosa en el Login de la aplicación.
+
+Si la aplicación utiliza cuentas propias, estas deben validarse mediante el mecanismo de autenticación de la aplicación existente y las reglas reales de negocio.
+
+No crees automáticamente usuarios predeterminados, contraseñas iniciales ni cuentas administrativas.
+
+### Configuración por entorno
+
+Mantén la configuración fuera de las pantallas y del código de negocio.
+
+Utiliza el mecanismo de configuración existente y permite diferenciar, cuando corresponda, los entornos de desarrollo, pruebas y producción.
+
+No sobrescribas configuraciones locales del usuario.
+
+No incluyas datos de conexión específicos de un equipo en archivos compartidos si pueden gestionarse de forma segura mediante configuración local.
+
+Documenta los requisitos necesarios para que la identidad de Windows utilizada por la aplicación tenga acceso a SQL Server.
+
+## 8. Integración con el Login y el Dashboard existentes
+
+Integra la persistencia con las pantallas existentes únicamente cuando el esquema y los requisitos permitan identificar operaciones reales.
+
+### Login
+
+- Inspecciona primero cómo está implementada la autenticación actual.
+- Reutiliza sus servicios y su flujo de navegación.
+- Determina si el esquema SQL contiene las estructuras necesarias para validar las cuentas de la aplicación.
+- No asumas que existe una tabla de usuarios solo porque haya un Login.
+- No inventes nombres de tablas, columnas, roles o procedimientos.
+- Si existe una implementación de autenticación real, intégrala mediante la capa de servicios y repositorios.
+- No compares contraseñas en texto plano.
+- No construyas una autenticación ficticia para demostrar la conexión.
+- No modifiques el comportamiento visual del Login ni su ciclo de vida salvo que sea necesario para la integración.
+- Conserva la regla de que, tras una autenticación válida y confirmada, el Login se cierre y no reaparezca al navegar o cerrar ventanas secundarias.
+
+Si el esquema no permite implementar la autenticación de usuarios, documenta qué información o cambios autorizados serían necesarios.
+
+### Dashboard
+
+- Inspecciona qué datos necesita mostrar realmente el Dashboard.
+- Conecta sus indicadores, listas o resúmenes únicamente con consultas justificadas por el esquema y los requisitos.
+- No inventes estadísticas, datos iniciales ni operaciones.
+- Si todavía no existen datos o consultas verificadas, utiliza un estado vacío o un mensaje apropiado.
+- No muestres resultados ficticios como si provinieran de SQL Server.
+
+### Otras pantallas
+
+Cuando las pantallas requieran persistencia, deberán utilizar los servicios y repositorios compartidos.
+
+No implementes una conexión diferente para cada pantalla ni dupliques consultas que deban centralizarse.
+
+Si una pantalla no necesita datos persistentes, no la conectes artificialmente a la base de datos.
+
+## 9. Protección de los datos y de las operaciones de escritura
+
+Trata la base de datos como un recurso potencialmente valioso y evita cambios involuntarios.
+
+- No ejecutes operaciones destructivas durante la inspección.
+- No elimines datos para facilitar las pruebas.
+- No utilices datos reales para probar operaciones destructivas.
+- No alteres el esquema sin autorización explícita.
+- No ejecutes el script de instalación inicial sobre una base existente sin analizar sus efectos.
+- No generes migraciones destructivas de forma automática.
+- No apliques cambios de permisos sin autorización.
+- No modifiques datos de producción durante las pruebas.
+- No simules que una escritura se ha completado si no fue confirmada por SQL Server.
+
+Antes de una modificación autorizada del esquema, identifica el impacto, las dependencias, los riesgos de pérdida de datos y las medidas de recuperación adecuadas.
+
+Si es posible, utiliza una copia de seguridad verificada o un entorno de pruebas antes de modificar una base existente.
+
+No asumas que una transacción puede revertir todos los cambios de un script: determinadas instrucciones de SQL Server pueden tener efectos que requieren un plan de recuperación específico.
+
+## 10. Aplicación del esquema y migraciones
+
+La aplicación del esquema es una operación separada de la integración del código.
+
+No ejecutes automáticamente el script original ni una migración por el simple hecho de haber terminado la implementación.
+
+Antes de modificar SQL Server, presenta:
+
+- Instancia y base objetivo verificadas.
+- Estado actual del esquema.
+- Cambios exactos propuestos.
+- Objetos afectados.
+- Riesgos y posibles pérdidas de datos.
+- Dependencias y permisos requeridos.
+- Estrategia de recuperación.
+- Pruebas previstas después de la modificación.
+
+Solicita autorización explícita para el plan concreto antes de ejecutarlo.
+
+Si el usuario autoriza una instalación inicial, ejecuta únicamente los scripts y las operaciones comprendidos en esa autorización.
+
+Si autoriza cambios en una base existente, aplica solamente los cambios aprobados y evita modificaciones adicionales no contempladas.
+
+Después de ejecutar cualquier cambio autorizado, verifica el resultado real comparando el esquema y los objetos con el estado esperado.
+
+Registra los cambios aplicados y sus resultados.
+
+Si no se autoriza la ejecución, deja los scripts preparados y documentados sin afirmar que la base ha sido modificada.
+
+## 11. Pruebas de conectividad y persistencia
+
+Distingue entre la compilación del proyecto, la conectividad con SQL Server y la funcionalidad de las operaciones de persistencia.
+
+Ejecuta las pruebas que sean posibles y estén autorizadas.
+
+### Nivel 1: compilación
+
+- Compila la solución.
+- Comprueba las referencias y los paquetes.
+- Corrige errores de C# y XAML.
+- Verifica la configuración de la aplicación.
+
+### Nivel 2: conectividad
+
+Cuando exista acceso autorizado a SQL Server:
+
+- Intenta establecer una conexión utilizando la configuración real.
+- Comprueba que la base de datos objetivo sea la esperada.
+- Verifica la identidad de conexión cuando sea posible.
+- Comprueba que los permisos necesarios estén disponibles.
+- Registra los errores de conexión sin exponer información sensible.
+
+Una compilación exitosa no demuestra que SQL Server sea accesible.
+
+### Nivel 3: lectura
+
+Si el esquema y los permisos lo permiten:
+
+- Ejecuta una consulta de lectura segura sobre un objeto existente y verificado.
+- Comprueba que los resultados puedan convertirse a los modelos correspondientes.
+- Verifica el tratamiento de resultados vacíos y errores.
+- Evita asumir que existen registros específicos.
+
+### Nivel 4: escritura
+
+Solo si existe una operación real que deba probarse y se dispone de un entorno de pruebas seguro:
+
+- Prueba una operación de escritura con datos de prueba.
+- Comprueba el resultado persistido.
+- Verifica las restricciones y las transacciones cuando corresponda.
+- Limpia los datos de prueba únicamente cuando sea seguro y esté autorizado.
+
+No ejecutes escrituras en producción solo para demostrar que la conexión funciona.
+
+### Nivel 5: integración con la interfaz
+
+Cuando la funcionalidad esté implementada:
+
+- Comprueba que las pantallas accedan a los servicios compartidos.
+- Verifica la carga de datos y la presentación de errores.
+- Comprueba que las operaciones asíncronas no bloqueen la interfaz.
+- Comprueba que el Login, el Dashboard y las demás pantallas mantengan su navegación.
+- Verifica que el Login no reaparezca por el cierre de ventanas.
+- Comprueba que la aplicación gestione correctamente la indisponibilidad de SQL Server.
+
+Clasifica los resultados como satisfactorios, fallidos, bloqueados o pendientes. No declares exitosa una prueba que no se haya ejecutado.
+
+## 12. Compatibilidad con el desarrollo incremental de pantallas
+
+Esta integración debe servir como base compartida para las pantallas actuales y futuras.
+
+- Documenta cómo debe acceder una nueva pantalla a los datos.
+- Reutiliza los servicios y repositorios existentes.
+- Mantén coherentes los modelos y las operaciones.
+- Evita dependencias entre pantallas que dificulten su mantenimiento.
+- Conserva los estilos, la navegación y el comportamiento responsive.
+- No modifiques el menú lateral por el mero hecho de integrar SQL Server.
+- No reconstruyas ventanas ni alteres sus dimensiones o ciclo de vida.
+- Evita que las ventanas gestionen directamente la

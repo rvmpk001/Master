@@ -24,6 +24,7 @@
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem
+                x:Name="navClientes"
                 AutomationProperties.AutomationId="btnNavClientes"
                 Content="Módulo Clientes"
                 Tag="Clientes">
@@ -32,6 +33,7 @@
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem
+                x:Name="navProductos"
                 AutomationProperties.AutomationId="btnNavProductos"
                 Content="Inventario / Productos"
                 Tag="Productos">
@@ -105,7 +107,7 @@
                 AutomationProperties.AutomationId="dashboardContent"
                 Background="#FF171A21"
                 SizeChanged="OnDashboardContentSizeChanged">
-                <Grid RowDefinitions="Auto,*">
+                <Grid x:Name="DashboardPage" RowDefinitions="Auto,*">
                     <CommandBar
                         Grid.Row="0"
                         Background="Transparent"
@@ -173,7 +175,7 @@
                                         AutomationProperties.AutomationId="lblSubtitulo"
                                         FontSize="14"
                                         Foreground="#FFB7C0CC"
-                                        Text="Resumen de datos en SQL Server."
+                                        Text="Indicadores cargados desde SQL Server."
                                         TextWrapping="Wrap" />
                                 </StackPanel>
                                 <Border
@@ -185,9 +187,11 @@
                                     CornerRadius="8"
                                     VerticalAlignment="Top">
                                     <TextBlock
+                                        x:Name="lblDataMode"
+                                        AutomationProperties.AutomationId="lblDataMode"
                                         FontSize="12"
                                         Foreground="#FF9DD5FF"
-                                        Text="MUESTRA"
+                                        Text="SIN CONEXIÓN"
                                         VerticalAlignment="Center" />
                                 </Border>
                             </Grid>
@@ -294,7 +298,7 @@
                                                 AutomationProperties.AutomationId="lblTituloVentas"
                                                 FontSize="14"
                                                 Foreground="#FFB7C0CC"
-                                                Text="Total Facturado" />
+                                                Text="Total Ventas" />
                                             <TextBlock
                                                 x:Name="lblValorVentas"
                                                 AutomationProperties.AutomationId="lblValorVentas"
@@ -329,7 +333,7 @@
                                                 AutomationProperties.AutomationId="lblTituloIngresos"
                                                 FontSize="14"
                                                 Foreground="#FFB7C0CC"
-                                                Text="Ingresos Totales" />
+                                                Text="Ingresos (moneda no especificada)" />
                                             <TextBlock
                                                 x:Name="lblValorIngresos"
                                                 AutomationProperties.AutomationId="lblValorIngresos"
@@ -381,7 +385,7 @@
                             <Border
                                 x:Name="pnlGraficas"
                                 AutomationProperties.AutomationId="pnlGraficas"
-                                AutomationProperties.Name="100% de $60,000.00 USD"
+                                AutomationProperties.Name="Ingresos mensuales registrados en SQL Server"
                                 Background="#FF252A33"
                                 BorderBrush="#FF3B434F"
                                 BorderThickness="1"
@@ -401,26 +405,60 @@
                                         BorderBrush="#FF3B434F"
                                         BorderThickness="1"
                                         CornerRadius="8">
-                                        <Grid Padding="20">
-                                            <StackPanel
-                                                HorizontalAlignment="Center"
-                                                Spacing="8"
-                                                VerticalAlignment="Center">
+                                        <Grid Padding="12" RowDefinitions="Auto,*">
+                                            <TextBlock
+                                                FontSize="12"
+                                                Foreground="#FFB7C0CC"
+                                                Text="Importe mensual según FechaVenta y Total · últimos 12 meses" />
+                                            <Grid Grid.Row="1">
+                                                <ScrollViewer
+                                                    HorizontalScrollBarVisibility="Auto"
+                                                    VerticalScrollBarVisibility="Disabled">
+                                                    <ItemsControl
+                                                        x:Name="salesChart"
+                                                        AutomationProperties.AutomationId="salesChart">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate>
+                                                                <StackPanel Orientation="Horizontal" />
+                                                            </ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate>
+                                                                <Grid
+                                                                    Width="68"
+                                                                    Height="150"
+                                                                    Margin="3,0"
+                                                                    RowDefinitions="*,Auto">
+                                                                    <Border
+                                                                        AutomationProperties.Name="{Binding Description}"
+                                                                        Background="#FF1678BC"
+                                                                        CornerRadius="4,4,0,0"
+                                                                        Height="{Binding BarHeight}"
+                                                                        HorizontalAlignment="Center"
+                                                                        ToolTipService.ToolTip="{Binding Description}"
+                                                                        VerticalAlignment="Bottom"
+                                                                        Width="28" />
+                                                                    <TextBlock
+                                                                        Grid.Row="1"
+                                                                        Foreground="#FFB7C0CC"
+                                                                        HorizontalAlignment="Center"
+                                                                        Text="{Binding MonthLabel}"
+                                                                        FontSize="11" />
+                                                                </Grid>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </ScrollViewer>
                                                 <TextBlock
+                                                    x:Name="chartEmptyState"
+                                                    AutomationProperties.AutomationId="chartEmptyState"
                                                     HorizontalAlignment="Center"
-                                                    FontSize="15"
-                                                    Foreground="#FFE8ECF2"
-                                                    Text="No hay series de datos disponibles para graficar."
-                                                    TextAlignment="Center"
-                                                    TextWrapping="Wrap" />
-                                                <TextBlock
-                                                    HorizontalAlignment="Center"
-                                                    FontSize="13"
+                                                    VerticalAlignment="Center"
                                                     Foreground="#FFB7C0CC"
-                                                    Text="Se requiere una fuente de datos conectada."
+                                                    Text="Inicia sesión para consultar los ingresos mensuales."
                                                     TextAlignment="Center"
                                                     TextWrapping="Wrap" />
-                                            </StackPanel>
+                                            </Grid>
                                         </Grid>
                                     </Border>
                                 </StackPanel>
@@ -434,6 +472,9 @@
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
+                <Grid
+                    x:Name="customersContentHost"
+                    Visibility="Collapsed" />
             </Grid>
         </NavigationView.Content>
     </NavigationView>

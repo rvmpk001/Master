@@ -85,6 +85,7 @@
                             MinWidth="0"
                             AutomationProperties.AutomationId="txtUsuario"
                             AutomationProperties.Name="Usuario"
+                            LostFocus="OnUsernameLostFocus"
                             Background="#FF1C2129"
                             BorderBrush="#FF596574"
                             BorderThickness="1"
@@ -163,12 +164,14 @@
                             AutomationProperties.AutomationId="chkRecordar"
                             Content="Recordar usuario"
                             FontSize="13"
-                            Foreground="#FFE8ECF2" />
+                            Foreground="#FFE8ECF2"
+                            Checked="OnRememberUserChanged"
+                            Unchecked="OnRememberUserChanged" />
                         <TextBlock
                             FontSize="12"
                             Foreground="#FFB7C0CC"
                             Margin="32,0,0,0"
-                            Text="Al limpiar, conserva el usuario solo en esta ventana; no se guarda al cerrar."
+                            Text="Guarda únicamente el usuario en este equipo; la contraseña nunca se almacena."
                             TextWrapping="Wrap" />
                     </StackPanel>
 
@@ -195,17 +198,6 @@
                             HorizontalAlignment="Stretch"
                             Click="OnCancelClick" />
                     </Grid>
-
-                    <Button
-                        x:Name="btnDashboardPreview"
-                        AutomationProperties.AutomationId="btnDashboardPreview"
-                        Background="#FF24364A"
-                        BorderBrush="#FF3A5878"
-                        Content="Abrir Dashboard (vista previa, sin autenticación)"
-                        FontSize="13"
-                        Foreground="#FFE8ECF2"
-                        HorizontalAlignment="Stretch"
-                        Click="OnDashboardPreviewClick" />
 
                     <InfoBar
                         x:Name="formStatus"

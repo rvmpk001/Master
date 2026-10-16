@@ -1,27 +1,317 @@
-Ejecuta el skill `windows-legacy-discovery` para incorporar una nueva pantalla a la aplicación WinUI 3 que ya existe.
+# Incorporar una nueva pantalla a una aplicación WinUI 3 existente a partir de una aplicación Windows heredada
 
-**Contexto:**
-- La pantalla Login ya está implementada y funciona.
-- Ahora quiero continuar con el Dashboard o pantalla principal de la aplicación original.
-- Debes reutilizar el proyecto, la arquitectura y los componentes existentes.
+Ejecuta el skill `windows-legacy-discovery` utilizando su versión actualizada en `.github/skills/windows-legacy-discovery/SKILL.md`.
 
-**Instrucciones:**
+El objetivo es inspeccionar una nueva ventana de la aplicación Windows heredada e incorporarla a la aplicación existente, desarrollada con WinUI 3, C# y .NET.
 
-1. Inspecciona las ventanas disponibles y utiliza la herramienta Windows UI Automation definida en el skill para identificar la ventana correspondiente al Dashboard.
-2. Inspecciona sus controles, textos, estructura y propiedades disponibles. Guarda la evidencia siguiendo las convenciones del proyecto.
-3. Analiza el código existente antes de modificarlo. Identifica cómo están implementados la navegación, los estilos, los componentes compartidos y el estado de la aplicación.
-4. Implementa el Dashboard dentro del proyecto actual, respetando su arquitectura y evitando duplicar componentes.
-5. Mantén el Login existente. No lo regeneres ni reemplaces archivos que ya funcionan, salvo que un cambio sea estrictamente necesario para integrar ambas pantallas.
-6. Haz que los controles del Dashboard sean funcionales cuando su comportamiento esté respaldado por la evidencia o los requisitos disponibles. No inventes operaciones de negocio ni simules integraciones inexistentes.
-7. Integra la navegación entre Login y Dashboard cuando corresponda. Si el flujo de autenticación real no está disponible, conserva esa limitación explícitamente y no inventes un mecanismo de autenticación.
-8. Asegura que ambas pantallas sean limpias, responsive y coherentes visualmente. No es necesario reproducir exactamente el diseño original.
-9. Compila el proyecto, corrige los errores y ejecuta las pruebas que permitan las herramientas disponibles. Verifica que el Login siga funcionando después de integrar el Dashboard.
-10. Registra la nueva evidencia y documenta el estado de ambas pantallas.
+Esta tarea representa una continuación del trabajo realizado anteriormente. Por tanto, debes respetar las decisiones arquitectónicas, los componentes compartidos, las reglas visuales y los comportamientos ya establecidos.
 
-**Restricciones:**
-- No crees un proyecto nuevo.
-- No sobrescribas la implementación funcional del Login.
-- No interactúes mediante automatización con la aplicación original si eso puede modificar su estado.
-- No declares una prueba como exitosa si realmente no se ejecutó.
+**No debes crear una aplicación independiente ni reconstruir las pantallas existentes. Debes ampliar la aplicación actual de forma incremental, segura y coherente.**
 
-Al terminar, informa qué archivos agregaste o modificaste, cómo se navega entre las pantallas, qué pruebas se ejecutaron y qué limitaciones siguen pendientes.
+## 1. Lectura del skill y selección de la ventana
+
+1. Lee el archivo completo `.github/skills/windows-legacy-discovery/SKILL.md` y sigue sus instrucciones actualizadas.
+2. Inspecciona el estado actual del proyecto y verifica qué pantallas, ventanas, componentes y funcionalidades ya existen.
+3. Identifica las ventanas disponibles de la aplicación heredada mediante las herramientas Windows UI Automation definidas en el skill.
+4. **Antes de inspeccionar una ventana concreta, pregúntame cuál quiero incorporar.** Puedes mostrarme los nombres o títulos de las ventanas detectadas para que seleccione la correcta.
+5. Si no puedes identificar las ventanas disponibles con certeza, solicita que deje visible la ventana deseada o que proporcione la información necesaria.
+6. No selecciones ni inspecciones arbitrariamente una ventana distinta de la que yo haya confirmado.
+7. Después de recibir mi confirmación, continúa con el proceso completo sin solicitar confirmaciones innecesarias para cada paso técnico.
+
+No realices modificaciones sobre la aplicación original durante la inspección. Evita acciones que puedan guardar datos, eliminar registros, ejecutar transacciones o alterar el estado de negocio.
+
+## 2. Inspección de la ventana seleccionada
+
+Utiliza las herramientas de automatización y descubrimiento definidas por el skill para identificar y documentar:
+
+- Título y propósito de la ventana.
+- Controles disponibles, sus tipos y sus propiedades accesibles.
+- Etiquetas, textos, valores y estados observables.
+- Distribución y jerarquía de los controles.
+- Botones, campos, listas, tablas, menús, filtros y demás componentes.
+- Acciones e interacciones observables.
+- Validaciones y mensajes identificables.
+- Relaciones con otras ventanas y rutas de navegación.
+- Dependencias de bases de datos, servicios o componentes externos, cuando exista evidencia.
+- Comportamientos que se puedan confirmar y aquellos que requieran validación adicional.
+
+Guarda las capturas, los datos de inspección y la documentación en las rutas establecidas por el skill y las convenciones existentes del proyecto.
+
+Clasifica los hallazgos como confirmados, inferidos o pendientes de validar.
+
+No inventes reglas de negocio ni atribuyas a la aplicación original comportamientos que no estén respaldados por evidencia.
+
+## 3. Inspección obligatoria de la aplicación WinUI 3 existente
+
+Antes de escribir o modificar código, inspecciona la solución actual y determina cómo debe integrarse la nueva pantalla.
+
+Revisa, cuando existan:
+
+- Archivo de solución y proyectos.
+- `App.xaml` y `App.xaml.cs`.
+- Ventana principal y configuración de inicio.
+- Login y flujo de autenticación.
+- Servicio o mecanismo de navegación.
+- Gestión centralizada de ventanas.
+- ViewModels y modelos de datos.
+- Servicios de negocio y acceso a datos.
+- Controles y componentes compartidos.
+- Diccionarios de recursos, estilos, temas y plantillas.
+- Menú lateral y definición de sus opciones.
+- Reglas de diseño responsive.
+- Pruebas automatizadas y documentación.
+- Configuración de compilación y dependencias.
+
+Identifica los patrones que ya utiliza el proyecto y continúa con ellos siempre que sean adecuados.
+
+No reemplaces una arquitectura existente por otra diferente simplemente por preferencia personal.
+
+Si detectas problemas arquitectónicos que dificultan la integración, realiza únicamente los cambios necesarios y justificados, procurando mantener la compatibilidad con las pantallas existentes.
+
+## 4. Reutilización y protección de las pantallas existentes
+
+La aplicación actual es la base del desarrollo y debe conservar su funcionalidad.
+
+- No crees una solución ni un proyecto nuevo.
+- No regeneres las pantallas que ya existen.
+- No reemplaces ni reconstruyas el Login funcional.
+- No dupliques servicios, componentes, estilos o lógica de navegación que ya estén implementados.
+- No modifiques el comportamiento de pantallas existentes salvo cuando sea necesario para integrar correctamente la nueva pantalla.
+- No elimines funcionalidades, recursos, configuraciones ni dependencias existentes sin una justificación técnica.
+- No sobrescribas archivos completos si basta con realizar un cambio puntual.
+- Antes de modificar un archivo compartido, identifica qué otras pantallas dependen de él.
+- Conserva las convenciones de nombres, carpetas y organización existentes.
+- Si una modificación puede afectar a otras pantallas, identifica ese impacto y verifica las funcionalidades relacionadas.
+
+La nueva pantalla debe integrarse en el proyecto existente como una extensión natural de la aplicación.
+
+## 5. Arquitectura y estructura de la nueva pantalla
+
+Implementa la pantalla seleccionada utilizando los patrones arquitectónicos existentes.
+
+Si el proyecto utiliza MVVM, sigue ese patrón. Si dispone de servicios de navegación, gestión de ventanas o inyección de dependencias, reutilízalos.
+
+Cuando corresponda, organiza la implementación mediante:
+
+- Vista XAML.
+- ViewModel.
+- Modelos de datos.
+- Servicios de negocio o acceso a datos.
+- Recursos visuales compartidos.
+- Pruebas asociadas.
+
+No crees archivos o capas innecesarios para una pantalla sencilla.
+
+Mantén separadas la interfaz, la lógica de presentación y las operaciones de negocio cuando la arquitectura del proyecto así lo requiera.
+
+No coloques lógica de negocio compleja directamente en el code-behind ni dupliques funcionalidades que ya estén disponibles en servicios compartidos.
+
+Si la pantalla requiere un servicio o una integración que todavía no existe, implementa únicamente la estructura que pueda justificarse y documenta lo que falta. No simules una conexión real.
+
+## 6. Reglas visuales y responsive obligatorias
+
+Todas las reglas visuales y de ventanas establecidas durante la creación inicial de la aplicación continúan siendo obligatorias para esta nueva pantalla.
+
+### 6.1. Ventanas maximizadas
+
+- La nueva ventana funcional debe abrirse maximizada por defecto cuando corresponda a una ventana independiente.
+- Si la pantalla se presenta dentro de la ventana principal mediante navegación, debe respetar el estado maximizado de esa ventana.
+- No abras ventanas adicionales para mostrar contenido que deba formar parte de la navegación principal.
+- Evita mostrar una ventana pequeña antes de maximizarla, siempre que el ciclo de vida lo permita.
+- Si se necesita una ventana auxiliar o un diálogo de dimensiones específicas, respeta el patrón existente y documenta cualquier excepción justificada.
+
+No modifiques la gestión de ventanas global si no es necesario.
+
+### 6.2. Diseño responsive
+
+La pantalla debe adaptarse a diferentes resoluciones, tamaños de ventana y escalas de pantalla.
+
+- Utiliza los mecanismos de diseño de WinUI 3 adecuados para organizar los controles.
+- Prioriza distribuciones flexibles en lugar de posiciones absolutas.
+- Mantén las etiquetas, campos, tablas y botones correctamente alineados.
+- Evita superposiciones, recortes, desbordamientos y controles inaccesibles.
+- Utiliza tamaños, márgenes y espaciados consistentes.
+- Permite desplazamiento cuando el contenido exceda el espacio disponible.
+- Adapta la distribución de formularios, filtros y paneles a tamaños reducidos.
+- Mantén la interfaz legible sin depender exclusivamente de una resolución específica.
+- No agregues barras de desplazamiento innecesarias.
+
+### 6.3. Calidad visual
+
+Mantén la coherencia con el diseño de las pantallas existentes.
+
+- Reutiliza los estilos, recursos, tipografías y colores del proyecto.
+- Conserva la jerarquía visual de encabezados, secciones, formularios y acciones.
+- Alinea los controles relacionados.
+- Mantén dimensiones coherentes entre campos equivalentes.
+- Utiliza controles nativos de WinUI 3 cuando sean apropiados.
+- Evita espacios vacíos excesivos y distribuciones desordenadas.
+- Conserva el contraste, la legibilidad y la accesibilidad.
+- No reproduzcas defectos visuales de la aplicación original solo por fidelidad.
+
+La nueva pantalla debe parecer parte de la misma aplicación y no un módulo diseñado de forma independiente.
+
+## 7. Menú lateral y navegación integrada
+
+Integra la nueva pantalla con el mecanismo de navegación que ya utiliza la aplicación.
+
+Si existe un menú lateral, registra la nueva opción de acuerdo con la estructura y las convenciones existentes, siempre que corresponda al flujo funcional de la aplicación original.
+
+Requisitos:
+
+- El menú lateral debe seguir comenzando contraído por defecto.
+- Al expandirse, debe mantener un ancho compacto y razonable.
+- La nueva opción debe mostrar un icono y una etiqueta coherentes con el resto del menú, cuando corresponda.
+- La pantalla activa debe identificarse visualmente.
+- La selección debe navegar a la vista correcta.
+- Evita crear instancias duplicadas de la misma pantalla cuando la navegación existente esté diseñada para reutilizarla.
+- Conserva los estados compartidos que deban persistir al cambiar de pantalla.
+- Mantén un comportamiento coherente de regreso, cancelación y cierre.
+- No agregues una opción al menú si no tiene un destino o una funcionalidad definida.
+
+Si la ventana original corresponde a un diálogo o una ventana auxiliar, intégrala mediante el mecanismo existente adecuado en lugar de forzarla dentro del menú principal.
+
+No inventes rutas de navegación que no estén respaldadas por los requisitos o por el diseño de la aplicación.
+
+## 8. Autenticación y ciclo de vida del Login
+
+El Login existente debe mantenerse intacto en su funcionalidad y seguir siendo el punto de acceso a la aplicación cuando así lo establezca su diseño actual.
+
+- No crees un segundo Login.
+- No implementes un mecanismo de autenticación paralelo.
+- No modifiques las credenciales, los servicios ni las reglas de autenticación existentes sin una necesidad justificada.
+- No vuelvas a mostrar el Login al navegar entre pantallas.
+- No vuelvas a mostrarlo cuando se cierre una ventana secundaria.
+- No asocies automáticamente el cierre de cualquier ventana con una nueva solicitud de autenticación.
+- No cambies el comportamiento de cierre de la ventana principal salvo que sea necesario para preservar la política de ciclo de vida existente.
+- Si la aplicación ya tiene una gestión centralizada de sesión y ventanas, reutilízala.
+- Si descubres un defecto en la gestión del Login, documenta el problema y corrígelo únicamente si es necesario para la integración y no implica alterar reglas de seguridad sin fundamento.
+
+La incorporación de una nueva pantalla no debe romper el comportamiento del Login ni provocar que aparezca nuevamente después de haber sido cerrado tras una autenticación exitosa.
+
+Si la autenticación real depende de una base de datos o de un servicio que no está disponible, conserva la limitación existente y no inventes un mecanismo de autenticación.
+
+## 9. Funcionalidad de la nueva pantalla
+
+Implementa los comportamientos respaldados por la inspección y por los requisitos disponibles.
+
+Los controles interactivos deben tener un comportamiento definido y coherente con la aplicación.
+
+Según corresponda, implementa:
+
+- Acciones de botones.
+- Captura y validación de datos.
+- Selección de elementos.
+- Búsquedas y filtros.
+- Ordenamiento y paginación.
+- Navegación entre vistas.
+- Apertura de diálogos.
+- Guardado, actualización o eliminación de datos.
+- Mensajes de validación y error.
+- Estados de carga y resultados vacíos.
+
+Implementa únicamente las funcionalidades que correspondan a la pantalla inspeccionada y que estén respaldadas por evidencia o requisitos explícitos.
+
+No agregues operaciones innecesarias solo porque sean habituales en pantallas similares.
+
+No simules resultados de base de datos, operaciones de guardado ni mensajes de éxito si no existe una implementación real.
+
+Si alguna funcionalidad está bloqueada por falta de acceso a datos, servicios, credenciales o información de negocio, documenta el bloqueo y deja claro qué parte se ha implementado y qué parte sigue pendiente.
+
+## 10. Integración con las demás pantallas
+
+La nueva pantalla debe convivir correctamente con todas las pantallas existentes.
+
+Verifica que:
+
+- Se utilicen los componentes compartidos adecuados.
+- Los estilos globales sigan funcionando.
+- El menú lateral conserve su comportamiento.
+- La navegación no genere rutas rotas.
+- No se duplique innecesariamente el estado de la aplicación.
+- No se creen dependencias circulares.
+- Los servicios compartidos sigan funcionando.
+- Los recursos XAML continúen resolviéndose correctamente.
+- El Login y el dashboard mantengan su funcionamiento.
+- Las ventanas secundarias sigan respetando el ciclo de vida establecido.
+- Las modificaciones en servicios o recursos comunes no afecten negativamente a otras pantallas.
+
+Si la nueva pantalla necesita una modificación en un componente compartido, hazla de forma compatible y comprueba las funcionalidades afectadas.
+
+No refactorices módulos ajenos a la tarea salvo que sea indispensable para completar la integración.
+
+## 11. Compilación y pruebas
+
+Compila el proyecto existente después de incorporar la pantalla.
+
+- Utiliza la solución y configuración de compilación existentes.
+- Corrige los errores introducidos por los cambios.
+- Revisa referencias, recursos, XAML, espacios de nombres y dependencias.
+- No desactives comprobaciones para ocultar problemas.
+- Ejecuta la aplicación generada cuando las herramientas disponibles lo permitan.
+- No declares una compilación exitosa sin ejecutar el proceso.
+
+Realiza las siguientes pruebas cuando correspondan y sean posibles:
+
+### Pruebas de la nueva pantalla
+
+- Apertura y visualización de la pantalla.
+- Navegación hacia ella desde el menú o el punto de entrada correspondiente.
+- Funcionamiento de sus controles.
+- Validaciones de campos.
+- Estados de carga, resultados vacíos y errores, si existen.
+- Adaptabilidad a distintos tamaños de ventana.
+- Ausencia de controles cortados o desalineados.
+
+### Pruebas de integración
+
+- Navegación entre la nueva pantalla y las pantallas existentes.
+- Comportamiento del menú lateral contraído y expandido.
+- Conservación del estado de navegación cuando corresponda.
+- Apertura y cierre de ventanas auxiliares.
+- Verificación de que el Login no reaparece al navegar o cerrar ventanas secundarias.
+- Verificación de que el cierre de la ventana principal conserva el comportamiento de finalización esperado.
+- Ausencia de regresiones en las funcionalidades existentes afectadas por los cambios.
+
+Utiliza datos de prueba y entornos aislados cuando las pruebas puedan modificar información.
+
+Distingue claramente entre pruebas ejecutadas y satisfactorias, pruebas fallidas, pruebas bloqueadas y pruebas pendientes. No declares exitosas pruebas que no se hayan realizado.
+
+## 12. Evidencias y documentación incremental
+
+Guarda la evidencia de la nueva ventana siguiendo las convenciones del skill y del repositorio.
+
+Actualiza la documentación existente en lugar de generar duplicados innecesarios.
+
+Registra:
+
+- Ventana heredada seleccionada e inspeccionada.
+- Evidencias generadas.
+- Controles identificados.
+- Funcionalidades implementadas.
+- Archivos agregados y modificados.
+- Cambios realizados en componentes compartidos.
+- Ruta de navegación de la nueva pantalla.
+- Dependencias o integraciones necesarias.
+- Resultado de la compilación.
+- Pruebas ejecutadas y sus resultados.
+- Posibles regresiones detectadas.
+- Limitaciones pendientes y pasos necesarios para resolverlas.
+
+No sobrescribas evidencias anteriores si el skill establece que deben conservarse. Utiliza nombres, versiones o mecanismos de registro compatibles con las convenciones existentes.
+
+## 13. Criterios de aceptación
+
+La tarea se considera terminada únicamente cuando se hayan verificado los criterios aplicables:
+
+1. El usuario ha seleccionado la ventana heredada que debe incorporarse.
+2. La ventana se ha inspeccionado utilizando el skill y se ha guardado su evidencia.
+3. Se ha analizado la arquitectura existente antes de modificar código.
+4. La nueva pantalla se ha integrado en el proyecto WinUI 3 actual.
+5. No se ha creado un proyecto nuevo ni se ha reconstruido el Login.
+6. Se han respetado las reglas de diseño responsive y consistencia visual.
+7. Se ha mantenido el comportamiento del menú lateral y de la navegación.
+8. La nueva pantalla utiliza los servicios y componentes existentes cuando corresponde.
+9. No se han inventado operaciones de negocio ni integraciones inexistentes.
+10. El Login no reaparece indebidamente al navegar o cerrar otras ventanas.
+11. Se
