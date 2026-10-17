@@ -37,11 +37,11 @@
 
 - «Actualizar» vuelve a consultar SQL Server y refresca KPI y gráfica. Si falla
   la conexión, el estado diferencia datos previos de un error inicial.
-- SCR-003 Clientes y SCR-004 Productos están alojadas en el área de contenido
-  del Dashboard. Los accesos del menú lateral y de la barra superior cambian
-  la vista dentro de la misma ventana; «Volver al Dashboard» restaura el panel.
-  Los otros módulos aún no migrados muestran un aviso en lugar de simular
-  operaciones.
+- SCR-003 Clientes, SCR-004 Productos y SCR-005 Ventas están alojadas en el
+  área de contenido del Dashboard. Los accesos del menú lateral y de la barra
+  superior cambian la vista dentro de la misma ventana; «Volver al Dashboard»
+  restaura el panel. Los módulos restantes aún no migrados muestran un aviso
+  en lugar de simular operaciones.
 - «Volver al Login» cierra la ventana del Dashboard y abre una nueva ventana de
   inicio de sesión; tras autenticar correctamente, el Login anterior se cierra
   al abrirse el Dashboard.

@@ -4,6 +4,7 @@
 - [SCR-002 — Dashboard](./SCR-002-dashboard.md): panel WinForms observado; KPI y serie mensual desde SQL tras autenticación.
 - [SCR-003 — Administración de Clientes](./SCR-003-clientes.md): vista integrada en la ventana Dashboard, con consulta, CRUD y CSV conectados al esquema SQL; no se probaron escrituras reales.
 - [SCR-004 — Catálogo de Productos](./SCR-004-productos.md): vista integrada en el Dashboard; lectura, filtros, borrador, validación y navegación verificados; escrituras pendientes de prueba.
+- [SCR-005 — Facturación / Ventas](./SCR-005-ventas.md): formulario heredado inspeccionado e integrado en el Dashboard; escritura transaccional implementada, sin prueba de escritura real.
 
 Evidencia:
 
@@ -26,3 +27,5 @@ Evidencia:
 - Dashboard tras volver desde Clientes: [`../../evidence/ui-inspection/window-1771208-20261015-161919.json`](../../evidence/ui-inspection/window-1771208-20261015-161919.json)
 - Login visible tras volver desde el Dashboard: [`../../evidence/ui-inspection/window-2164260-20261014-132257.json`](../../evidence/ui-inspection/window-2164260-20261014-132257.json)
 - Captura real del Dashboard WinUI 3 en ejecución: [`../../evidence/ui/SCR-002-dashboard-winui-responsive.png`](../../evidence/ui/SCR-002-dashboard-winui-responsive.png)
+- Formulario Ventas WinForms, UIA de solo lectura del 2026-10-17 (62 nodos, sin truncamiento):
+  [`../../evidence/ui-inspection/window-263878-20261017-084431.json`](../../evidence/ui-inspection/window-263878-20261017-084431.json)

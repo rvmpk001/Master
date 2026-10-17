@@ -42,6 +42,7 @@
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
             <NavigationViewItem
+                x:Name="navVentas"
                 AutomationProperties.AutomationId="btnNavVentas"
                 Content="Facturación / Ventas"
                 Tag="Ventas">

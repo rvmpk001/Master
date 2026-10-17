@@ -18,6 +18,7 @@ public sealed partial class MainWindow : Window
     private readonly DashboardRepository _dashboardRepository;
     private readonly CustomerRepository _customerRepository;
     private readonly ProductRepository _productRepository;
+    private readonly SalesRepository _salesRepository;
     private DashboardWindow? _dashboardWindow;
     private bool _loadingRememberedUsername;
 
@@ -25,13 +26,15 @@ public sealed partial class MainWindow : Window
         AuthenticationRepository authenticationRepository,
         DashboardRepository dashboardRepository,
         CustomerRepository customerRepository,
-        ProductRepository productRepository)
+        ProductRepository productRepository,
+        SalesRepository salesRepository)
     {
         InitializeComponent();
         _authenticationRepository = authenticationRepository;
         _dashboardRepository = dashboardRepository;
         _customerRepository = customerRepository;
         _productRepository = productRepository;
+        _salesRepository = salesRepository;
         LoadRememberedUsername();
 
         var windowHandle = WindowNative.GetWindowHandle(this);
@@ -281,6 +284,7 @@ public sealed partial class MainWindow : Window
             _dashboardRepository,
             _customerRepository,
             _productRepository,
+            _salesRepository,
             authenticatedUser);
         _dashboardWindow = dashboardWindow;
         dashboardWindow.LogoutRequested += (_, _) =>

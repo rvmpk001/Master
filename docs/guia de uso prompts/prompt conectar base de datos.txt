@@ -382,4 +382,3 @@ Esta integración debe servir como base compartida para las pantallas actuales y
 - Conserva los estilos, la navegación y el comportamiento responsive.
 - No modifiques el menú lateral por el mero hecho de integrar SQL Server.
 - No reconstruyas ventanas ni alteres sus dimensiones o ciclo de vida.
-- Evita que las ventanas gestionen directamente la

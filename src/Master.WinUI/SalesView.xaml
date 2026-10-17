@@ -1,0 +1,383 @@
+<UserControl
+    x:Class="Master.WinUI.SalesView"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <ScrollViewer
+        AutomationProperties.AutomationId="salesScrollViewer"
+        HorizontalScrollBarVisibility="Disabled"
+        VerticalScrollBarVisibility="Auto">
+        <Grid
+            x:Name="RootLayout"
+            MaxWidth="1400"
+            HorizontalAlignment="Center"
+            Background="#FF171A21"
+            SizeChanged="OnRootSizeChanged">
+            <StackPanel Padding="20" Spacing="16">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="12">
+                    <StackPanel Spacing="4">
+                        <TextBlock
+                            AutomationProperties.AutomationId="lblTituloVentas"
+                            FontSize="28"
+                            FontWeight="SemiBold"
+                            Foreground="#FFF2F4F7"
+                            Text="Registro y Emisión de Ventas"
+                            TextWrapping="Wrap" />
+                        <TextBlock
+                            AutomationProperties.AutomationId="lblSubtituloVentas"
+                            FontSize="14"
+                            Foreground="#FFB7C0CC"
+                            Text="Punto de venta conectado a SQL Server."
+                            TextWrapping="Wrap" />
+                    </StackPanel>
+                    <Button
+                        x:Name="btnVolverDashboard"
+                        Grid.Column="1"
+                        AutomationProperties.AutomationId="btnVolverDashboardVentas"
+                        Content="Volver al Dashboard"
+                        Click="OnBackToDashboardClick"
+                        VerticalAlignment="Center" />
+                </Grid>
+
+                <InfoBar
+                    x:Name="salesStatus"
+                    AutomationProperties.AutomationId="salesStatus"
+                    IsClosable="True"
+                    IsOpen="False"
+                    Message=""
+                    Severity="Informational"
+                    Title="" />
+
+                <Border
+                    AutomationProperties.AutomationId="pnlCabeceraVentas"
+                    Background="#FF252A33"
+                    BorderBrush="#FF3B434F"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="16">
+                    <StackPanel Spacing="10">
+                        <TextBlock
+                            FontSize="18"
+                            FontWeight="SemiBold"
+                            Foreground="#FFF2F4F7"
+                            Text="Datos de la factura" />
+                        <Grid
+                            x:Name="HeaderFields"
+                            ColumnDefinitions="2*,1.3*,1*,1*"
+                            ColumnSpacing="12"
+                            RowSpacing="10">
+                            <StackPanel x:Name="CustomerField" Spacing="4">
+                                <TextBlock Foreground="#FFE8ECF2" Text="Cliente Receptor *" />
+                                <ComboBox
+                                    x:Name="cmbCliente"
+                                    AutomationProperties.AutomationId="cmbClienteVentas"
+                                    AutomationProperties.Name="Cliente receptor"
+                                    DisplayMemberPath="DisplayName"
+                                    HorizontalAlignment="Stretch"
+                                    SelectionChanged="OnSelectionChanged" />
+                            </StackPanel>
+                            <StackPanel
+                                x:Name="PaymentField"
+                                Grid.Column="1"
+                                Spacing="4">
+                                <TextBlock Foreground="#FFE8ECF2" Text="Método de pago" />
+                                <ComboBox
+                                    x:Name="cmbMetodoPago"
+                                    AutomationProperties.AutomationId="cmbMetodoPagoVentas"
+                                    AutomationProperties.Name="Método de pago"
+                                    HorizontalAlignment="Stretch"
+                                    SelectionChanged="OnSelectionChanged" />
+                            </StackPanel>
+                            <StackPanel
+                                x:Name="DateField"
+                                Grid.Column="2"
+                                Spacing="4">
+                                <TextBlock Foreground="#FFE8ECF2" Text="Fecha de emisión" />
+                                <DatePicker
+                                    x:Name="dtpFechaVenta"
+                                    AutomationProperties.AutomationId="dtpFechaVenta"
+                                    HorizontalAlignment="Stretch" />
+                            </StackPanel>
+                            <StackPanel
+                                x:Name="InvoiceField"
+                                Grid.Column="3"
+                                Spacing="4">
+                                <TextBlock Foreground="#FFE8ECF2" Text="No. comprobante" />
+                                <TextBox
+                                    x:Name="txtNumeroFactura"
+                                    AutomationProperties.AutomationId="txtNumeroFactura"
+                                    IsReadOnly="True"
+                                    Text="Se asignará al completar" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border
+                    AutomationProperties.AutomationId="pnlAgregarProductoVentas"
+                    Background="#FF252A33"
+                    BorderBrush="#FF3B434F"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="16">
+                    <StackPanel Spacing="10">
+                        <TextBlock
+                            FontSize="18"
+                            FontWeight="SemiBold"
+                            Foreground="#FFF2F4F7"
+                            Text="Agregar producto" />
+                        <Grid
+                            x:Name="ProductEntryGrid"
+                            ColumnDefinitions="2*,*,Auto"
+                            ColumnSpacing="12"
+                            RowSpacing="10">
+                            <StackPanel x:Name="ProductField" Spacing="4">
+                                <TextBlock Foreground="#FFE8ECF2" Text="Producto" />
+                                <ComboBox
+                                    x:Name="cmbProducto"
+                                    AutomationProperties.AutomationId="cmbProductoVentas"
+                                    AutomationProperties.Name="Producto"
+                                    DisplayMemberPath="DisplayName"
+                                    HorizontalAlignment="Stretch"
+                                    SelectionChanged="OnProductSelectionChanged" />
+                            </StackPanel>
+                            <StackPanel
+                                x:Name="QuantityField"
+                                Grid.Column="1"
+                                Spacing="4">
+                                <TextBlock Foreground="#FFE8ECF2" Text="Cantidad" />
+                                <NumberBox
+                                    x:Name="nudCantidad"
+                                    AutomationProperties.AutomationId="nudCantidadVentas"
+                                    IsWrapEnabled="False"
+                                    Minimum="1"
+                                    SmallChange="1"
+                                    SpinButtonPlacementMode="Inline"
+                                    Value="1" />
+                            </StackPanel>
+                            <Button
+                                x:Name="btnAgregarItem"
+                                Grid.Column="2"
+                                AutomationProperties.AutomationId="btnAgregarItemVentas"
+                                Content="+ Agregar a Venta"
+                                Click="OnAddItemClick"
+                                VerticalAlignment="Bottom" />
+                            <TextBlock
+                                x:Name="lblStockInfo"
+                                Grid.Row="1"
+                                AutomationProperties.AutomationId="lblStockInfoVentas"
+                                Foreground="#FFB7C0CC"
+                                Text="Seleccione un producto para consultar precio y existencia."
+                                TextWrapping="Wrap" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <Border
+                    AutomationProperties.AutomationId="pnlDetalleVentas"
+                    Background="#FF252A33"
+                    BorderBrush="#FF3B434F"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="16">
+                    <Grid RowDefinitions="Auto,Auto,*" RowSpacing="10">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock
+                                FontSize="18"
+                                FontWeight="SemiBold"
+                                Foreground="#FFF2F4F7"
+                                Text="Detalle de la venta" />
+                            <TextBlock
+                                x:Name="lblConteoDetalle"
+                                Grid.Column="1"
+                                AutomationProperties.AutomationId="lblConteoDetalleVentas"
+                                Foreground="#FFB7C0CC"
+                                VerticalAlignment="Center" />
+                        </Grid>
+                        <Grid
+                            Grid.Row="1"
+                            ColumnDefinitions="1.2*,2*,Auto,Auto,Auto"
+                            ColumnSpacing="12"
+                            Padding="8,0">
+                            <TextBlock Foreground="#FFB7C0CC" Text="Código" />
+                            <TextBlock
+                                Grid.Column="1"
+                                Foreground="#FFB7C0CC"
+                                Text="Producto" />
+                            <TextBlock
+                                Grid.Column="2"
+                                Foreground="#FFB7C0CC"
+                                Text="Cantidad" />
+                            <TextBlock
+                                Grid.Column="3"
+                                Foreground="#FFB7C0CC"
+                                Text="Precio" />
+                            <TextBlock
+                                Grid.Column="4"
+                                Foreground="#FFB7C0CC"
+                                Text="Subtotal" />
+                        </Grid>
+                        <Grid Grid.Row="2">
+                            <ListView
+                                x:Name="lstDetalle"
+                                AutomationProperties.AutomationId="dgvDetalleVentas"
+                                AutomationProperties.Name="Detalle de la venta"
+                                MaxHeight="320"
+                                SelectionChanged="OnLineSelectionChanged"
+                                SelectionMode="Single"
+                                ScrollViewer.IsVerticalScrollChainingEnabled="False"
+                                ScrollViewer.VerticalScrollMode="Enabled">
+                                <ListView.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid
+                                            ColumnDefinitions="1.2*,2*,Auto,Auto,Auto"
+                                            ColumnSpacing="12"
+                                            Padding="8,5">
+                                            <TextBlock
+                                                Text="{Binding ProductCode}"
+                                                TextTrimming="CharacterEllipsis"
+                                                VerticalAlignment="Center" />
+                                            <TextBlock
+                                                Grid.Column="1"
+                                                Text="{Binding ProductName}"
+                                                TextTrimming="CharacterEllipsis"
+                                                VerticalAlignment="Center" />
+                                            <TextBlock
+                                                Grid.Column="2"
+                                                Text="{Binding Quantity}"
+                                                VerticalAlignment="Center" />
+                                            <TextBlock
+                                                Grid.Column="3"
+                                                Text="{Binding UnitPriceText}"
+                                                TextTrimming="CharacterEllipsis"
+                                                VerticalAlignment="Center" />
+                                            <TextBlock
+                                                Grid.Column="4"
+                                                Text="{Binding SubtotalText}"
+                                                TextTrimming="CharacterEllipsis"
+                                                VerticalAlignment="Center" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ListView.ItemTemplate>
+                            </ListView>
+                            <TextBlock
+                                x:Name="lblEmptyCart"
+                                AutomationProperties.AutomationId="lblEmptyCartVentas"
+                                Foreground="#FFB7C0CC"
+                                HorizontalAlignment="Center"
+                                IsHitTestVisible="False"
+                                Text="Aún no hay productos en la factura."
+                                VerticalAlignment="Center" />
+                        </Grid>
+                    </Grid>
+                </Border>
+
+                <Border
+                    AutomationProperties.AutomationId="pnlTotalesVentas"
+                    Background="#FF252A33"
+                    BorderBrush="#FF3B434F"
+                    BorderThickness="1"
+                    CornerRadius="10"
+                    Padding="16">
+                    <StackPanel Spacing="12">
+                        <StackPanel Spacing="4">
+                            <TextBlock Foreground="#FFE8ECF2" Text="Notas y observaciones" />
+                            <TextBox
+                                x:Name="txtObservaciones"
+                                AcceptsReturn="True"
+                                AutomationProperties.AutomationId="txtObservacionesVentas"
+                                MaxLength="300"
+                                MinHeight="64"
+                                TextWrapping="Wrap"
+                                ScrollViewer.VerticalScrollBarVisibility="Auto" />
+                        </StackPanel>
+
+                        <Grid
+                            x:Name="TotalsLayout"
+                            ColumnDefinitions="*,Auto"
+                            ColumnSpacing="12">
+                            <TextBlock
+                                x:Name="lblStockPolicy"
+                                AutomationProperties.AutomationId="lblStockPolicyVentas"
+                                Foreground="#FFB7C0CC"
+                                Text="La factura registra venta y detalle; no modifica el stock."
+                                TextWrapping="Wrap"
+                                VerticalAlignment="Center" />
+                            <StackPanel
+                                x:Name="TotalsPanel"
+                                Grid.Column="1"
+                                HorizontalAlignment="Right"
+                                MinWidth="260"
+                                Spacing="4">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Foreground="#FFE8ECF2" Text="Subtotal:" />
+                                    <TextBlock
+                                        x:Name="lblValorSubtotal"
+                                        Grid.Column="1"
+                                        AutomationProperties.AutomationId="lblValorSubtotalVentas"
+                                        Foreground="#FFF2F4F7" />
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock
+                                        x:Name="lblImpuesto"
+                                        Foreground="#FFE8ECF2"
+                                        Text="ITBIS/IVA" />
+                                    <TextBlock
+                                        x:Name="lblValorImpuesto"
+                                        Grid.Column="1"
+                                        AutomationProperties.AutomationId="lblValorImpuestoVentas"
+                                        Foreground="#FFF2F4F7" />
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock
+                                        FontSize="18"
+                                        FontWeight="SemiBold"
+                                        Foreground="#FFF2F4F7"
+                                        Text="TOTAL:" />
+                                    <TextBlock
+                                        x:Name="lblValorTotal"
+                                        Grid.Column="1"
+                                        AutomationProperties.AutomationId="lblValorTotalVentas"
+                                        FontSize="18"
+                                        FontWeight="SemiBold"
+                                        Foreground="#FF62B5F2" />
+                                </Grid>
+                            </StackPanel>
+                        </Grid>
+
+                        <Grid
+                            x:Name="ActionButtons"
+                            ColumnDefinitions="*,*,*,*"
+                            ColumnSpacing="8">
+                            <Button
+                                x:Name="btnNuevaVenta"
+                                AutomationProperties.AutomationId="btnNuevaVenta"
+                                Content="Nueva Venta"
+                                Click="OnNewSaleClick" />
+                            <Button
+                                x:Name="btnQuitarItem"
+                                Grid.Column="1"
+                                AutomationProperties.AutomationId="btnQuitarItemVentas"
+                                Content="Quitar Ítem"
+                                Click="OnRemoveItemClick"
+                                IsEnabled="False" />
+                            <Button
+                                x:Name="btnGenerarTicket"
+                                Grid.Column="2"
+                                AutomationProperties.AutomationId="btnGenerarTicketVentas"
+                                Content="Ver / Imprimir Ticket"
+                                Click="OnShowTicketClick"
+                                IsEnabled="False" />
+                            <Button
+                                x:Name="btnRegistrarVenta"
+                                Grid.Column="3"
+                                AutomationProperties.AutomationId="btnRegistrarVentaVentas"
+                                Content="Completar factura"
+                                Click="OnCompleteSaleClick"
+                                IsEnabled="False" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+    </ScrollViewer>
+</UserControl>

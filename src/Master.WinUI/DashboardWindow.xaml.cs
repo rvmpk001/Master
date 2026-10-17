@@ -15,9 +15,11 @@ public sealed partial class DashboardWindow : Window
     private readonly DashboardRepository _dashboardRepository;
     private readonly CustomerRepository _customerRepository;
     private readonly ProductRepository _productRepository;
+    private readonly SalesRepository _salesRepository;
     private readonly AuthenticatedUser _authenticatedUser;
     private readonly CustomersView _customersView;
     private readonly ProductsView _productsView;
+    private readonly SalesView _salesView;
     private bool _hasLoadedMetrics;
 
     internal event EventHandler? LogoutRequested;
@@ -26,12 +28,14 @@ public sealed partial class DashboardWindow : Window
         DashboardRepository dashboardRepository,
         CustomerRepository customerRepository,
         ProductRepository productRepository,
+        SalesRepository salesRepository,
         AuthenticatedUser authenticatedUser)
     {
         InitializeComponent();
         _dashboardRepository = dashboardRepository;
         _customerRepository = customerRepository;
         _productRepository = productRepository;
+        _salesRepository = salesRepository;
         _authenticatedUser = authenticatedUser;
         lblDataMode.Text = "CONECTANDO SQL";
         lblSubtitulo.Text = $"Sesión: {authenticatedUser.FullName} · {authenticatedUser.Role}.";
@@ -54,6 +58,9 @@ public sealed partial class DashboardWindow : Window
         _productsView = new ProductsView(_productRepository, windowHandle);
         _productsView.BackRequested += (_, _) => ShowDashboard();
         customersContentHost.Children.Add(_productsView);
+        _salesView = new SalesView(_salesRepository, _authenticatedUser);
+        _salesView.BackRequested += (_, _) => ShowDashboard();
+        customersContentHost.Children.Add(_salesView);
         var windowId = Win32Interop.GetWindowIdFromWindow(windowHandle);
         if (AppWindow.GetFromWindowId(windowId).Presenter is OverlappedPresenter presenter)
         {
@@ -104,6 +111,9 @@ public sealed partial class DashboardWindow : Window
             case "Productos":
                 ShowProducts();
                 break;
+            case "Ventas":
+                ShowSales();
+                break;
             default:
                 ShowDashboard();
                 ShowUnavailableModule(item.Content?.ToString() ?? "Este módulo");
@@ -123,6 +133,10 @@ public sealed partial class DashboardWindow : Window
             {
                 ShowProducts();
             }
+            else if (button.Tag?.ToString() == "Ventas")
+            {
+                ShowSales();
+            }
             else
             {
                 ShowUnavailableModule(button.Tag?.ToString() ?? button.Label);
@@ -135,6 +149,7 @@ public sealed partial class DashboardWindow : Window
         customersContentHost.Visibility = Visibility.Collapsed;
         _customersView.Visibility = Visibility.Collapsed;
         _productsView.Visibility = Visibility.Collapsed;
+        _salesView.Visibility = Visibility.Collapsed;
         DashboardPage.Visibility = Visibility.Visible;
         dashboardStatus.IsOpen = false;
         DashboardNavigation.SelectedItem = navDashboard;
@@ -145,6 +160,7 @@ public sealed partial class DashboardWindow : Window
         DashboardPage.Visibility = Visibility.Collapsed;
         customersContentHost.Visibility = Visibility.Visible;
         _productsView.Visibility = Visibility.Collapsed;
+        _salesView.Visibility = Visibility.Collapsed;
         _customersView.Visibility = Visibility.Visible;
         _customersView.ActivateView();
         DashboardNavigation.SelectedItem = navClientes;
@@ -156,8 +172,20 @@ public sealed partial class DashboardWindow : Window
         customersContentHost.Visibility = Visibility.Visible;
         _customersView.Visibility = Visibility.Collapsed;
         _productsView.Visibility = Visibility.Visible;
+        _salesView.Visibility = Visibility.Collapsed;
         _productsView.ActivateView();
         DashboardNavigation.SelectedItem = navProductos;
+    }
+
+    private void ShowSales()
+    {
+        DashboardPage.Visibility = Visibility.Collapsed;
+        customersContentHost.Visibility = Visibility.Visible;
+        _customersView.Visibility = Visibility.Collapsed;
+        _productsView.Visibility = Visibility.Collapsed;
+        _salesView.Visibility = Visibility.Visible;
+        _salesView.ActivateView();
+        DashboardNavigation.SelectedItem = navVentas;
     }
 
     private void OnRefreshClick(object sender, RoutedEventArgs e)

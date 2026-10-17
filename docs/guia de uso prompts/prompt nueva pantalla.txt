@@ -314,4 +314,3 @@ La tarea se considera terminada únicamente cuando se hayan verificado los crite
 8. La nueva pantalla utiliza los servicios y componentes existentes cuando corresponde.
 9. No se han inventado operaciones de negocio ni integraciones inexistentes.
 10. El Login no reaparece indebidamente al navegar o cerrar otras ventanas.
-11. Se

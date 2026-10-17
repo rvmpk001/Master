@@ -10,6 +10,7 @@ public partial class App : Application
     private readonly DashboardRepository _dashboardRepository;
     private readonly CustomerRepository _customerRepository;
     private readonly ProductRepository _productRepository;
+    private readonly SalesRepository _salesRepository;
 
     public App()
     {
@@ -20,6 +21,7 @@ public partial class App : Application
         _dashboardRepository = new DashboardRepository(connectionFactory);
         _customerRepository = new CustomerRepository(connectionFactory);
         _productRepository = new ProductRepository(connectionFactory);
+        _salesRepository = new SalesRepository(connectionFactory);
     }
 
     protected override void OnLaunched(LaunchActivatedEventArgs args)
@@ -33,7 +35,8 @@ public partial class App : Application
             _authenticationRepository,
             _dashboardRepository,
             _customerRepository,
-            _productRepository);
+            _productRepository,
+            _salesRepository);
         _window.Activate();
     }
 }
