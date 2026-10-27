@@ -1,0 +1,10 @@
+# Local Python environment
+**/.venv/
+**/__pycache__/
+**/.vs/
+**/bin/
+**/obj/
+*.py[cod]
+
+# Evidence might contain sensitive names or business data; review before commit.
+evidence/ui-inspection/*.json
