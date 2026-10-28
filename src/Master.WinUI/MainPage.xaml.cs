@@ -57,6 +57,7 @@ public sealed partial class MainPage : Page
     private bool _isImagesOffConfigurationOpen;
     private bool _isImageSizesConfigurationOpen;
     private bool _isMessagesConfigurationOpen;
+    private bool _isAdditionalConfigurationOpen;
     private string _authenticatedUsername = string.Empty;
     private FormulaRow? _selectedFormula;
     private SupplierRecord? _selectedSupplier;
@@ -165,6 +166,7 @@ public sealed partial class MainPage : Page
             _isImagesOffConfigurationOpen = false;
             _isImageSizesConfigurationOpen = false;
             _isMessagesConfigurationOpen = false;
+            _isAdditionalConfigurationOpen = false;
             ConfigurationFormBorder.ClearValue(FrameworkElement.WidthProperty);
             ConfigurationFormBorder.ClearValue(FrameworkElement.HeightProperty);
         };
@@ -260,6 +262,10 @@ public sealed partial class MainPage : Page
         else if (_isMessagesConfigurationOpen)
         {
             SizeImagesOnConfigurationForm(e.NewSize);
+        }
+        else if (_isAdditionalConfigurationOpen)
+        {
+            SizeCompanyConfigurationForm(e.NewSize);
         }
 
         var isCompact = e.NewSize.Width < 1100;
@@ -443,6 +449,7 @@ public sealed partial class MainPage : Page
                 _isImagesOffConfigurationOpen = selectedTab == 5;
                 _isImageSizesConfigurationOpen = selectedTab == 6;
                 _isMessagesConfigurationOpen = selectedTab == 7;
+                _isAdditionalConfigurationOpen = selectedTab == 8;
                 if (_isCompanyConfigurationOpen)
                 {
                     SizeCompanyConfigurationForm(new Windows.Foundation.Size(ActualWidth, ActualHeight));
@@ -467,13 +474,17 @@ public sealed partial class MainPage : Page
                 {
                     SizeImagesOnConfigurationForm(new Windows.Foundation.Size(ActualWidth, ActualHeight));
                 }
+                else if (_isAdditionalConfigurationOpen)
+                {
+                    SizeCompanyConfigurationForm(new Windows.Foundation.Size(ActualWidth, ActualHeight));
+                }
                 else
                 {
                     ConfigurationFormBorder.ClearValue(FrameworkElement.WidthProperty);
                     ConfigurationFormBorder.ClearValue(FrameworkElement.HeightProperty);
                 }
 
-                ConfigurationView.ShowTab(selectedTab, onlySelectedTab: selectedTab is 1 or 2 or 3 or 4 or 5 or 6 or 7);
+                ConfigurationView.ShowTab(selectedTab, onlySelectedTab: selectedTab is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8);
                 ConfigurationFormOverlay.Visibility = Visibility.Visible;
                 if (selectedTab == 1)
                 {
@@ -498,6 +509,10 @@ public sealed partial class MainPage : Page
                 else if (selectedTab == 7)
                 {
                     await ConfigurationView.LoadMessagesAsync();
+                }
+                else if (selectedTab == 8)
+                {
+                    await ConfigurationView.LoadAdditionalConfigurationAsync();
                 }
 
                 return;
@@ -580,6 +595,7 @@ public sealed partial class MainPage : Page
             _isImagesOffConfigurationOpen = false;
             _isImageSizesConfigurationOpen = false;
             _isMessagesConfigurationOpen = false;
+            _isAdditionalConfigurationOpen = false;
             ConfigurationFormBorder.ClearValue(FrameworkElement.WidthProperty);
             ConfigurationFormBorder.ClearValue(FrameworkElement.HeightProperty);
             ConfigurationView.ShowTab(0, onlySelectedTab: false);

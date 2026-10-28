@@ -25,6 +25,8 @@ public sealed partial class ConfigurationView : UserControl
     private readonly Dictionary<string, (TextBox Width, TextBox Height)> _imageSizeFields = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, MessageFields> _messageFields = new(StringComparer.OrdinalIgnoreCase);
     private readonly MessageConfigurationService _messageConfigurationService = new();
+    private readonly Dictionary<string, ComboBox> _additionalSelectors = new(StringComparer.OrdinalIgnoreCase);
+    private readonly AdditionalConfigurationService _additionalConfigurationService = new();
     private readonly List<Button> _databaseActionButtons = new();
     private readonly Dictionary<TreeViewNode, PlcTagRecord> _plcTagsByNode = new();
     private TreeView? _plcTagsTree;
@@ -161,6 +163,43 @@ public sealed partial class ConfigurationView : UserControl
         }
     }
 
+    public async Task LoadAdditionalConfigurationAsync()
+    {
+        try
+        {
+            var configuration = await _additionalConfigurationService.GetConfigurationAsync();
+            foreach (var (parameter, selector) in _additionalSelectors)
+            {
+                selector.ItemsSource = configuration.Options;
+                if (!configuration.Selections.TryGetValue(parameter, out var selectedValue))
+                {
+                    throw new InvalidOperationException(
+                        $"Falta el parámetro '{parameter}' en dbo.ConfigMaq.");
+                }
+
+                if (!configuration.Options.Contains(selectedValue, StringComparer.OrdinalIgnoreCase))
+                {
+                    throw new InvalidOperationException(
+                        $"El valor '{selectedValue}' de '{parameter}' no existe en dbo.Adicionales.");
+                }
+
+                selector.SelectedItem = configuration.Options.First(option =>
+                    string.Equals(option, selectedValue, StringComparison.OrdinalIgnoreCase));
+                selector.IsEnabled = true;
+            }
+
+            ShowStatus("Opciones cargadas desde dbo.Adicionales y dbo.ConfigMaq.", InfoBarSeverity.Success);
+        }
+        catch (SqlException exception)
+        {
+            ShowStatus($"No se pudieron cargar los adicionales (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ShowStatus($"No se pudieron cargar los adicionales: {exception.Message}", InfoBarSeverity.Error);
+        }
+    }
+
     public void ShowTab(int index, bool onlySelectedTab)
     {
         if (index < 0 || index >= ConfigurationTabs.TabItems.Count)
@@ -175,6 +214,7 @@ public sealed partial class ConfigurationView : UserControl
         ImagesOffContentHost.Visibility = Visibility.Collapsed;
         ImageSizesContentHost.Visibility = Visibility.Collapsed;
         MessagesContentHost.Visibility = Visibility.Collapsed;
+        AdditionalContentHost.Visibility = Visibility.Collapsed;
 
         if (index == 1 && onlySelectedTab)
         {
@@ -228,6 +268,14 @@ public sealed partial class ConfigurationView : UserControl
             ConfigurationTabs.Visibility = Visibility.Collapsed;
             PlcContentHost.Visibility = Visibility.Collapsed;
             MessagesContentHost.Visibility = Visibility.Visible;
+            return;
+        }
+
+        if (index == 8 && onlySelectedTab)
+        {
+            ConfigurationTabs.Visibility = Visibility.Collapsed;
+            PlcContentHost.Visibility = Visibility.Collapsed;
+            AdditionalContentHost.Visibility = Visibility.Visible;
             return;
         }
 
@@ -416,6 +464,13 @@ public sealed partial class ConfigurationView : UserControl
         {
             ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
             MessagesContentHost.Content = scrollViewer;
+            return;
+        }
+
+        if (index == 8)
+        {
+            ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
+            AdditionalContentHost.Content = scrollViewer;
             return;
         }
 
@@ -1569,14 +1624,76 @@ public sealed partial class ConfigurationView : UserControl
 
     private void BuildAdditionalFields(StackPanel host)
     {
-        var section = AddSection(host, "Textos adicionales");
+        var fields = new Grid
+        {
+            ColumnSpacing = 18,
+            RowSpacing = 16,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        for (var index = 0; index < 4; index++)
+        {
+            fields.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        }
+
+        for (var index = 0; index < 16; index++)
+        {
+            fields.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        }
+
         for (var index = 1; index <= 16; index++)
         {
-            AddSelector(section, $"Txt{index}", new[]
+            var parameter = $"I{index}";
+            var row = new Grid
             {
-                $"ADICIONAL{index}", $"ADICIONAL {index}", "EN SILO CEMENTO"
-            }, index == 1 ? "EN SILO CEMENTO" : $"ADICIONAL{index}");
+                ColumnSpacing = 6,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+            var label = new TextBlock
+            {
+                Text = $"Txt{index}:",
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                    Windows.UI.Color.FromArgb(255, 169, 184, 204))
+            };
+            var selector = new ComboBox
+            {
+                MinWidth = 0,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                IsEnabled = false
+            };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(selector, $"Txt{index}");
+            _additionalSelectors.Add(parameter, selector);
+            Grid.SetColumn(selector, 1);
+            row.Children.Add(label);
+            row.Children.Add(selector);
+            Grid.SetRow(row, (index - 1) / 4);
+            Grid.SetColumn(row, (index - 1) % 4);
+            fields.Children.Add(row);
         }
+
+        fields.SizeChanged += (_, args) =>
+        {
+            var columnCount = args.NewSize.Width >= 900 ? 4 : args.NewSize.Width >= 580 ? 2 : 1;
+            for (var index = 0; index < 16; index++)
+            {
+                if (fields.Children[index] is FrameworkElement field)
+                {
+                    Grid.SetRow(field, index / columnCount);
+                    Grid.SetColumn(field, index % columnCount);
+                }
+            }
+
+            for (var index = 0; index < fields.ColumnDefinitions.Count; index++)
+            {
+                fields.ColumnDefinitions[index].Width = index < columnCount
+                    ? new GridLength(1, GridUnitType.Star)
+                    : new GridLength(0);
+            }
+        };
+        host.Children.Add(fields);
     }
 
     private void BuildOrders(StackPanel host)
@@ -1797,6 +1914,23 @@ public sealed partial class ConfigurationView : UserControl
                         field.Value.Format)).ToArray();
                 await _messageConfigurationService.SaveMessagesAsync(updates);
                 ShowStatus("Mensajes y formatos guardados en dbo.Mensajes.", InfoBarSeverity.Success);
+            }
+            else if (_selectedConfigurationTab == 8)
+            {
+                var selections = _additionalSelectors.Select(selector =>
+                {
+                    var value = selector.Value.SelectedItem?.ToString();
+                    if (string.IsNullOrWhiteSpace(value))
+                    {
+                        throw new InvalidOperationException(
+                            $"Selecciona un valor para '{selector.Key}' antes de guardar.");
+                    }
+
+                    return new AdditionalConfigurationSelection(selector.Key, value);
+                }).ToArray();
+
+                await _additionalConfigurationService.SaveConfigurationAsync(selections);
+                ShowStatus("Adicionales guardados en dbo.ConfigMaq.", InfoBarSeverity.Success);
             }
             else
             {
