@@ -99,5 +99,11 @@
             HorizontalContentAlignment="Stretch"
             VerticalContentAlignment="Stretch"
             Visibility="Collapsed" />
+        <ContentControl
+            x:Name="OrdersContentHost"
+            Grid.Row="2"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch"
+            Visibility="Collapsed" />
     </Grid>
 </UserControl>

@@ -27,12 +27,27 @@ public sealed partial class ConfigurationView : UserControl
     private readonly MessageConfigurationService _messageConfigurationService = new();
     private readonly Dictionary<string, ComboBox> _additionalSelectors = new(StringComparer.OrdinalIgnoreCase);
     private readonly AdditionalConfigurationService _additionalConfigurationService = new();
+    private readonly OrderService _orderService = new();
+    private readonly OrderConfigurationService _orderConfigurationService = new();
     private readonly Dictionary<string, CheckBox> _remissionOptions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TextBox> _remissionTextFields = new(StringComparer.Ordinal);
     private readonly Dictionary<string, ComboBox> _remissionSelectors = new(StringComparer.Ordinal);
     private readonly RemissionConfigurationService _remissionConfigurationService = new();
     private readonly List<Button> _databaseActionButtons = new();
     private readonly Dictionary<TreeViewNode, PlcTagRecord> _plcTagsByNode = new();
+    private readonly StackPanel _orderScheduleRows = new();
+    private readonly List<OrderScheduleFields> _orderScheduleFieldControls = new();
+    private readonly OrderScheduleConfigurationService _orderScheduleConfigurationService = new();
+    private ComboBox? _orderDischargeTypeSelector;
+    private ComboBox? _orderProductSelector;
+    private ComboBox? _orderUseSelector;
+    private TextBox? _orderConditionsField;
+    private TextBox? _orderNumberField;
+    private CheckBox? _orderIncludeCompanyName;
+    private CheckBox? _orderPrintLinesAndTitles;
+    private CheckBox? _orderOccasionalOrders;
+    private readonly Dictionary<string, TextBox> _orderTitleFields = new(StringComparer.Ordinal);
+    private int? _orderConfigurationId;
     private TreeView? _plcTagsTree;
     private ComboBox? _plcConnectionType;
     private StackPanel? _plcSerialOptions;
@@ -249,6 +264,118 @@ public sealed partial class ConfigurationView : UserControl
         }
     }
 
+    public async Task LoadOrderOptionsAsync()
+    {
+        try
+        {
+            var optionLists = await Task.WhenAll(
+                _orderService.GetDischargeTypesAsync(),
+                _orderService.GetProductsAsync(),
+                _orderService.GetPaymentConditionsAsync());
+
+            SetOrderOptions(_orderDischargeTypeSelector!, optionLists[0], "BOMBEADO", "Tipo Descarga");
+            SetOrderOptions(_orderProductSelector!, optionLists[1], "CONCRETO", "Producto Solicitado");
+            SetOrderOptions(_orderUseSelector!, optionLists[2], "BANQUETAS", "Uso");
+            ShowStatus(
+                "Tipos de descarga (T), productos (P) y usos (U) cargados desde dbo.OpcionesPedido.",
+                InfoBarSeverity.Success);
+        }
+        catch (SqlException exception)
+        {
+            ShowStatus($"No se pudieron cargar las opciones de pedido (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ShowStatus($"No se pudieron cargar las opciones de pedido: {exception.Message}", InfoBarSeverity.Error);
+        }
+    }
+
+    public async Task LoadOrderSchedulesAsync()
+    {
+        try
+        {
+            var schedules = await _orderScheduleConfigurationService.GetSchedulesAsync();
+            _orderScheduleRows.Children.Clear();
+            _orderScheduleFieldControls.Clear();
+
+            if (schedules.Count > 0)
+            {
+                AddOrderScheduleRow(schedules[0]);
+            }
+
+            _orderConditionsField!.Text = schedules.FirstOrDefault()?.Description ?? string.Empty;
+            if (schedules.Count == 0)
+            {
+                AddOrderScheduleRow(new OrderScheduleRecord(
+                    1,
+                    string.Empty,
+                    new TimeSpan(13, 20, 0),
+                    new TimeSpan(13, 20, 0)));
+                ShowStatus(
+                    "dbo.Horarios no tiene turnos configurados; agrega la descripción antes de guardar.",
+                    InfoBarSeverity.Warning);
+                return;
+            }
+
+            ShowStatus(
+                schedules.Count > 1
+                    ? "Se cargó el primer turno de dbo.Horarios. Al guardar se conservará únicamente ese turno."
+                    : "Turnos, horas y condiciones cargados desde dbo.Horarios.",
+                schedules.Count > 1 ? InfoBarSeverity.Warning : InfoBarSeverity.Success);
+        }
+        catch (SqlException exception)
+        {
+            ShowStatus($"No se pudieron cargar los horarios (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ShowStatus($"No se pudieron cargar los horarios: {exception.Message}", InfoBarSeverity.Error);
+        }
+    }
+
+    public async Task LoadOrderConfigurationAsync()
+    {
+        _orderConfigurationId = null;
+        try
+        {
+            var settings = await _orderConfigurationService.GetSettingsAsync();
+            _orderConfigurationId = settings.Id;
+            _orderNumberField!.Text = settings.OrderNumber;
+            _orderIncludeCompanyName!.IsChecked = settings.IncludeCompanyName;
+            _orderPrintLinesAndTitles!.IsChecked = settings.PrintLinesAndTitles;
+            _orderOccasionalOrders!.IsChecked = settings.OccasionalOrders;
+            _orderTitleFields["Tipo"].Text = settings.DischargeTitle;
+            _orderTitleFields["Producto"].Text = settings.ProductTitle;
+            _orderTitleFields["Uso"].Text = settings.UseTitle;
+            ShowStatus("Número, opciones y títulos cargados desde dbo.AjustePedido.", InfoBarSeverity.Success);
+        }
+        catch (SqlException exception)
+        {
+            ShowStatus($"No se pudo cargar la configuración de pedido (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ShowStatus($"No se pudo cargar la configuración de pedido: {exception.Message}", InfoBarSeverity.Error);
+        }
+    }
+
+    private static void SetOrderOptions(
+        ComboBox selector,
+        IReadOnlyList<string> options,
+        string preferredSelection,
+        string label)
+    {
+        selector.ItemsSource = options;
+        selector.SelectedItem = options.FirstOrDefault(option =>
+            string.Equals(option, preferredSelection, StringComparison.OrdinalIgnoreCase))
+            ?? options.FirstOrDefault();
+        selector.IsEnabled = options.Count > 0;
+        if (options.Count == 0)
+        {
+            throw new InvalidOperationException($"No se encontraron opciones para '{label}' en dbo.OpcionesPedido.");
+        }
+    }
+
     public void ShowTab(int index, bool onlySelectedTab)
     {
         if (index < 0 || index >= ConfigurationTabs.TabItems.Count)
@@ -264,6 +391,7 @@ public sealed partial class ConfigurationView : UserControl
         ImageSizesContentHost.Visibility = Visibility.Collapsed;
         MessagesContentHost.Visibility = Visibility.Collapsed;
         AdditionalContentHost.Visibility = Visibility.Collapsed;
+        OrdersContentHost.Visibility = Visibility.Collapsed;
 
         if (index == 1 && onlySelectedTab)
         {
@@ -325,6 +453,14 @@ public sealed partial class ConfigurationView : UserControl
             ConfigurationTabs.Visibility = Visibility.Collapsed;
             PlcContentHost.Visibility = Visibility.Collapsed;
             AdditionalContentHost.Visibility = Visibility.Visible;
+            return;
+        }
+
+        if (index == 9 && onlySelectedTab)
+        {
+            ConfigurationTabs.Visibility = Visibility.Collapsed;
+            PlcContentHost.Visibility = Visibility.Collapsed;
+            OrdersContentHost.Visibility = Visibility.Visible;
             return;
         }
 
@@ -520,6 +656,13 @@ public sealed partial class ConfigurationView : UserControl
         {
             ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
             AdditionalContentHost.Content = scrollViewer;
+            return;
+        }
+
+        if (index == 9)
+        {
+            ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
+            OrdersContentHost.Content = scrollViewer;
             return;
         }
 
@@ -1758,21 +1901,286 @@ public sealed partial class ConfigurationView : UserControl
 
     private void BuildOrders(StackPanel host)
     {
-        var section = AddSection(host, "Configuración de pedidos");
-        AddTextField(section, "Número Pedido", "2");
-        AddCheckBox(section, "Colocar nombre de compañía en Pedido", true);
-        AddCheckBox(section, "Imprimir líneas y títulos en Pedido", true);
-        AddCheckBox(section, "Pedidos Ocasionales", true);
-        AddSelector(section, "Tipo Descarga", new[] { "BOMBEADO" }, "BOMBEADO");
-        AddSelector(section, "Producto Solicitado", new[] { "CONCRETO" }, "CONCRETO");
-        AddSelector(section, "Uso", new[] { "BANQUETAS" }, "BANQUETAS");
-        AddTextField(section, "Título tipo descarga", "Tipo descarga");
-        AddTextField(section, "Título producto", "Producto");
-        AddTextField(section, "Título condiciones pago", "Condiciones pago");
-        AddTextField(section, "Turno");
-        AddTextField(section, "Inicio", "07:16 a. m.");
-        AddTextField(section, "Término", "07:16 a. m.");
-        AddTextField(section, "Condiciones y observaciones");
+        host.Spacing = 18;
+
+        var options = new Grid
+        {
+            ColumnSpacing = 18,
+            RowSpacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        options.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        options.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        options.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        options.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        _orderNumberField = new TextBox
+        {
+            Header = "Número Pedido",
+            Text = "2",
+            Width = 140,
+            MaxLength = 10
+        };
+        Grid.SetRow(_orderNumberField, 0);
+        Grid.SetColumn(_orderNumberField, 0);
+        options.Children.Add(_orderNumberField);
+
+        var flags = new StackPanel
+        {
+            Orientation = Orientation.Horizontal,
+            Spacing = 16,
+            VerticalAlignment = VerticalAlignment.Center,
+            HorizontalAlignment = HorizontalAlignment.Left
+        };
+        _orderIncludeCompanyName = new CheckBox
+        {
+            Content = "Colocar nombre de compañía en Pedido",
+            IsChecked = true
+        };
+        flags.Children.Add(_orderIncludeCompanyName);
+        _orderPrintLinesAndTitles = new CheckBox
+        {
+            Content = "Imprimir líneas y títulos en Pedido",
+            IsChecked = true
+        };
+        flags.Children.Add(_orderPrintLinesAndTitles);
+        _orderOccasionalOrders = new CheckBox
+        {
+            Content = "Pedidos Ocasionales",
+            IsChecked = true
+        };
+        flags.Children.Add(_orderOccasionalOrders);
+        flags.SizeChanged += (_, args) =>
+        {
+            flags.Orientation = args.NewSize.Width >= 620
+                ? Orientation.Horizontal
+                : Orientation.Vertical;
+        };
+        Grid.SetColumn(flags, 1);
+        Grid.SetColumnSpan(flags, 3);
+        options.Children.Add(flags);
+        host.Children.Add(options);
+
+        var fields = new Grid
+        {
+            ColumnSpacing = 18,
+            RowSpacing = 12,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        for (var index = 0; index < 3; index++)
+        {
+            fields.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        }
+
+        _orderDischargeTypeSelector = AddOrderField(fields, 0, "Tipo Descarga", "Tipo descarga");
+        _orderProductSelector = AddOrderField(fields, 1, "Producto Solicitado", "Producto");
+        _orderUseSelector = AddOrderField(fields, 2, "Uso", "Condiciones pago");
+        fields.SizeChanged += (_, args) =>
+        {
+            var columnCount = args.NewSize.Width >= 780 ? 3 : args.NewSize.Width >= 520 ? 2 : 1;
+            for (var index = 0; index < fields.Children.Count; index++)
+            {
+                if (fields.Children[index] is FrameworkElement field)
+                {
+                    Grid.SetRow(field, index / columnCount);
+                    Grid.SetColumn(field, index % columnCount);
+                }
+            }
+
+            for (var index = 0; index < fields.ColumnDefinitions.Count; index++)
+            {
+                fields.ColumnDefinitions[index].Width = index < columnCount
+                    ? new GridLength(1, GridUnitType.Star)
+                    : new GridLength(0);
+            }
+        };
+        host.Children.Add(fields);
+
+        _orderScheduleRows.Children.Clear();
+        _orderScheduleRows.Spacing = 8;
+        _orderScheduleRows.HorizontalAlignment = HorizontalAlignment.Stretch;
+        _orderScheduleFieldControls.Clear();
+        AddOrderScheduleRow(new OrderScheduleRecord(
+            1,
+            string.Empty,
+            new TimeSpan(13, 20, 0),
+            new TimeSpan(13, 20, 0)));
+        host.Children.Add(_orderScheduleRows);
+
+        _orderConditionsField = new TextBox
+        {
+            Header = "Condiciones y observaciones",
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap,
+            MinHeight = 120,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            VerticalContentAlignment = VerticalAlignment.Top
+        };
+        host.Children.Add(_orderConditionsField);
+    }
+
+    private ComboBox AddOrderField(
+        Grid parent,
+        int index,
+        string label,
+        string title)
+    {
+        var selector = new ComboBox
+        {
+            Header = label,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 160
+        };
+        var titleField = new TextBox
+        {
+            Header = "Título",
+            Text = title,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 160,
+            MaxLength = 250
+        };
+        _orderTitleFields.Add(
+            label switch
+            {
+                "Tipo Descarga" => "Tipo",
+                "Producto Solicitado" => "Producto",
+                "Uso" => "Uso",
+                _ => throw new InvalidOperationException($"No se reconoce el título de '{label}'.")
+            },
+            titleField);
+
+        var field = new StackPanel
+        {
+            Spacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        field.Children.Add(selector);
+        field.Children.Add(titleField);
+        Grid.SetRow(field, index / 3);
+        Grid.SetColumn(field, index % 3);
+        parent.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        parent.Children.Add(field);
+        return selector;
+    }
+
+    private OrderScheduleFields CreateOrderScheduleRow(OrderScheduleRecord schedule)
+    {
+        var row = new Grid
+        {
+            ColumnSpacing = 12,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1.5, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        for (var index = 0; index < 4; index++)
+        {
+            row.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        }
+
+        var shift = new TextBox
+        {
+            Header = "Turno",
+            Text = schedule.Position?.ToString(CultureInfo.InvariantCulture) ?? string.Empty,
+            PlaceholderText = "Posición",
+            MaxLength = 10,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 0
+        };
+        Grid.SetColumn(shift, 0);
+        row.Children.Add(shift);
+
+        var start = new TimePicker
+        {
+            Header = "Inicio",
+            Time = schedule.StartTime,
+            ClockIdentifier = "12HourClock",
+            MinuteIncrement = 1,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 0
+        };
+        Grid.SetColumn(start, 1);
+        row.Children.Add(start);
+
+        var end = new TimePicker
+        {
+            Header = "Término",
+            Time = schedule.EndTime,
+            ClockIdentifier = "12HourClock",
+            MinuteIncrement = 1,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 0
+        };
+        Grid.SetColumn(end, 2);
+        row.Children.Add(end);
+
+        var add = new Button
+        {
+            Content = new SymbolIcon(Symbol.Add),
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 0, 4)
+        };
+        ToolTipService.SetToolTip(add, "Agregar turno, inicio y término a condiciones");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(add, "Agregar turno a condiciones y observaciones");
+        add.Click += AddOrderScheduleRow_Click;
+        Grid.SetColumn(add, 3);
+        row.Children.Add(add);
+        row.SizeChanged += (_, args) =>
+        {
+            var columnCount = args.NewSize.Width >= 760 ? 4 : args.NewSize.Width >= 500 ? 2 : 1;
+            for (var index = 0; index < row.Children.Count; index++)
+            {
+                if (row.Children[index] is FrameworkElement field)
+                {
+                    Grid.SetRow(field, index / columnCount);
+                    Grid.SetColumn(field, index % columnCount);
+                }
+            }
+
+            for (var index = 0; index < row.ColumnDefinitions.Count; index++)
+            {
+                row.ColumnDefinitions[index].Width = index < columnCount
+                    ? new GridLength(1, GridUnitType.Star)
+                    : new GridLength(0);
+            }
+        };
+        return new OrderScheduleFields(row, shift, start, end);
+    }
+
+    private void AddOrderScheduleRow_Click(object sender, RoutedEventArgs e)
+    {
+        if (_orderScheduleFieldControls.Count != 1 || _orderConditionsField is null)
+        {
+            ShowStatus("Debe existir exactamente un turno para agregarlo a las condiciones.", InfoBarSeverity.Error);
+            return;
+        }
+
+        var fields = _orderScheduleFieldControls[0];
+        int position;
+        try
+        {
+            position = ParseOrderPosition(fields.Position.Text, 1);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ShowStatus(exception.Message, InfoBarSeverity.Error);
+            return;
+        }
+
+        var start = DateTime.Today.Add(fields.StartTime.Time).ToString("t", CultureInfo.CurrentCulture);
+        var end = DateTime.Today.Add(fields.EndTime.Time).ToString("t", CultureInfo.CurrentCulture);
+        var scheduleText = $"Turno {position}: {start} - {end}";
+        _orderConditionsField.Text = string.IsNullOrWhiteSpace(_orderConditionsField.Text)
+            ? scheduleText
+            : $"{_orderConditionsField.Text.TrimEnd()}{Environment.NewLine}{scheduleText}";
+    }
+
+    private void AddOrderScheduleRow(OrderScheduleRecord schedule)
+    {
+        var fields = CreateOrderScheduleRow(schedule);
+        _orderScheduleFieldControls.Add(fields);
+        _orderScheduleRows.Children.Add(fields.Container);
     }
 
     private void BuildAccesses(StackPanel host)
@@ -2061,6 +2469,37 @@ public sealed partial class ConfigurationView : UserControl
                 await _additionalConfigurationService.SaveConfigurationAsync(selections);
                 ShowStatus("Adicionales guardados en dbo.ConfigMaq.", InfoBarSeverity.Success);
             }
+            else if (_selectedConfigurationTab == 9)
+            {
+                if (_orderConfigurationId is not int orderConfigurationId)
+                {
+                    throw new InvalidOperationException(
+                        "Carga la configuración desde dbo.AjustePedido antes de guardarla.");
+                }
+
+                var orderSettings = new OrderConfigurationUpdate(
+                    orderConfigurationId,
+                    _orderNumberField!.Text.Trim(),
+                    _orderIncludeCompanyName!.IsChecked == true,
+                    _orderPrintLinesAndTitles!.IsChecked == true,
+                    _orderOccasionalOrders!.IsChecked == true,
+                    _orderTitleFields["Tipo"].Text,
+                    _orderTitleFields["Producto"].Text,
+                    _orderTitleFields["Uso"].Text);
+                var schedules = _orderScheduleFieldControls
+                    .Select((fields, index) => new OrderScheduleRecord(
+                        ParseOrderPosition(fields.Position.Text, index + 1),
+                        _orderConditionsField?.Text.Trim() ?? string.Empty,
+                        fields.StartTime.Time,
+                        fields.EndTime.Time))
+                    .ToArray();
+
+                await _orderConfigurationService.SaveSettingsAsync(orderSettings);
+                await _orderScheduleConfigurationService.SaveSchedulesAsync(schedules);
+                ShowStatus(
+                    "Número, casillas y títulos guardados en dbo.AjustePedido; turnos y condiciones guardados en dbo.Horarios.",
+                    InfoBarSeverity.Success);
+            }
             else
             {
                 ShowStatus("El guardado de esta pestaña todavía no está disponible.", InfoBarSeverity.Warning);
@@ -2099,10 +2538,28 @@ public sealed partial class ConfigurationView : UserControl
         return parsed;
     }
 
+    private static int ParseOrderPosition(string value, int rowNumber)
+    {
+        if (!int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var position)
+            || position < 0)
+        {
+            throw new InvalidOperationException(
+                $"Turno {rowNumber} debe ser un número entero mayor o igual a 0.");
+        }
+
+        return position;
+    }
+
     private sealed record RemissionAlignmentOption(string Label, int Code)
     {
         public override string ToString() => Label;
     }
+
+    private sealed record OrderScheduleFields(
+        Grid Container,
+        TextBox Position,
+        TimePicker StartTime,
+        TimePicker EndTime);
 
     private async void EditMessageFormat_Click(object sender, RoutedEventArgs e)
     {
