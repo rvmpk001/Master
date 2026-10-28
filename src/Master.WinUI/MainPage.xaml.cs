@@ -2897,6 +2897,16 @@ public sealed partial class MainPage : Page
             : InventoryExitsCheckBox.IsChecked == true
                 ? "Salidas"
                 : null;
+
+        if (InventoryEntriesCheckBox.IsChecked == true)
+        {
+            InventoryMovementTitleText.Text = "Entrada General";
+        }
+        else if (InventoryExitsCheckBox.IsChecked == true)
+        {
+            InventoryMovementTitleText.Text = "Salida General";
+        }
+
         InventorySaveButton.IsEnabled = operation is not null;
         InventoryFormStatusText.Text = operation is null
             ? "Selecciona Entradas para agregar o Salidas para quitar existencias."
