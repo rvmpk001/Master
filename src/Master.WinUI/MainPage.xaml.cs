@@ -104,6 +104,9 @@ public sealed partial class MainPage : Page
     public ObservableCollection<InventoryMaterial> FiberInventory { get; } = new();
     public ObservableCollection<InventoryMaterial> SelectedInventoryMaterials { get; } = new();
     public ObservableCollection<string> InventorySuppliers { get; } = new();
+    public ObservableCollection<string> ReportDrivers { get; } = new() { "Todos" };
+    public ObservableCollection<string> ReportFormulas { get; } = new() { "Todos" };
+    public ObservableCollection<string> ReportClients { get; } = new() { "Todos" };
     public ObservableCollection<FormulaColumn> FormulaColumns { get; } = new();
     public ObservableCollection<FormulaRow> ActiveFormulaRows { get; } = new();
     public ObservableCollection<FormulaRow> CancelledFormulaRows { get; } = new();
@@ -132,6 +135,10 @@ public sealed partial class MainPage : Page
     public MainPage()
     {
         InitializeComponent();
+        ConfigurationView.CloseRequested += (_, _) => ConfigurationFormOverlay.Visibility = Visibility.Collapsed;
+        ReportPresetRadioButton.Checked += ReportPeriodMode_Checked;
+        ReportCustomRadioButton.Checked += ReportPeriodMode_Checked;
+        UpdateReportPeriodControls(isPresetMode: true);
         SizeChanged += Page_SizeChanged;
         ClockText.Text = DateTime.Now.ToString("dd/MM/yyyy  HH:mm:ss");
         _clockTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
@@ -288,6 +295,13 @@ public sealed partial class MainPage : Page
             return;
         }
 
+        if (module.StartsWith("Reporte", StringComparison.OrdinalIgnoreCase))
+        {
+            ReportFormOverlay.Visibility = Visibility.Visible;
+            await LoadReportFiltersAsync();
+            return;
+        }
+
         if (module == "Fórmulas")
         {
             FormulaFormOverlay.Visibility = Visibility.Visible;
@@ -327,6 +341,12 @@ public sealed partial class MainPage : Page
         {
             ManualLoadOverlay.Visibility = Visibility.Visible;
             await LoadManualLoadRecipesAsync();
+            return;
+        }
+
+        if (module == "Configuración")
+        {
+            ConfigurationFormOverlay.Visibility = Visibility.Visible;
             return;
         }
 
@@ -2880,6 +2900,88 @@ public sealed partial class MainPage : Page
     private void CloseInventoryForm_Click(object sender, RoutedEventArgs e)
     {
         InventoryFormOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private void CloseReportForm_Click(object sender, RoutedEventArgs e)
+    {
+        ReportFormOverlay.Visibility = Visibility.Collapsed;
+    }
+
+    private async Task LoadReportFiltersAsync()
+    {
+        ReportFormStatusText.Text = "Consultando choferes y fórmulas en BlapaciSQL...";
+        ReportDrivers.Clear();
+        ReportDrivers.Add("Todos");
+        ReportDriverComboBox.SelectedIndex = 0;
+        ReportFormulas.Clear();
+        ReportFormulas.Add("Todos");
+        ReportFormulaComboBox.SelectedIndex = 0;
+        ReportClients.Clear();
+        ReportClients.Add("Todos");
+        ReportClientComboBox.SelectedIndex = 0;
+
+        var errors = new List<string>();
+        try
+        {
+            var operators = await _truckService.GetOperatorsAsync();
+            foreach (var operatorRecord in operators.Operators)
+            {
+                if (!string.IsNullOrWhiteSpace(operatorRecord.Name))
+                {
+                    ReportDrivers.Add(operatorRecord.Name);
+                }
+            }
+
+        }
+        catch (SqlException exception)
+        {
+            errors.Add($"No se pudieron cargar los choferes desde dbo.Operadores (SQL {exception.Number}): {exception.Message}");
+        }
+
+        try
+        {
+            var formulas = await _orderService.GetRecipesAsync();
+            foreach (var formula in formulas)
+            {
+                ReportFormulas.Add(formula.Code);
+            }
+        }
+        catch (SqlException exception)
+        {
+            errors.Add($"No se pudieron cargar las fórmulas desde dbo.Formulas (SQL {exception.Number}): {exception.Message}");
+        }
+
+        try
+        {
+            var clients = await _clientService.GetClientsAsync();
+            foreach (var client in clients.Clients)
+            {
+                if (!string.IsNullOrWhiteSpace(client.Client))
+                {
+                    ReportClients.Add(client.Client);
+                }
+            }
+        }
+        catch (SqlException exception)
+        {
+            errors.Add($"No se pudieron cargar los clientes desde dbo.Clientes (SQL {exception.Number}): {exception.Message}");
+        }
+
+        ReportFormStatusText.Text = errors.Count == 0
+            ? $"Choferes cargados: {ReportDrivers.Count - 1}; fórmulas cargadas: {ReportFormulas.Count - 1}; clientes cargados: {ReportClients.Count - 1}."
+            : string.Join(Environment.NewLine, errors);
+    }
+
+    private void ReportPeriodMode_Checked(object sender, RoutedEventArgs e)
+    {
+        UpdateReportPeriodControls(ReferenceEquals(sender, ReportPresetRadioButton));
+    }
+
+    private void UpdateReportPeriodControls(bool isPresetMode)
+    {
+        ReportPresetComboBox.IsEnabled = isPresetMode;
+        ReportStartDatePicker.IsEnabled = !isPresetMode;
+        ReportEndDatePicker.IsEnabled = !isPresetMode;
     }
 
     private void InventoryOperation_Changed(object sender, RoutedEventArgs e)

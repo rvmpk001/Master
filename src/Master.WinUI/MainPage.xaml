@@ -496,6 +496,131 @@
             </Border>
         </Grid>
 
+        <Grid x:Name="ReportFormOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
+            <Border MaxWidth="1200" Margin="16" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="32" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <Grid Background="#0078D4" CornerRadius="7,7,0,0" Padding="12,2">
+                        <TextBlock Text="Reportes" Foreground="White" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CloseReportForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Reportes" />
+                    </Grid>
+
+                    <Border Grid.Row="1" Background="#172337" BorderBrush="#40516A" BorderThickness="1" Padding="20">
+                        <StackPanel Width="700" Spacing="12">
+                            <TextBlock Text="Fechas del reporte" Foreground="#F1F5F9" FontWeight="SemiBold" FontSize="18" />
+
+                            <Grid ColumnSpacing="12" RowSpacing="6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="220" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+                                <RadioButton x:Name="ReportPresetRadioButton" Grid.Row="0" Grid.Column="0" Content="Predeterminado" GroupName="ReportPeriodMode" IsChecked="True" Foreground="#E6EDF7" />
+                                <ComboBox x:Name="ReportPresetComboBox" Grid.Row="0" Grid.Column="1" PlaceholderText="Selecciona periodo" IsEnabled="True" Foreground="#F1F5F9" Background="#111B2B">
+                                    <ComboBoxItem Content="Día actual" />
+                                    <ComboBoxItem Content="Día anterior" />
+                                    <ComboBoxItem Content="Últimos siete días" />
+                                    <ComboBoxItem Content="Mes actual" />
+                                    <ComboBoxItem Content="Mes anterior" />
+                                    <ComboBoxItem Content="Año Actual" />
+                                </ComboBox>
+                                <RadioButton x:Name="ReportCustomRadioButton" Grid.Row="1" Grid.Column="0" Content="Personalizado" GroupName="ReportPeriodMode" Foreground="#E6EDF7" />
+                            </Grid>
+
+                            <Grid ColumnSpacing="18" RowSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Fecha inicio:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <DatePicker x:Name="ReportStartDatePicker" Grid.Row="0" Grid.Column="1" Width="220" IsEnabled="False" HorizontalAlignment="Left" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Fecha final:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <DatePicker x:Name="ReportEndDatePicker" Grid.Row="1" Grid.Column="1" Width="220" IsEnabled="False" HorizontalAlignment="Left" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Turno:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <ComboBox Grid.Row="2" Grid.Column="1" Width="220" HorizontalAlignment="Left" SelectedIndex="0">
+                                    <ComboBoxItem Content="Todos" />
+                                </ComboBox>
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Chofer:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <ComboBox x:Name="ReportDriverComboBox" Grid.Row="3" Grid.Column="1" Width="220" HorizontalAlignment="Left" ItemsSource="{x:Bind ReportDrivers}" SelectedIndex="0" />
+
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Formula:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <ComboBox x:Name="ReportFormulaComboBox" Grid.Row="4" Grid.Column="1" Width="220" HorizontalAlignment="Left" ItemsSource="{x:Bind ReportFormulas}" SelectedIndex="0" />
+                            </Grid>
+
+                            <Grid ColumnSpacing="18" RowSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="R.Inicial" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBox Grid.Row="0" Grid.Column="1" Width="220" HorizontalAlignment="Left" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="R.Final" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBox Grid.Row="1" Grid.Column="1" Width="220" HorizontalAlignment="Left" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Operador:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <ComboBox Grid.Row="2" Grid.Column="1" Width="220" HorizontalAlignment="Left" PlaceholderText="Selecciona operador" />
+
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Remisión:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBox Grid.Row="3" Grid.Column="1" Width="220" HorizontalAlignment="Left" />
+                            </Grid>
+
+                            <Grid ColumnSpacing="18" RowSpacing="12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Grid.RowDefinitions>
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                    <RowDefinition Height="Auto" />
+                                </Grid.RowDefinitions>
+
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Cliente:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <ComboBox x:Name="ReportClientComboBox" Grid.Row="0" Grid.Column="1" Width="220" HorizontalAlignment="Left" ItemsSource="{x:Bind ReportClients}" SelectedIndex="0" />
+
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Tipo de Carga:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <ComboBox Grid.Row="1" Grid.Column="1" Width="220" HorizontalAlignment="Left" PlaceholderText="Selecciona tipo" />
+
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Obra:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBox Grid.Row="2" Grid.Column="1" Width="220" HorizontalAlignment="Left" />
+                            </Grid>
+
+                            <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
+                                <Button Content="Visualiza" Style="{StaticResource DefaultButtonStyle}" />
+                            </StackPanel>
+                            <TextBlock x:Name="ReportFormStatusText" Foreground="#A9B8CC" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+
         <Grid x:Name="FormulaFormOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
             <Border Width="1500" MaxWidth="1600" Height="620" MaxHeight="900" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
@@ -1368,6 +1493,11 @@
                         </TabViewItem>
                     </TabView>
                 </Grid>
+            </Border>
+        </Grid>
+        <Grid x:Name="ConfigurationFormOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
+            <Border Margin="12" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8">
+                <local:ConfigurationView x:Name="ConfigurationView" />
             </Border>
         </Grid>
         </Grid>
