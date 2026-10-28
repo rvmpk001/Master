@@ -23,6 +23,8 @@ public sealed partial class ConfigurationView : UserControl
     private readonly Dictionary<string, TextBox> _imageOffPathFields = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _imageIdsByControl = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, (TextBox Width, TextBox Height)> _imageSizeFields = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, MessageFields> _messageFields = new(StringComparer.OrdinalIgnoreCase);
+    private readonly MessageConfigurationService _messageConfigurationService = new();
     private readonly List<Button> _databaseActionButtons = new();
     private readonly Dictionary<TreeViewNode, PlcTagRecord> _plcTagsByNode = new();
     private TreeView? _plcTagsTree;
@@ -123,6 +125,42 @@ public sealed partial class ConfigurationView : UserControl
         }
     }
 
+    public async Task LoadMessagesAsync()
+    {
+        try
+        {
+            var messages = await _messageConfigurationService.GetMessagesAsync();
+            var missingControls = _messageFields.Keys
+                .Where(control => !messages.ContainsKey(control))
+                .OrderBy(control => control, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (missingControls.Length > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Faltan controles en dbo.Mensajes: {string.Join(", ", missingControls)}.");
+            }
+
+            foreach (var (control, fields) in _messageFields)
+            {
+                var message = messages[control];
+                fields.Message.Text = message.Text;
+                fields.IdMensaje = message.IdMensaje;
+                fields.Format = message.Format;
+                fields.FormatText.Text = message.Format;
+            }
+
+            ShowStatus("Mensajes cargados desde dbo.Mensajes.", InfoBarSeverity.Success);
+        }
+        catch (SqlException exception)
+        {
+            ShowStatus($"No se pudieron cargar los mensajes (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ShowStatus($"No se pudieron cargar los mensajes: {exception.Message}", InfoBarSeverity.Error);
+        }
+    }
+
     public void ShowTab(int index, bool onlySelectedTab)
     {
         if (index < 0 || index >= ConfigurationTabs.TabItems.Count)
@@ -136,6 +174,7 @@ public sealed partial class ConfigurationView : UserControl
         ImagesOnContentHost.Visibility = Visibility.Collapsed;
         ImagesOffContentHost.Visibility = Visibility.Collapsed;
         ImageSizesContentHost.Visibility = Visibility.Collapsed;
+        MessagesContentHost.Visibility = Visibility.Collapsed;
 
         if (index == 1 && onlySelectedTab)
         {
@@ -181,6 +220,14 @@ public sealed partial class ConfigurationView : UserControl
             ConfigurationTabs.Visibility = Visibility.Collapsed;
             PlcContentHost.Visibility = Visibility.Collapsed;
             ImageSizesContentHost.Visibility = Visibility.Visible;
+            return;
+        }
+
+        if (index == 7 && onlySelectedTab)
+        {
+            ConfigurationTabs.Visibility = Visibility.Collapsed;
+            PlcContentHost.Visibility = Visibility.Collapsed;
+            MessagesContentHost.Visibility = Visibility.Visible;
             return;
         }
 
@@ -362,6 +409,13 @@ public sealed partial class ConfigurationView : UserControl
         {
             ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
             ImageSizesContentHost.Content = scrollViewer;
+            return;
+        }
+
+        if (index == 7)
+        {
+            ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
+            MessagesContentHost.Content = scrollViewer;
             return;
         }
 
@@ -1420,17 +1474,97 @@ public sealed partial class ConfigurationView : UserControl
 
     private void BuildMessages(StackPanel host)
     {
-        var section = AddSection(host, "Mensajes de válvulas");
-        var initialMessages = new[]
+        host.Children.Add(new TextBlock
         {
-            "CARGANDO ARENA (FOCO BLANCO)", "CARGANDO GRAVA (FOCO AZUL)", "CHICHARRA SONANDO",
-            "FIN DE CARGA", "FIN DESCARGA", "GUSANO ACTIVADO", "BANDA ARRANCADA",
-            "BOMBA DE AGUA ACTIVADA", "COMPUERTA DE AGREGADOS ABIERTA", ""
+            Text = "Válvulas",
+            FontSize = 18,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Margin = new Thickness(0, 12, 0, 16)
+        });
+
+        var columns = new Grid
+        {
+            ColumnSpacing = 16,
+            HorizontalAlignment = HorizontalAlignment.Stretch
         };
-        for (var index = 0; index < initialMessages.Length; index++)
+        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        for (var columnIndex = 0; columnIndex < 2; columnIndex++)
         {
-            AddTextField(section, $"Mensaje {index + 1}", initialMessages[index]);
+            var column = new StackPanel { Spacing = 12 };
+            for (var index = columnIndex * 5 + 1; index <= columnIndex * 5 + 5; index++)
+            {
+                AddMessageField(column, index);
+            }
+
+            var formats = new StackPanel { Spacing = 12, Margin = new Thickness(0, 10, 0, 0) };
+            for (var index = columnIndex * 5 + 1; index <= columnIndex * 5 + 5; index++)
+            {
+                var formatText = _messageFields[$"Mensaje{index}"].FormatText;
+                formatText.Margin = new Thickness(0, 2, 0, 2);
+                formatText.TextTrimming = TextTrimming.CharacterEllipsis;
+                ToolTipService.SetToolTip(formatText, formatText.Text);
+                formats.Children.Add(formatText);
+            }
+
+            column.Children.Add(formats);
+            Grid.SetColumn(column, columnIndex);
+            columns.Children.Add(column);
         }
+
+        host.Children.Add(columns);
+    }
+
+    private void AddMessageField(StackPanel parent, int messageNumber)
+    {
+        var control = $"Mensaje{messageNumber}";
+        var row = new Grid
+        {
+            ColumnSpacing = 8,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(82) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var label = new TextBlock
+        {
+            Text = $"Mensaje {messageNumber}:",
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        var message = new TextBox
+        {
+            MaxLength = 100,
+            MinWidth = 0,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var formatText = new TextBlock
+        {
+            Text = string.Empty,
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Windows.UI.Color.FromArgb(255, 169, 184, 204))
+        };
+        var formatButton = new Button
+        {
+            Content = "A",
+            Width = 36,
+            Padding = new Thickness(0),
+            Tag = control
+        };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(formatButton, $"Editar formato de Mensaje {messageNumber}");
+        ToolTipService.SetToolTip(formatButton, $"Editar formato de Mensaje {messageNumber}");
+        formatButton.Click += EditMessageFormat_Click;
+
+        Grid.SetColumn(message, 1);
+        Grid.SetColumn(formatButton, 2);
+        row.Children.Add(label);
+        row.Children.Add(message);
+        row.Children.Add(formatButton);
+        parent.Children.Add(row);
+        _messageFields.Add(control, new MessageFields(message, formatText));
     }
 
     private void BuildAdditionalFields(StackPanel host)
@@ -1653,6 +1787,17 @@ public sealed partial class ConfigurationView : UserControl
                 await _imageConfigurationService.SaveImageSizesAsync(updates);
                 ShowStatus("Tamaños guardados en dbo.Imagenes (Ancho y Alto).", InfoBarSeverity.Success);
             }
+            else if (_selectedConfigurationTab == 7)
+            {
+                var updates = _messageFields.Select(field =>
+                    new MessageConfigurationUpdate(
+                        field.Value.IdMensaje,
+                        field.Key,
+                        field.Value.Message.Text,
+                        field.Value.Format)).ToArray();
+                await _messageConfigurationService.SaveMessagesAsync(updates);
+                ShowStatus("Mensajes y formatos guardados en dbo.Mensajes.", InfoBarSeverity.Success);
+            }
             else
             {
                 ShowStatus("El guardado de esta pestaña todavía no está disponible.", InfoBarSeverity.Warning);
@@ -1691,6 +1836,37 @@ public sealed partial class ConfigurationView : UserControl
         return parsed;
     }
 
+    private async void EditMessageFormat_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string control } || !_messageFields.TryGetValue(control, out var fields))
+        {
+            return;
+        }
+
+        var formatInput = new TextBox
+        {
+            Text = fields.Format,
+            MaxLength = 800,
+            PlaceholderText = "Formato de fuente"
+        };
+        var dialog = new ContentDialog
+        {
+            Title = $"Formato de {control}",
+            Content = formatInput,
+            PrimaryButtonText = "Aceptar",
+            CloseButtonText = "Cancelar",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot
+        };
+
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            fields.Format = formatInput.Text.Trim();
+            fields.FormatText.Text = fields.Format;
+            ToolTipService.SetToolTip(fields.FormatText, fields.Format);
+        }
+    }
+
     private void UpdateConnectionFields(string connectionType)
     {
         var useEthernet = string.Equals(connectionType, "ETHERNET", StringComparison.OrdinalIgnoreCase);
@@ -1699,6 +1875,14 @@ public sealed partial class ConfigurationView : UserControl
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => CloseRequested?.Invoke(this, EventArgs.Empty);
+
+    private sealed class MessageFields(TextBox message, TextBlock formatText)
+    {
+        public TextBox Message { get; } = message;
+        public TextBlock FormatText { get; } = formatText;
+        public string Format { get; set; } = string.Empty;
+        public int IdMensaje { get; set; }
+    }
 
     private async void BrowseImage_Click(object sender, RoutedEventArgs e)
     {
