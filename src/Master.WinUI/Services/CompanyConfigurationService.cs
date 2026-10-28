@@ -21,4 +21,20 @@ public sealed class CompanyConfigurationService
         var result = await command.ExecuteScalarAsync(cancellationToken);
         return result is null or DBNull ? null : Convert.ToString(result)?.Trim();
     }
+
+    public async Task<string?> GetMachineNameAsync(CancellationToken cancellationToken = default)
+    {
+        const string query = """
+            SELECT TOP (1) NULLIF(LTRIM(RTRIM(Valor_Param)), N'')
+            FROM dbo.ConfigMaq
+            WHERE LTRIM(RTRIM(Param)) = N'Mq'
+            ORDER BY Id;
+            """;
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(query, connection);
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is null or DBNull ? null : Convert.ToString(result)?.Trim();
+    }
 }

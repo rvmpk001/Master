@@ -47,6 +47,7 @@
                 </StackPanel>
             </StackPanel>
             <TextBlock x:Name="PlantNameTextBlock" Grid.Column="1" Text="Cargando planta..." FontSize="16" FontWeight="Bold" Foreground="#E6EDF7" HorizontalAlignment="Stretch" VerticalAlignment="Center" TextAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <TextBlock x:Name="MachineNameTextBlock" Grid.Column="2" Text="Cargando máquina..." FontSize="16" FontWeight="Bold" Foreground="#E6EDF7" HorizontalAlignment="Right" VerticalAlignment="Center" TextAlignment="Right" TextTrimming="CharacterEllipsis" />
         </Grid>
 
         <MenuBar Grid.Row="1" Background="#101B2D">
@@ -87,7 +88,17 @@
                 <MenuFlyoutItem Text="Abrir" Tag="Carga Manual" Click="ModuleNavigation_Click" />
             </MenuBarItem>
             <MenuBarItem Title="Configuración">
-                <MenuFlyoutItem Text="Abrir" Tag="Configuración" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem Text="Configuración de la máquina" Tag="Config:Machine" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem Text="Configuración PLC" Tag="Config:PLC" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem Text="Datos generales de la Cía." Tag="Config:Company" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem Text="Ajuste de Remisión" Tag="Config:Remission" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem Text="Imágenes On" Tag="Config:ImagesOn" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem Text="Imágenes Off" Tag="Config:ImagesOff" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem Text="Tamaño Imagen" Tag="Config:ImageSize" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem Text="Mensajes" Tag="Config:Messages" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem Text="Adicionales" Tag="Config:Additional" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem Text="Pedidos" Tag="Config:Orders" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem Text="Accesos" Tag="Config:Access" Click="ModuleNavigation_Click" />
             </MenuBarItem>
             <MenuBarItem Title="Seguridad">
                 <MenuFlyoutItem Text="Abrir" Tag="Seguridad" Click="ModuleNavigation_Click" />
@@ -127,6 +138,10 @@
                             <Image x:Name="TemplateImage" Stretch="Uniform" IsHitTestVisible="False" />
                             <Canvas x:Name="DesignCanvas" Background="Transparent" />
 
+                            <Button x:Name="CanvasLockButton" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Width="40" Height="40" Padding="0" Click="CanvasLockButton_Click" ToolTipService.ToolTip="Desbloquear lienzo">
+                                <FontIcon x:Name="CanvasLockIcon" Glyph="&#xE785;" FontFamily="Segoe MDL2 Assets" />
+                            </Button>
+
                             <StackPanel x:Name="EmptyCanvasPrompt" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
                                 <TextBlock Text="Lienzo de diseño" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
                                 <TextBlock Text="Carga una imagen de la máquina como plantilla o arrástrala aquí." Foreground="#A9B8CC" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" />
@@ -151,8 +166,8 @@
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="1*" MinWidth="250" />
                             <ColumnDefinition Width="1.35*" MinWidth="330" />
-                            <ColumnDefinition Width="1.15*" MinWidth="270" />
-                            <ColumnDefinition Width="1.15*" MinWidth="270" />
+                            <ColumnDefinition x:Name="HumidityPanelColumn" Width="0" MinWidth="0" />
+                            <ColumnDefinition x:Name="AbsorptionPanelColumn" Width="0" MinWidth="0" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="*" />
@@ -220,7 +235,7 @@
                             </Grid>
                         </Expander>
 
-                        <Expander x:Name="HumidityPanel" Grid.Row="0" Grid.Column="2" VerticalAlignment="Center" Header="Ajuste de Humedad" IsExpanded="False" Background="#172337" Foreground="#E6EDF7">
+                        <Expander x:Name="HumidityPanel" Grid.Row="0" Grid.Column="2" Visibility="Collapsed" VerticalAlignment="Center" Header="Ajuste de Humedad" IsExpanded="False" Background="#172337" Foreground="#E6EDF7">
                             <Grid RowSpacing="4">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -253,7 +268,7 @@
                             </Grid>
                         </Expander>
 
-                        <Expander x:Name="AbsorptionPanel" Grid.Row="0" Grid.Column="3" VerticalAlignment="Center" Header="Ajuste de Absorción" IsExpanded="False" Background="#172337" Foreground="#E6EDF7">
+                        <Expander x:Name="AbsorptionPanel" Grid.Row="0" Grid.Column="3" Visibility="Collapsed" VerticalAlignment="Center" Header="Ajuste de Absorción" IsExpanded="False" Background="#172337" Foreground="#E6EDF7">
                             <Grid RowSpacing="4">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -299,15 +314,21 @@
                     <StackPanel Padding="8" Spacing="8">
                         <Button Content="PROGRAMAR" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
                         <Button Content="CARGAR" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
-                        <Button Content="DESCARGAR" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
+                        <Button x:Name="DownloadActionButton" Content="DESCARGAR" Visibility="Collapsed" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
                         <Button Content="PAUSAR" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
                         <Button Content="CANCELAR" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
                     </StackPanel>
                 </TabViewItem>
                 <TabViewItem Header="Controles" IsClosable="False">
-                    <Grid Padding="12">
-                        <TextBlock Text="Los controles disponibles se definirán más adelante." Foreground="#A9B8CC" TextWrapping="Wrap" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center" />
-                    </Grid>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel x:Name="CanvasControlPalette" Padding="8" Spacing="8">
+                            <TextBlock Text="Agregar controles al lienzo" Foreground="#A9B8CC" TextWrapping="Wrap" />
+                            <Button Content="Agregar etiqueta" Tag="Etiqueta" Click="AddCanvasControl_Click" Style="{StaticResource DefaultButtonStyle}" />
+                            <Button Content="Agregar botón" Tag="Botón" Click="AddCanvasControl_Click" Style="{StaticResource DefaultButtonStyle}" />
+                            <Button Content="Agregar interruptor" Tag="Interruptor" Click="AddCanvasControl_Click" Style="{StaticResource DefaultButtonStyle}" />
+                            <TextBlock x:Name="CanvasEditStatusText" Text="Desbloquea el lienzo para editarlo." Foreground="#A9B8CC" TextWrapping="Wrap" />
+                        </StackPanel>
+                    </ScrollViewer>
                 </TabViewItem>
             </TabView>
         </Grid>
@@ -1370,6 +1391,12 @@
                 </Grid>
             </Border>
         </Grid>
+        </Grid>
+
+        <Grid x:Name="MachineConfigurationOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
+            <Border Margin="12" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8">
+                <local:MachineConfigurationView x:Name="MachineConfigurationView" />
+            </Border>
         </Grid>
 
         <Grid x:Name="LoginShell" HorizontalAlignment="Center" VerticalAlignment="Center" Width="420" MaxWidth="520" Padding="24">

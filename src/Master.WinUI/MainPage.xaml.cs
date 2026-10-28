@@ -3,6 +3,7 @@ using System.Globalization;
 using System.IO;
 using System;
 using System.Runtime.InteropServices;
+using System.Text.Json;
 using Microsoft.Data.SqlClient;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
@@ -39,6 +40,9 @@ public sealed partial class MainPage : Page
     private readonly TruckService _truckService = new();
     private readonly OrderService _orderService = new();
     private readonly CompanyConfigurationService _companyConfigurationService = new();
+    private readonly MachineConfigurationService _machineConfigurationService = new();
+    private readonly DesignerCanvasStore _designerCanvasStore = new();
+    private readonly DesignerCanvasState _designerCanvasState = new();
     private bool _showPlantTools = true;
     private bool _isDashboardResizeActive;
     private double _dashboardResizeStartY;
@@ -73,6 +77,9 @@ public sealed partial class MainPage : Page
     private readonly Dictionary<string, Control> _formulaEditorInputs = new(StringComparer.Ordinal);
     private readonly Dictionary<string, IReadOnlyList<string>> _formulaMaterialOptions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TextBlock> _formulaMaterialStates = new(StringComparer.Ordinal);
+    private Border? _movingCanvasControl;
+    private Windows.Foundation.Point _canvasControlPointerOffset;
+    private bool _isCanvasLocked;
 
     public ObservableCollection<MaterialRow> MaterialRows { get; } = new()
     {
@@ -132,12 +139,76 @@ public sealed partial class MainPage : Page
     public MainPage()
     {
         InitializeComponent();
+        MachineConfigurationView.CloseRequested += (_, _) => MachineConfigurationOverlay.Visibility = Visibility.Collapsed;
+        MachineConfigurationView.LoadMachineImageToDesignCanvasAsync = path => LoadMachineImageToDesignCanvasAsync(path);
+        MachineConfigurationView.MachineNameSaved += (_, machineName) =>
+        {
+            MachineNameTextBlock.Text = string.IsNullOrWhiteSpace(machineName) ? "Máquina no configurada" : machineName;
+        };
+        MachineConfigurationView.DashboardOptionsChanged += ApplyMachineDashboardOptions;
+        Loaded += MainPage_Loaded;
         SizeChanged += Page_SizeChanged;
         ClockText.Text = DateTime.Now.ToString("dd/MM/yyyy  HH:mm:ss");
         _clockTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
         _clockTimer.Interval = TimeSpan.FromSeconds(1);
         _clockTimer.Tick += ClockTimer_Tick;
         _clockTimer.Start();
+    }
+
+    private async void MainPage_Loaded(object sender, RoutedEventArgs e)
+    {
+        Loaded -= MainPage_Loaded;
+        try
+        {
+            var savedState = await _designerCanvasStore.LoadAsync();
+            _designerCanvasState.IsLocked = savedState.IsLocked;
+            _designerCanvasState.ImagePath = savedState.ImagePath;
+            _designerCanvasState.Controls = (savedState.Controls ?? new List<DesignerCanvasControlState>())
+                .Where(control => control is not null
+                    && !string.IsNullOrWhiteSpace(control.Id)
+                    && control.Left >= 0
+                    && control.Top >= 0
+                    && double.IsFinite(control.Left)
+                    && double.IsFinite(control.Top))
+                .ToList();
+
+            if (!string.IsNullOrWhiteSpace(savedState.ImagePath))
+            {
+                var imageLoadError = await LoadMachineImageToDesignCanvasAsync(savedState.ImagePath, persistState: false);
+                if (imageLoadError is not null)
+                {
+                    ModuleStatusText.Text = $"No se pudo restaurar la imagen del lienzo: {imageLoadError}";
+                }
+            }
+
+            foreach (var control in _designerCanvasState.Controls)
+            {
+                AddCanvasControlToSurface(control);
+            }
+
+            _isCanvasLocked = savedState.IsLocked;
+            UpdateCanvasEditMode();
+        }
+        catch (IOException exception)
+        {
+            ModuleStatusText.Text = $"No se pudo cargar el diseño guardado del lienzo: {exception.Message}";
+            UpdateCanvasEditMode();
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            ModuleStatusText.Text = $"No hay permisos para leer el diseño guardado del lienzo: {exception.Message}";
+            UpdateCanvasEditMode();
+        }
+        catch (JsonException exception)
+        {
+            ModuleStatusText.Text = $"El archivo del diseño guardado del lienzo no es válido: {exception.Message}";
+            UpdateCanvasEditMode();
+        }
+        catch (InvalidDataException exception)
+        {
+            ModuleStatusText.Text = exception.Message;
+            UpdateCanvasEditMode();
+        }
     }
 
     private void Page_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -265,10 +336,42 @@ public sealed partial class MainPage : Page
         DashboardPanelsGrid.Height = e.NewSize.Height;
     }
 
+    private void ApplyMachineDashboardOptions(MachineDashboardOptions options)
+    {
+        DownloadActionButton.Visibility = options.LoadDownloadEnabled
+            ? Visibility.Visible
+            : Visibility.Collapsed;
+
+        HumidityPanel.Visibility = options.HumidityEnabled ? Visibility.Visible : Visibility.Collapsed;
+        HumidityPanelColumn.Width = options.HumidityEnabled
+            ? new GridLength(1.15, GridUnitType.Star)
+            : new GridLength(0);
+        HumidityPanelColumn.MinWidth = options.HumidityEnabled ? 270 : 0;
+
+        AbsorptionPanel.Visibility = options.AbsorptionEnabled ? Visibility.Visible : Visibility.Collapsed;
+        AbsorptionPanelColumn.Width = options.AbsorptionEnabled
+            ? new GridLength(1.15, GridUnitType.Star)
+            : new GridLength(0);
+        AbsorptionPanelColumn.MinWidth = options.AbsorptionEnabled ? 270 : 0;
+    }
+
     private async void ModuleNavigation_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { Tag: string module })
         {
+            return;
+        }
+
+        if (module == "Config:Machine")
+        {
+            MachineConfigurationOverlay.Visibility = Visibility.Visible;
+            await MachineConfigurationView.LoadAsync();
+            return;
+        }
+
+        if (module.StartsWith("Config:", StringComparison.Ordinal) && sender is MenuFlyoutItem configurationItem)
+        {
+            ModuleStatusText.Text = $"{configurationItem.Text}: pantalla pendiente de migración. No se ejecutó ninguna operación de la aplicación original.";
             return;
         }
 
@@ -3011,6 +3114,11 @@ public sealed partial class MainPage : Page
 
     private async void LoadTemplateImage_Click(object sender, RoutedEventArgs e)
     {
+        if (_isCanvasLocked)
+        {
+            return;
+        }
+
         if (Application.Current is not App { MainWindow: { } window })
         {
             ModuleStatusText.Text = "No se pudo abrir el selector de archivos porque la ventana principal no está disponible.";
@@ -3048,13 +3156,19 @@ public sealed partial class MainPage : Page
 
     private void DesignSurface_DragOver(object sender, DragEventArgs e)
     {
-        e.AcceptedOperation = e.DataView.Contains(StandardDataFormats.StorageItems)
+        e.AcceptedOperation = !_isCanvasLocked && e.DataView.Contains(StandardDataFormats.StorageItems)
             ? DataPackageOperation.Copy
             : DataPackageOperation.None;
     }
 
     private async void DesignSurface_Drop(object sender, DragEventArgs e)
     {
+        if (_isCanvasLocked)
+        {
+            e.AcceptedOperation = DataPackageOperation.None;
+            return;
+        }
+
         if (!e.DataView.Contains(StandardDataFormats.StorageItems))
         {
             ModuleStatusText.Text = "Arrastra un archivo de imagen PNG, JPG o BMP al lienzo.";
@@ -3087,8 +3201,13 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private async Task LoadTemplateImageAsync(StorageFile file)
+    private async Task LoadTemplateImageAsync(StorageFile file, bool persistState = true)
     {
+        if (_isCanvasLocked)
+        {
+            return;
+        }
+
         if (!SupportedImageTypes.Contains(file.FileType))
         {
             ModuleStatusText.Text = "Formato no compatible. Usa una imagen PNG, JPG o BMP.";
@@ -3101,9 +3220,312 @@ public sealed partial class MainPage : Page
             await bitmap.SetSourceAsync(stream);
         }
 
+        var storedImagePath = persistState
+            ? await _designerCanvasStore.CopyImageToStoreAsync(file)
+            : file.Path;
         TemplateImage.Source = bitmap;
         EmptyCanvasPrompt.Visibility = Visibility.Collapsed;
+        _designerCanvasState.ImagePath = storedImagePath;
         ModuleStatusText.Text = $"Plantilla cargada: {file.Name}. El lienzo está listo para agregar controles.";
+        if (persistState)
+        {
+            await SaveDesignerCanvasStateAsync();
+        }
+    }
+
+    private async Task<string?> LoadMachineImageToDesignCanvasAsync(string path, bool persistState = true)
+    {
+        if (_isCanvasLocked)
+        {
+            return "El lienzo está bloqueado. Desbloquéalo antes de cambiar la imagen.";
+        }
+
+        var extension = Path.GetExtension(path);
+        if (!SupportedImageTypes.Contains(extension))
+        {
+            return "Formato no compatible. Usa una imagen PNG, JPG o BMP.";
+        }
+
+        try
+        {
+            var file = await StorageFile.GetFileFromPathAsync(path);
+            await LoadTemplateImageAsync(file, persistState);
+            return null;
+        }
+        catch (COMException)
+        {
+            return "Windows no pudo abrir el archivo de imagen.";
+        }
+        catch (FileNotFoundException)
+        {
+            return "No se encontró el archivo seleccionado.";
+        }
+        catch (DirectoryNotFoundException)
+        {
+            return "No se encontró la carpeta de la imagen seleccionada.";
+        }
+        catch (IOException)
+        {
+            return "No se pudo leer el archivo de imagen.";
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return "No hay permisos para leer el archivo de imagen.";
+        }
+        catch (ArgumentException)
+        {
+            return "La ruta del archivo de imagen no es válida.";
+        }
+    }
+
+    private void CanvasLockButton_Click(object sender, RoutedEventArgs e)
+    {
+        _isCanvasLocked = !_isCanvasLocked;
+        _designerCanvasState.IsLocked = _isCanvasLocked;
+        UpdateCanvasEditMode();
+        _ = SaveDesignerCanvasStateAsync();
+    }
+
+    private void UpdateCanvasEditMode()
+    {
+        CanvasLockIcon.Glyph = _isCanvasLocked ? "\uE72E" : "\uE785";
+        var tooltip = _isCanvasLocked ? "Desbloquear lienzo" : "Bloquear lienzo";
+        ToolTipService.SetToolTip(CanvasLockButton, tooltip);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CanvasLockButton, tooltip);
+        CanvasControlPalette.IsHitTestVisible = !_isCanvasLocked;
+        CanvasControlPalette.Opacity = _isCanvasLocked ? 0.55 : 1;
+        foreach (var control in CanvasControlPalette.Children.OfType<Control>())
+        {
+            control.IsEnabled = !_isCanvasLocked;
+        }
+
+        DesignCanvas.IsHitTestVisible = !_isCanvasLocked;
+        DesignSurface.AllowDrop = !_isCanvasLocked;
+        if (EmptyCanvasPrompt.Visibility == Visibility.Visible)
+        {
+            EmptyCanvasPrompt.IsHitTestVisible = !_isCanvasLocked;
+            EmptyCanvasPrompt.Opacity = _isCanvasLocked ? 0.55 : 1;
+        }
+
+        CanvasEditStatusText.Text = _isCanvasLocked
+            ? "Lienzo bloqueado. Desbloquéalo para cambiar la imagen o editar controles."
+            : "Lienzo desbloqueado. Puedes cambiar la imagen y editar controles.";
+        CanvasEditStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+            _isCanvasLocked
+                ? Windows.UI.Color.FromArgb(255, 255, 190, 90)
+                : Windows.UI.Color.FromArgb(255, 114, 212, 154));
+    }
+
+    private async void AddCanvasControl_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not FrameworkElement { Tag: string controlType })
+        {
+            return;
+        }
+
+        var index = _designerCanvasState.Controls.Count;
+        var control = new DesignerCanvasControlState
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Type = controlType,
+            Text = controlType switch
+            {
+                "Etiqueta" => "Nueva etiqueta",
+                "Botón" => "Nuevo botón",
+                "Interruptor" => "Interruptor",
+                _ => throw new InvalidOperationException($"Tipo de control no reconocido: {controlType}.")
+            },
+            Left = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualWidth - 200)),
+            Top = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualHeight - 80))
+        };
+        _designerCanvasState.Controls.Add(control);
+        AddCanvasControlToSurface(control);
+        await SaveDesignerCanvasStateAsync();
+    }
+
+    private void AddCanvasControlToSurface(DesignerCanvasControlState control)
+    {
+        var container = new Border
+        {
+            Width = 190,
+            Padding = new Thickness(6),
+            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(230, 17, 28, 45)),
+            BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 120, 212)),
+            BorderThickness = new Thickness(1),
+            CornerRadius = new CornerRadius(4),
+            Tag = control
+        };
+        var layout = new Grid { ColumnSpacing = 4, RowSpacing = 4 };
+        layout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        layout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var moveHandle = new Button
+        {
+            Content = "↕",
+            Padding = new Thickness(4, 0, 4, 0),
+            Tag = container
+        };
+        ToolTipService.SetToolTip(moveHandle, "Arrastra para mover");
+        moveHandle.PointerPressed += CanvasControlMoveHandle_PointerPressed;
+        moveHandle.PointerMoved += CanvasControlMoveHandle_PointerMoved;
+        moveHandle.PointerReleased += CanvasControlMoveHandle_PointerReleased;
+        moveHandle.PointerCaptureLost += CanvasControlMoveHandle_PointerCaptureLost;
+        var typeLabel = new TextBlock
+        {
+            Text = control.Type,
+            VerticalAlignment = VerticalAlignment.Center,
+            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 169, 184, 204))
+        };
+        Grid.SetColumn(typeLabel, 1);
+        var removeButton = new Button
+        {
+            Content = "×",
+            Tag = container,
+            Padding = new Thickness(5, 0, 5, 0)
+        };
+        ToolTipService.SetToolTip(removeButton, "Quitar del lienzo");
+        removeButton.Click += RemoveCanvasControl_Click;
+        Grid.SetColumn(removeButton, 2);
+
+        FrameworkElement visual = control.Type switch
+        {
+            "Botón" => new Button { Content = control.Text, HorizontalAlignment = HorizontalAlignment.Stretch },
+            "Interruptor" => CreateCanvasToggle(control),
+            _ => new TextBlock
+            {
+                Text = control.Text,
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249))
+            }
+        };
+        Grid.SetRow(visual, 1);
+        Grid.SetColumnSpan(visual, 3);
+        layout.Children.Add(moveHandle);
+        layout.Children.Add(typeLabel);
+        layout.Children.Add(removeButton);
+        layout.Children.Add(visual);
+        container.Child = layout;
+        Canvas.SetLeft(container, control.Left);
+        Canvas.SetTop(container, control.Top);
+        DesignCanvas.Children.Add(container);
+        container.IsHitTestVisible = !_isCanvasLocked;
+    }
+
+    private FrameworkElement CreateCanvasToggle(DesignerCanvasControlState control)
+    {
+        var toggle = new ToggleSwitch
+        {
+            Header = control.Text,
+            IsOn = control.IsOn,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        toggle.Toggled += async (_, _) =>
+        {
+            if (_isCanvasLocked)
+            {
+                return;
+            }
+
+            control.IsOn = toggle.IsOn;
+            await SaveDesignerCanvasStateAsync();
+        };
+        return toggle;
+    }
+
+    private void CanvasControlMoveHandle_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not FrameworkElement { Tag: Border container } handle)
+        {
+            return;
+        }
+
+        _movingCanvasControl = container;
+        var pointerPosition = e.GetCurrentPoint(DesignCanvas).Position;
+        _canvasControlPointerOffset = new Windows.Foundation.Point(
+            pointerPosition.X - Canvas.GetLeft(container),
+            pointerPosition.Y - Canvas.GetTop(container));
+        handle.CapturePointer(e.Pointer);
+        e.Handled = true;
+    }
+
+    private void CanvasControlMoveHandle_PointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isCanvasLocked || _movingCanvasControl is not { } container)
+        {
+            return;
+        }
+
+        var position = e.GetCurrentPoint(DesignCanvas).Position;
+        var left = Math.Clamp(position.X - _canvasControlPointerOffset.X, 0, Math.Max(0, DesignCanvas.ActualWidth - container.ActualWidth));
+        var top = Math.Clamp(position.Y - _canvasControlPointerOffset.Y, 0, Math.Max(0, DesignCanvas.ActualHeight - container.ActualHeight));
+        Canvas.SetLeft(container, left);
+        Canvas.SetTop(container, top);
+        e.Handled = true;
+    }
+
+    private async void CanvasControlMoveHandle_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        var movingControl = _movingCanvasControl;
+        if (movingControl?.Tag is DesignerCanvasControlState control)
+        {
+            control.Left = Canvas.GetLeft(movingControl);
+            control.Top = Canvas.GetTop(movingControl);
+            await SaveDesignerCanvasStateAsync();
+        }
+
+        _movingCanvasControl = null;
+        if (sender is UIElement handle)
+        {
+            handle.ReleasePointerCapture(e.Pointer);
+        }
+
+        e.Handled = true;
+    }
+
+    private async void CanvasControlMoveHandle_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+    {
+        if (_movingCanvasControl?.Tag is DesignerCanvasControlState control)
+        {
+            control.Left = Canvas.GetLeft(_movingCanvasControl);
+            control.Top = Canvas.GetTop(_movingCanvasControl);
+            await SaveDesignerCanvasStateAsync();
+        }
+
+        _movingCanvasControl = null;
+    }
+
+    private async void RemoveCanvasControl_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not Button { Tag: Border container })
+        {
+            return;
+        }
+
+        if (container.Tag is DesignerCanvasControlState control)
+        {
+            _designerCanvasState.Controls.RemoveAll(item => item.Id == control.Id);
+            DesignCanvas.Children.Remove(container);
+            await SaveDesignerCanvasStateAsync();
+        }
+    }
+
+    private async Task SaveDesignerCanvasStateAsync()
+    {
+        try
+        {
+            await _designerCanvasStore.SaveAsync(_designerCanvasState);
+        }
+        catch (IOException exception)
+        {
+            ModuleStatusText.Text = $"No se pudo guardar el diseño del lienzo: {exception.Message}";
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            ModuleStatusText.Text = $"No hay permisos para guardar el diseño del lienzo: {exception.Message}";
+        }
     }
 
     private async void LoginButton_Click(object sender, RoutedEventArgs e)
@@ -3153,6 +3575,7 @@ public sealed partial class MainPage : Page
     private async Task LoadPlantNameAsync()
     {
         PlantNameTextBlock.Text = "Cargando planta...";
+        MachineNameTextBlock.Text = "Cargando máquina...";
         try
         {
             var plantName = await _companyConfigurationService.GetPlantNameAsync();
@@ -3160,14 +3583,20 @@ public sealed partial class MainPage : Page
             {
                 PlantNameTextBlock.Text = "Planta no configurada";
                 ModuleStatusText.Text = "No se encontró un valor para Param = 'ptl' en dbo.Cia_Datos.";
-                return;
+            }
+            else
+            {
+                PlantNameTextBlock.Text = plantName;
             }
 
-            PlantNameTextBlock.Text = plantName;
+            var machineName = await _companyConfigurationService.GetMachineNameAsync();
+            MachineNameTextBlock.Text = string.IsNullOrWhiteSpace(machineName) ? "Máquina no configurada" : machineName;
+            ApplyMachineDashboardOptions(await _machineConfigurationService.GetDashboardOptionsAsync());
         }
         catch (SqlException exception)
         {
             PlantNameTextBlock.Text = "Planta no disponible";
+            MachineNameTextBlock.Text = "Máquina no disponible";
             ModuleStatusText.Text = $"No se pudo cargar el nombre de la planta desde dbo.Cia_Datos (SQL {exception.Number}): {exception.Message}";
         }
     }
