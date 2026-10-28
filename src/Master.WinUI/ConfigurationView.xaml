@@ -16,15 +16,25 @@
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <StackPanel>
                 <TextBlock Text="Configuración" FontSize="20" FontWeight="SemiBold" />
                 <TextBlock Text="Parámetros de planta, remisiones y operación" Foreground="#A9B8CC" FontSize="12" />
             </StackPanel>
             <Button x:Name="SaveButton" Grid.Column="1" Content="Guardar" Click="Save_Click" Margin="4,0" />
-            <Button x:Name="EditButton" Grid.Column="2" Content="Editar" Click="Edit_Click" Margin="4,0" />
-            <Button Grid.Column="3" Content="Cerrar" Click="Close_Click" Margin="4,0" />
+            <Button
+                Grid.Column="2"
+                Click="Close_Click"
+                Width="36"
+                Height="36"
+                Padding="0"
+                Margin="4,0"
+                Background="Transparent"
+                BorderThickness="0"
+                ToolTipService.ToolTip="Cerrar configuración"
+                AutomationProperties.Name="Cerrar configuración">
+                <SymbolIcon Symbol="Cancel" />
+            </Button>
         </Grid>
 
         <InfoBar x:Name="StatusInfoBar" Grid.Row="1" IsOpen="False" IsClosable="True" />
@@ -41,5 +51,11 @@
             <TabViewItem Header="Pedidos" />
             <TabViewItem Header="Accesos" />
         </TabView>
+        <ContentControl
+            x:Name="PlcContentHost"
+            Grid.Row="2"
+            HorizontalContentAlignment="Stretch"
+            VerticalContentAlignment="Stretch"
+            Visibility="Collapsed" />
     </Grid>
 </UserControl>

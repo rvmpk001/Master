@@ -378,6 +378,33 @@ public sealed partial class MainPage : Page
 
         if (module.StartsWith("Config:", StringComparison.Ordinal) && sender is MenuFlyoutItem configurationItem)
         {
+            var selectedTab = module switch
+            {
+                "Config:PLC" => 1,
+                "Config:Company" => 2,
+                "Config:Remission" => 3,
+                "Config:ImagesOn" => 4,
+                "Config:ImagesOff" => 5,
+                "Config:ImageSize" => 6,
+                "Config:Messages" => 7,
+                "Config:Additional" => 8,
+                "Config:Orders" => 9,
+                "Config:Access" => 10,
+                _ => -1
+            };
+
+            if (selectedTab >= 0)
+            {
+                ConfigurationView.ShowTab(selectedTab, onlySelectedTab: selectedTab == 1);
+                ConfigurationFormOverlay.Visibility = Visibility.Visible;
+                if (selectedTab == 1)
+                {
+                    await ConfigurationView.LoadPlcConfigurationAsync();
+                }
+
+                return;
+            }
+
             ModuleStatusText.Text = $"{configurationItem.Text}: pantalla pendiente de migración. No se ejecutó ninguna operación de la aplicación original.";
             return;
         }
@@ -449,6 +476,7 @@ public sealed partial class MainPage : Page
 
         if (module == "Configuración")
         {
+            ConfigurationView.ShowTab(0, onlySelectedTab: false);
             ConfigurationFormOverlay.Visibility = Visibility.Visible;
             return;
         }
