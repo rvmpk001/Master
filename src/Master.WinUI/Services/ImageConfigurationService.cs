@@ -92,8 +92,98 @@ public sealed class ImageConfigurationService
             throw;
         }
     }
+
+    public async Task<IReadOnlyDictionary<string, ImageSizeRecord>> GetImageSizesAsync(
+        CancellationToken cancellationToken = default)
+    {
+        const string query = """
+            SELECT IdImagen, Control, Ancho, Alto
+            FROM dbo.Imagenes;
+            """;
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(query, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var sizes = new Dictionary<string, ImageSizeRecord>(StringComparer.OrdinalIgnoreCase);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (reader.IsDBNull(1))
+            {
+                throw new InvalidOperationException("dbo.Imagenes contiene un registro sin valor en Control.");
+            }
+
+            var control = reader.GetString(1).Trim();
+            var size = new ImageSizeRecord(
+                reader.GetInt32(0),
+                control,
+                reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                reader.IsDBNull(3) ? null : reader.GetInt32(3));
+            if (!sizes.TryAdd(control, size))
+            {
+                throw new InvalidOperationException(
+                    $"dbo.Imagenes contiene más de un registro para el control '{control}'.");
+            }
+        }
+
+        return sizes;
+    }
+
+    public async Task SaveImageSizesAsync(
+        IReadOnlyCollection<ImageSizeUpdate> updates,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(updates);
+        if (updates.Count == 0)
+        {
+            throw new InvalidOperationException("No hay tamaños de imágenes para guardar.");
+        }
+
+        const string query = """
+            UPDATE dbo.Imagenes
+            SET Ancho = @Width,
+                Alto = @Height
+            WHERE IdImagen = @IdImagen
+              AND Control = @Control;
+            """;
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken);
+
+        try
+        {
+            foreach (var update in updates)
+            {
+                await using var command = new SqlCommand(query, connection, transaction);
+                command.Parameters.Add("@IdImagen", SqlDbType.Int).Value = update.IdImagen;
+                command.Parameters.Add("@Control", SqlDbType.NVarChar, 50).Value = update.Control;
+                command.Parameters.Add("@Width", SqlDbType.Int).Value = update.Width;
+                command.Parameters.Add("@Height", SqlDbType.Int).Value = update.Height;
+                if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+                {
+                    throw new InvalidOperationException(
+                        $"No se encontró exactamente un registro para '{update.Control}' en dbo.Imagenes.");
+                }
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+    }
 }
 
 public sealed record ImagePathRecord(int IdImagen, string Control, string ImageOn, string ImageOff);
 
 public sealed record ImagePathUpdate(int IdImagen, string Control, string Path);
+
+public sealed record ImageSizeRecord(int IdImagen, string Control, int? Width, int? Height);
+
+public sealed record ImageSizeUpdate(int IdImagen, string Control, int Width, int Height);

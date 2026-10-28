@@ -22,6 +22,7 @@ public sealed partial class ConfigurationView : UserControl
     private readonly Dictionary<string, TextBox> _imageOnPathFields = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, TextBox> _imageOffPathFields = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, int> _imageIdsByControl = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, (TextBox Width, TextBox Height)> _imageSizeFields = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Button> _databaseActionButtons = new();
     private readonly Dictionary<TreeViewNode, PlcTagRecord> _plcTagsByNode = new();
     private TreeView? _plcTagsTree;
@@ -86,6 +87,42 @@ public sealed partial class ConfigurationView : UserControl
         }
     }
 
+    public async Task LoadImageSizesAsync()
+    {
+        _imageIdsByControl.Clear();
+        try
+        {
+            var images = await _imageConfigurationService.GetImageSizesAsync();
+            var missingControls = _imageSizeFields.Keys
+                .Where(control => !images.ContainsKey(control))
+                .OrderBy(control => control, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (missingControls.Length > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Faltan controles en dbo.Imagenes: {string.Join(", ", missingControls)}.");
+            }
+
+            foreach (var (control, fields) in _imageSizeFields)
+            {
+                var image = images[control];
+                fields.Width.Text = image.Width?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+                fields.Height.Text = image.Height?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+                _imageIdsByControl[control] = image.IdImagen;
+            }
+
+            ShowStatus("Tamaños cargados desde dbo.Imagenes.", InfoBarSeverity.Success);
+        }
+        catch (SqlException exception)
+        {
+            ShowStatus($"No se pudieron cargar los tamaños (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ShowStatus($"No se pudieron cargar los tamaños: {exception.Message}", InfoBarSeverity.Error);
+        }
+    }
+
     public void ShowTab(int index, bool onlySelectedTab)
     {
         if (index < 0 || index >= ConfigurationTabs.TabItems.Count)
@@ -98,6 +135,7 @@ public sealed partial class ConfigurationView : UserControl
         RemissionContentHost.Visibility = Visibility.Collapsed;
         ImagesOnContentHost.Visibility = Visibility.Collapsed;
         ImagesOffContentHost.Visibility = Visibility.Collapsed;
+        ImageSizesContentHost.Visibility = Visibility.Collapsed;
 
         if (index == 1 && onlySelectedTab)
         {
@@ -135,6 +173,14 @@ public sealed partial class ConfigurationView : UserControl
             ConfigurationTabs.Visibility = Visibility.Collapsed;
             PlcContentHost.Visibility = Visibility.Collapsed;
             ImagesOffContentHost.Visibility = Visibility.Visible;
+            return;
+        }
+
+        if (index == 6 && onlySelectedTab)
+        {
+            ConfigurationTabs.Visibility = Visibility.Collapsed;
+            PlcContentHost.Visibility = Visibility.Collapsed;
+            ImageSizesContentHost.Visibility = Visibility.Visible;
             return;
         }
 
@@ -309,6 +355,13 @@ public sealed partial class ConfigurationView : UserControl
         {
             ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
             ImagesOffContentHost.Content = scrollViewer;
+            return;
+        }
+
+        if (index == 6)
+        {
+            ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
+            ImageSizesContentHost.Content = scrollViewer;
             return;
         }
 
@@ -1251,24 +1304,118 @@ public sealed partial class ConfigurationView : UserControl
 
     private void BuildImageSizes(StackPanel host)
     {
-        var section = AddSection(host, "Tamaño de imágenes");
-        var names = new[]
+        host.Children.Add(new TextBlock
         {
-            "Ag 1", "Ag 2", "Ag 3", "Ag 4", "Ag A", "Cm 1", "Cm 2", "Cm 3", "Ag 1 (bomba)",
-            "Ag 2 (bomba)", "Adt 1", "Adt 2", "Adt 3", "V_Ad 1", "V_Ad 2", "Ad 1", "Ad 2",
-            "Ad 3", "Ad 4", "Ad 5", "B_Ad 1", "B_Ad 2", "Adicional 1", "Adicional 2",
-            "Adicional 3", "Adicional 4", "Adicional 5", "Adicional 6", "Adicional 7",
-            "Adicional 8", "Adicional 9", "Adicional 10", "Adicional 11", "Adicional 12",
-            "Adicional 13", "Adicional 14", "Adicional 15", "Adicional 16", "Adicional 17",
-            "Adicional 18", "Adicional 19", "Adicional 20", "Adicional 21", "Adicional 22",
-            "Adicional 23", "Adicional 24", "Adicional 25"
+            Text = "Tamaño Imagen",
+            FontSize = 18,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+        });
+
+        var columns = new Grid
+        {
+            ColumnSpacing = 16,
+            HorizontalAlignment = HorizontalAlignment.Stretch
         };
-        foreach (var name in names)
+        for (var index = 0; index < 4; index++)
         {
-            var dimensions = AddSection(section, name);
-            AddTextField(dimensions, "W", "25");
-            AddTextField(dimensions, "H", "25");
+            columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            columns.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         }
+
+        var columnPanels = Enumerable.Range(0, 4)
+            .Select(_ => new StackPanel { Spacing = 12 })
+            .ToArray();
+
+        AddImageSizeSection(columnPanels[0], "Válvulas",
+            ("Ag 1", "V_Ag1"), ("Ag 2", "V_Ag2"), ("Ag 3", "V_Ag3"), ("Ag 4", "V_Ag4"),
+            ("Ag A", "V_Ag"), ("Cm 1", "V_C1"), ("Cm 2", "V_C2"), ("Cm 3", "V_C3"),
+            ("Ag 1", "V_Agua"), ("Ag 2", "V_Agua2"));
+        AddImageSizeSection(columnPanels[0], "Bombas",
+            ("Ad 1", "B_Ad1"), ("Ad 2", "B_Ad2"), ("Ad 3", "B_Ad3"),
+            ("Ag 1", "B_Agua"), ("Ag 2", "B_Agua2"));
+
+        AddImageSizeSection(columnPanels[1], "Válvulas",
+            ("V_Ad 1", "V_Adic1"), ("V_Ad 2", "V_Adic2"), ("V_Ad 3", "V_Adic3"),
+            ("Ad 1", "Adic1"), ("Ad 2", "Adic2"), ("Ad 3", "Adic3"), ("Ad 4", "Adic4"), ("Ad 5", "Adic5"));
+        AddImageSizeSection(columnPanels[1], "Bombas",
+            ("B_Ad 1", "B_Adic1"), ("B_Ad 2", "B_Adic2"));
+        AddImageSizeSection(columnPanels[1], "Adicionales",
+            Enumerable.Range(1, 4).Select(index => ($"Ad {index}", $"AdI{index}")).ToArray());
+
+        AddImageSizeSection(columnPanels[2], "Adicionales",
+            Enumerable.Range(5, 15).Select(index => ($"Ad {index}", $"AdI{index}")).ToArray());
+        AddImageSizeSection(columnPanels[3], "Adicionales",
+            Enumerable.Range(20, 6).Select(index => ($"Ad {index}", $"AdI{index}")).ToArray());
+
+        for (var index = 0; index < columnPanels.Length; index++)
+        {
+            Grid.SetColumn(columnPanels[index], index);
+            columns.Children.Add(columnPanels[index]);
+        }
+
+        columns.SizeChanged += (_, args) =>
+        {
+            var columnCount = args.NewSize.Width >= 1180 ? 4 : args.NewSize.Width >= 620 ? 2 : 1;
+            for (var index = 0; index < columns.ColumnDefinitions.Count; index++)
+            {
+                columns.ColumnDefinitions[index].Width = index < columnCount
+                    ? new GridLength(1, GridUnitType.Star)
+                    : new GridLength(0);
+                Grid.SetRow(columnPanels[index], index / columnCount);
+                Grid.SetColumn(columnPanels[index], index % columnCount);
+            }
+        };
+        host.Children.Add(columns);
+    }
+
+    private void AddImageSizeSection(
+        StackPanel host,
+        string title,
+        params (string Label, string Control)[] imageFields)
+    {
+        var fields = AddSection(host, title);
+        foreach (var (label, control) in imageFields)
+        {
+            AddImageSizeField(fields, label, control);
+        }
+    }
+
+    private void AddImageSizeField(StackPanel parent, string label, string control)
+    {
+        var row = new Grid
+        {
+            ColumnSpacing = 5,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Margin = new Thickness(0, 1, 0, 1)
+        };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(50) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+
+        var labelControl = new TextBlock
+        {
+            Text = label,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+        var widthLabel = new TextBlock { Text = "W:", VerticalAlignment = VerticalAlignment.Center };
+        var width = new TextBox { MinWidth = 0, Width = 58, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var heightLabel = new TextBlock { Text = "H:", VerticalAlignment = VerticalAlignment.Center };
+        var height = new TextBox { MinWidth = 0, Width = 58, HorizontalAlignment = HorizontalAlignment.Stretch };
+
+        Grid.SetColumn(widthLabel, 1);
+        Grid.SetColumn(width, 2);
+        Grid.SetColumn(heightLabel, 3);
+        Grid.SetColumn(height, 4);
+        row.Children.Add(labelControl);
+        row.Children.Add(widthLabel);
+        row.Children.Add(width);
+        row.Children.Add(heightLabel);
+        row.Children.Add(height);
+        parent.Children.Add(row);
+        _imageSizeFields.Add(control, (width, height));
     }
 
     private void BuildMessages(StackPanel host)
@@ -1488,6 +1635,24 @@ public sealed partial class ConfigurationView : UserControl
                     $"Rutas de Imágenes {(isOn ? "On" : "Off")} guardadas en dbo.Imagenes.{(isOn ? "ImagenOn" : "ImagenOff")}.",
                     InfoBarSeverity.Success);
             }
+            else if (_selectedConfigurationTab == 6)
+            {
+                var updates = _imageSizeFields.Select(field =>
+                {
+                    if (!_imageIdsByControl.TryGetValue(field.Key, out var idImagen))
+                    {
+                        throw new InvalidOperationException(
+                            $"No se ha cargado el identificador de '{field.Key}' desde dbo.Imagenes.");
+                    }
+
+                    var width = ParseImageDimension(field.Key, "W", field.Value.Width.Text);
+                    var height = ParseImageDimension(field.Key, "H", field.Value.Height.Text);
+                    return new ImageSizeUpdate(idImagen, field.Key, width, height);
+                }).ToArray();
+
+                await _imageConfigurationService.SaveImageSizesAsync(updates);
+                ShowStatus("Tamaños guardados en dbo.Imagenes (Ancho y Alto).", InfoBarSeverity.Success);
+            }
             else
             {
                 ShowStatus("El guardado de esta pestaña todavía no está disponible.", InfoBarSeverity.Warning);
@@ -1514,6 +1679,17 @@ public sealed partial class ConfigurationView : UserControl
     private string GetPlcText(string parameter) => _plcTextFields[parameter].Text.Trim();
 
     private string GetCompanyText(string parameter) => _companyTextFields[parameter].Text.Trim();
+
+    private static int ParseImageDimension(string control, string dimension, string value)
+    {
+        if (!int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) || parsed < 0)
+        {
+            throw new InvalidOperationException(
+                $"El tamaño {dimension} de '{control}' debe ser un número entero mayor o igual a 0.");
+        }
+
+        return parsed;
+    }
 
     private void UpdateConnectionFields(string connectionType)
     {
