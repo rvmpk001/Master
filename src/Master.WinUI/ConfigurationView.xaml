@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<UserControl
+    x:Class="Master_WinUI.ConfigurationView"
+    RequestedTheme="Dark"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Grid RowSpacing="8" Background="#111C2D">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Grid Padding="12,8" Background="#172337">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock Text="Configuración" FontSize="20" FontWeight="SemiBold" />
+                <TextBlock Text="Parámetros de planta, remisiones y operación" Foreground="#A9B8CC" FontSize="12" />
+            </StackPanel>
+            <Button x:Name="SaveButton" Grid.Column="1" Content="Guardar" Click="Save_Click" Margin="4,0" />
+            <Button x:Name="EditButton" Grid.Column="2" Content="Editar" Click="Edit_Click" Margin="4,0" />
+            <Button Grid.Column="3" Content="Cerrar" Click="Close_Click" Margin="4,0" />
+        </Grid>
+
+        <InfoBar x:Name="StatusInfoBar" Grid.Row="1" IsOpen="False" IsClosable="True" />
+        <TabView x:Name="ConfigurationTabs" Grid.Row="2" IsAddTabButtonVisible="False" CanReorderTabs="False" TabWidthMode="Equal">
+            <TabViewItem Header="Configuración de la máquina" />
+            <TabViewItem Header="Configuración PLC" />
+            <TabViewItem Header="Datos generales de la Cía." />
+            <TabViewItem Header="Ajuste de Remisión" />
+            <TabViewItem Header="Imágenes On" />
+            <TabViewItem Header="Imágenes Off" />
+            <TabViewItem Header="TamañoImagen" />
+            <TabViewItem Header="Mensajes" />
+            <TabViewItem Header="Adicionales" />
+            <TabViewItem Header="Pedidos" />
+            <TabViewItem Header="Accesos" />
+        </TabView>
+    </Grid>
+</UserControl>
