@@ -1517,7 +1517,15 @@
             </Border>
         </Grid>
         <Grid x:Name="ConfigurationFormOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
-            <Border Margin="12" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8">
+            <Border
+                x:Name="ConfigurationFormBorder"
+                Margin="12"
+                Background="#111C2D"
+                BorderBrush="#0078D4"
+                BorderThickness="1"
+                CornerRadius="8"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center">
                 <local:ConfigurationView x:Name="ConfigurationView" />
             </Border>
         </Grid>

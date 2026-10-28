@@ -13,8 +13,10 @@ public sealed partial class ConfigurationView : UserControl
 {
     private readonly PlcCommunicationService _plcCommunicationService = new();
     private readonly PlcTagService _plcTagService = new();
+    private readonly CompanyConfigurationService _companyConfigurationService = new();
     private readonly Dictionary<string, ComboBox> _plcSelectors = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TextBox> _plcTextFields = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, TextBox> _companyTextFields = new(StringComparer.Ordinal);
     private readonly Dictionary<TreeViewNode, PlcTagRecord> _plcTagsByNode = new();
     private TreeView? _plcTagsTree;
     private ComboBox? _plcConnectionType;
@@ -30,6 +32,7 @@ public sealed partial class ConfigurationView : UserControl
     private TextBlock? _plcTagName;
     private TextBlock? _plcTagDescription;
     private Button? _savePlcTagButton;
+    private int _selectedConfigurationTab;
 
     public event EventHandler? CloseRequested;
 
@@ -46,10 +49,21 @@ public sealed partial class ConfigurationView : UserControl
             throw new ArgumentOutOfRangeException(nameof(index));
         }
 
+        _selectedConfigurationTab = index;
+        CompanyContentHost.Visibility = Visibility.Collapsed;
+
         if (index == 1 && onlySelectedTab)
         {
             ConfigurationTabs.Visibility = Visibility.Collapsed;
             PlcContentHost.Visibility = Visibility.Visible;
+            return;
+        }
+
+        if (index == 2 && onlySelectedTab)
+        {
+            ConfigurationTabs.Visibility = Visibility.Collapsed;
+            PlcContentHost.Visibility = Visibility.Collapsed;
+            CompanyContentHost.Visibility = Visibility.Visible;
             return;
         }
 
@@ -67,6 +81,31 @@ public sealed partial class ConfigurationView : UserControl
         }
 
         ConfigurationTabs.SelectedIndex = index;
+    }
+
+    public async Task LoadCompanyConfigurationAsync()
+    {
+        try
+        {
+            var settings = await _companyConfigurationService.GetCompanyConfigurationAsync();
+            SetCompanyText("Cia", settings.CompanyName);
+            SetCompanyText("Ptl", settings.PlantName);
+            SetCompanyText("UbiPtl", settings.PlantLocation);
+            SetCompanyText("CalleNum", settings.StreetAndNumber);
+            SetCompanyText("Col", settings.Neighborhood);
+            SetCompanyText("Munp", settings.Municipality);
+            SetCompanyText("CP", settings.PostalCode);
+            SetCompanyText("Edo", settings.State);
+            ShowStatus("Datos generales de la compañía cargados desde dbo.Cia_Datos.", InfoBarSeverity.Success);
+        }
+        catch (SqlException exception)
+        {
+            ShowStatus($"No se pudieron cargar los datos de la compañía (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ShowStatus($"No se pudieron cargar los datos de la compañía: {exception.Message}", InfoBarSeverity.Error);
+        }
     }
 
     public async Task LoadPlcConfigurationAsync()
@@ -171,6 +210,13 @@ public sealed partial class ConfigurationView : UserControl
         {
             ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
             PlcContentHost.Content = scrollViewer;
+            return;
+        }
+
+        if (index == 2)
+        {
+            ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
+            CompanyContentHost.Content = scrollViewer;
             return;
         }
 
@@ -641,20 +687,55 @@ public sealed partial class ConfigurationView : UserControl
 
     private void BuildCompanyData(StackPanel host)
     {
-        var company = AddSection(host, "Datos para la emisión de remisiones");
-        AddTextField(company, "Nombre de la Compañía", "CRETTA");
-        AddTextField(company, "Nombre de la Planta", "PLANTA B-40 SAN JUAN DE LOS LAGOS");
-        AddTextField(company, "Ubicación de la Planta", "SAN JUAN DE LOS LAGOS");
+        var form = new Grid
+        {
+            MaxWidth = 1200,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            ColumnSpacing = 24
+        };
+        form.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        form.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        form.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
-        var address = AddSection(host, "Dirección");
-        AddTextField(address, "Calle y Número");
-        AddTextField(address, "Colonia");
-        AddTextField(address, "Delegación o Municipio", "SAN JUAN DE LOS LAGOS");
-        AddTextField(address, "Código Postal", "4700");
-        AddTextField(address, "Estado o Ciudad", "JALISCO");
-        AddPathField(address, "Logotipo");
-        AddPathField(address, "Imagen");
+        var companyColumn = new StackPanel { Spacing = 14 };
+        var company = AddSection(companyColumn, "Datos para la emisión de remisiones");
+        AddCompanyTextField(company, "Cia", "Nombre de la Compañía", "CRETTA");
+        AddCompanyTextField(company, "Ptl", "Nombre de la Planta", "PLANTA B-40 SAN JUAN DE LOS LAGOS");
+        AddCompanyTextField(company, "UbiPtl", "Ubicación de la Planta", "SAN JUAN DE LOS LAGOS");
+
+        var addressColumn = new StackPanel { Spacing = 14 };
+        var address = AddSection(addressColumn, "Dirección");
+        AddCompanyTextField(address, "CalleNum", "Calle y Número");
+        AddCompanyTextField(address, "Col", "Colonia");
+        AddCompanyTextField(address, "Munp", "Delegación o Municipio", "SAN JUAN DE LOS LAGOS");
+        AddCompanyTextField(address, "CP", "Código Postal", "4700");
+        AddCompanyTextField(address, "Edo", "Estado o Ciudad", "JALISCO");
+
+        Grid.SetColumn(companyColumn, 0);
+        form.Children.Add(companyColumn);
+        form.SizeChanged += (_, args) =>
+        {
+            var useSingleColumn = args.NewSize.Width < 800;
+            form.ColumnDefinitions[1].Width = useSingleColumn
+                ? new GridLength(0)
+                : new GridLength(1, GridUnitType.Star);
+            Grid.SetRow(addressColumn, useSingleColumn ? 1 : 0);
+            Grid.SetColumn(addressColumn, useSingleColumn ? 0 : 1);
+        };
+        Grid.SetColumn(addressColumn, 1);
+        form.Children.Add(addressColumn);
+        host.Children.Add(form);
     }
+
+    private void AddCompanyTextField(StackPanel parent, string parameter, string label, string value = "")
+    {
+        var field = AddPlcTextField(parent, label, value);
+        _companyTextFields.Add(parameter, field);
+    }
+
+    private void SetCompanyText(string parameter, string value) =>
+        _companyTextFields[parameter].Text = value;
 
     private void BuildRemissionSettings(StackPanel host)
     {
@@ -891,33 +972,54 @@ public sealed partial class ConfigurationView : UserControl
         SaveButton.IsEnabled = false;
         try
         {
-            var settings = new PlcCommunicationSettings(
-                GetPlcSelectedValue("DirPLC"),
-                GetPlcSelectedValue("Port"),
-                GetPlcSelectedValue("Velocity"),
-                GetPlcSelectedValue("DataBits"),
-                GetPlcSelectedValue("Parity"),
-                GetPlcSelectedValue("StopBits"),
-                GetPlcText("TimeOut"),
-                GetPlcText("Retry"),
-                GetPlcText("Salidas"),
-                GetPlcSelectedValue("Tipo"),
-                _plcConfigurationMode!.IsChecked == true ? "1" : "0");
+            if (_selectedConfigurationTab == 2)
+            {
+                var companySettings = new CompanyConfigurationSettings(
+                    GetCompanyText("Cia"),
+                    GetCompanyText("Ptl"),
+                    GetCompanyText("UbiPtl"),
+                    GetCompanyText("CalleNum"),
+                    GetCompanyText("Col"),
+                    GetCompanyText("Munp"),
+                    GetCompanyText("CP"),
+                    GetCompanyText("Edo"));
+                await _companyConfigurationService.SaveCompanyConfigurationAsync(companySettings);
+                ShowStatus("Datos generales de la compañía guardados en dbo.Cia_Datos.", InfoBarSeverity.Success);
+            }
+            else if (_selectedConfigurationTab == 1)
+            {
+                var settings = new PlcCommunicationSettings(
+                    GetPlcSelectedValue("DirPLC"),
+                    GetPlcSelectedValue("Port"),
+                    GetPlcSelectedValue("Velocity"),
+                    GetPlcSelectedValue("DataBits"),
+                    GetPlcSelectedValue("Parity"),
+                    GetPlcSelectedValue("StopBits"),
+                    GetPlcText("TimeOut"),
+                    GetPlcText("Retry"),
+                    GetPlcText("Salidas"),
+                    GetPlcSelectedValue("Tipo"),
+                    _plcConfigurationMode!.IsChecked == true ? "1" : "0");
 
-            await _plcCommunicationService.SaveSettingsAsync(settings);
-            ShowStatus(
-                settings.ConnectionType == "ETHERNET"
-                    ? "Configuración compatible guardada en dbo.Comunicacion. La tabla actual no contiene parámetros para guardar Dirección IP ni Password."
-                    : "Configuración PLC guardada en dbo.Comunicacion.",
-                settings.ConnectionType == "ETHERNET" ? InfoBarSeverity.Warning : InfoBarSeverity.Success);
+                await _plcCommunicationService.SaveSettingsAsync(settings);
+                ShowStatus(
+                    settings.ConnectionType == "ETHERNET"
+                        ? "Configuración compatible guardada en dbo.Comunicacion. La tabla actual no contiene parámetros para guardar Dirección IP ni Password."
+                        : "Configuración PLC guardada en dbo.Comunicacion.",
+                    settings.ConnectionType == "ETHERNET" ? InfoBarSeverity.Warning : InfoBarSeverity.Success);
+            }
+            else
+            {
+                ShowStatus("El guardado de esta pestaña todavía no está disponible.", InfoBarSeverity.Warning);
+            }
         }
         catch (SqlException exception)
         {
-            ShowStatus($"No se pudo guardar la configuración PLC en la base de datos (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
+            ShowStatus($"No se pudo guardar la configuración en la base de datos (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            ShowStatus($"No se pudo guardar la configuración PLC: {exception.Message}", InfoBarSeverity.Error);
+            ShowStatus($"No se pudo guardar la configuración: {exception.Message}", InfoBarSeverity.Error);
         }
         finally
         {
@@ -930,6 +1032,8 @@ public sealed partial class ConfigurationView : UserControl
         ?? throw new InvalidOperationException($"Selecciona un valor para '{parameter}' antes de guardar.");
 
     private string GetPlcText(string parameter) => _plcTextFields[parameter].Text.Trim();
+
+    private string GetCompanyText(string parameter) => _companyTextFields[parameter].Text.Trim();
 
     private void UpdateConnectionFields(string connectionType)
     {

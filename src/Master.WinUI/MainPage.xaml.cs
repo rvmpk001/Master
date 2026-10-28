@@ -51,6 +51,7 @@ public sealed partial class MainPage : Page
     private double _plantToolsResizeStartX;
     private double _plantToolsResizeStartWidth;
     private double _plantToolsWidth = DefaultPlantToolsWidth;
+    private bool _isCompanyConfigurationOpen;
     private string _authenticatedUsername = string.Empty;
     private FormulaRow? _selectedFormula;
     private SupplierRecord? _selectedSupplier;
@@ -150,7 +151,13 @@ public sealed partial class MainPage : Page
         };
         MachineConfigurationView.DashboardOptionsChanged += ApplyMachineDashboardOptions;
         Loaded += MainPage_Loaded;
-        ConfigurationView.CloseRequested += (_, _) => ConfigurationFormOverlay.Visibility = Visibility.Collapsed;
+        ConfigurationView.CloseRequested += (_, _) =>
+        {
+            ConfigurationFormOverlay.Visibility = Visibility.Collapsed;
+            _isCompanyConfigurationOpen = false;
+            ConfigurationFormBorder.ClearValue(FrameworkElement.WidthProperty);
+            ConfigurationFormBorder.ClearValue(FrameworkElement.HeightProperty);
+        };
         ReportPresetRadioButton.Checked += ReportPeriodMode_Checked;
         ReportCustomRadioButton.Checked += ReportPeriodMode_Checked;
         UpdateReportPeriodControls(isPresetMode: true);
@@ -220,6 +227,11 @@ public sealed partial class MainPage : Page
 
     private void Page_SizeChanged(object sender, SizeChangedEventArgs e)
     {
+        if (_isCompanyConfigurationOpen)
+        {
+            SizeCompanyConfigurationForm(e.NewSize);
+        }
+
         var isCompact = e.NewSize.Width < 1100;
         var showPlantTools = _showPlantTools && !isCompact;
         PlantActionColumn.Width = showPlantTools ? new GridLength(_plantToolsWidth) : new GridLength(0);
@@ -395,11 +407,26 @@ public sealed partial class MainPage : Page
 
             if (selectedTab >= 0)
             {
-                ConfigurationView.ShowTab(selectedTab, onlySelectedTab: selectedTab == 1);
+                _isCompanyConfigurationOpen = selectedTab == 2;
+                if (_isCompanyConfigurationOpen)
+                {
+                    SizeCompanyConfigurationForm(new Windows.Foundation.Size(ActualWidth, ActualHeight));
+                }
+                else
+                {
+                    ConfigurationFormBorder.ClearValue(FrameworkElement.WidthProperty);
+                    ConfigurationFormBorder.ClearValue(FrameworkElement.HeightProperty);
+                }
+
+                ConfigurationView.ShowTab(selectedTab, onlySelectedTab: selectedTab is 1 or 2);
                 ConfigurationFormOverlay.Visibility = Visibility.Visible;
                 if (selectedTab == 1)
                 {
                     await ConfigurationView.LoadPlcConfigurationAsync();
+                }
+                else if (selectedTab == 2)
+                {
+                    await ConfigurationView.LoadCompanyConfigurationAsync();
                 }
 
                 return;
@@ -476,12 +503,21 @@ public sealed partial class MainPage : Page
 
         if (module == "Configuración")
         {
+            _isCompanyConfigurationOpen = false;
+            ConfigurationFormBorder.ClearValue(FrameworkElement.WidthProperty);
+            ConfigurationFormBorder.ClearValue(FrameworkElement.HeightProperty);
             ConfigurationView.ShowTab(0, onlySelectedTab: false);
             ConfigurationFormOverlay.Visibility = Visibility.Visible;
             return;
         }
 
         ModuleStatusText.Text = $"{module}: pantalla pendiente de migración. No se ejecutó ninguna operación de la aplicación original.";
+    }
+
+    private void SizeCompanyConfigurationForm(Windows.Foundation.Size availableSize)
+    {
+        ConfigurationFormBorder.Width = Math.Min(1120, Math.Max(0, availableSize.Width - 48));
+        ConfigurationFormBorder.Height = Math.Min(420, Math.Max(0, availableSize.Height - 48));
     }
 
     private void CloseManualLoad_Click(object sender, RoutedEventArgs e)
