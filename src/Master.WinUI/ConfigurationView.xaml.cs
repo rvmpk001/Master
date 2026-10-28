@@ -14,9 +14,11 @@ public sealed partial class ConfigurationView : UserControl
     private readonly PlcCommunicationService _plcCommunicationService = new();
     private readonly PlcTagService _plcTagService = new();
     private readonly CompanyConfigurationService _companyConfigurationService = new();
+    private readonly DatabaseBackupService _databaseBackupService = new();
     private readonly Dictionary<string, ComboBox> _plcSelectors = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TextBox> _plcTextFields = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TextBox> _companyTextFields = new(StringComparer.Ordinal);
+    private readonly List<Button> _databaseActionButtons = new();
     private readonly Dictionary<TreeViewNode, PlcTagRecord> _plcTagsByNode = new();
     private TreeView? _plcTagsTree;
     private ComboBox? _plcConnectionType;
@@ -32,6 +34,7 @@ public sealed partial class ConfigurationView : UserControl
     private TextBlock? _plcTagName;
     private TextBlock? _plcTagDescription;
     private Button? _savePlcTagButton;
+    private bool _databaseOperationInProgress;
     private int _selectedConfigurationTab;
 
     public event EventHandler? CloseRequested;
@@ -51,6 +54,7 @@ public sealed partial class ConfigurationView : UserControl
 
         _selectedConfigurationTab = index;
         CompanyContentHost.Visibility = Visibility.Collapsed;
+        RemissionContentHost.Visibility = Visibility.Collapsed;
 
         if (index == 1 && onlySelectedTab)
         {
@@ -64,6 +68,14 @@ public sealed partial class ConfigurationView : UserControl
             ConfigurationTabs.Visibility = Visibility.Collapsed;
             PlcContentHost.Visibility = Visibility.Collapsed;
             CompanyContentHost.Visibility = Visibility.Visible;
+            return;
+        }
+
+        if (index == 3 && onlySelectedTab)
+        {
+            ConfigurationTabs.Visibility = Visibility.Collapsed;
+            PlcContentHost.Visibility = Visibility.Collapsed;
+            RemissionContentHost.Visibility = Visibility.Visible;
             return;
         }
 
@@ -217,6 +229,13 @@ public sealed partial class ConfigurationView : UserControl
         {
             ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
             CompanyContentHost.Content = scrollViewer;
+            return;
+        }
+
+        if (index == 3)
+        {
+            ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
+            RemissionContentHost.Content = scrollViewer;
             return;
         }
 
@@ -739,32 +758,296 @@ public sealed partial class ConfigurationView : UserControl
 
     private void BuildRemissionSettings(StackPanel host)
     {
-        var options = AddSection(host, "Ajustes de remisión");
-        AddCheckBox(options, "Colocar nombre de compañía en remisión", true);
-        AddCheckBox(options, "Imprimir líneas y títulos en remisión", true);
-        AddCheckBox(options, "Imprimir remisión después de cargar", true);
-        AddCheckBox(options, "Número de remisión automático", true);
-        AddCheckBox(options, "Número de salida automático", true);
-        AddCheckBox(options, "Leyenda por parámetro", true);
-        AddTextField(options, "Número de salida", "1");
-        AddTextField(options, "Número de copias", "1");
-        AddTextField(options, "Leyenda copia");
-        AddTextField(options, "Sufijo remisión", "+");
-        AddTextField(options, "Número remisión", "320");
-        AddTextField(options, "Leyenda");
-        AddTextField(options, "Opacidad", "100");
-        AddTextField(options, "Tamaño", "10");
-        AddTextField(options, "Rotación", "0");
-        AddSelector(options, "Alineación horizontal", new[] { "Izquierda", "Centro", "Derecha" }, "Izquierda");
-        AddSelector(options, "Alineación vertical", new[] { "Arriba", "Centro", "Abajo" }, "Arriba");
-
-        var unsupported = AddSection(host, "Respaldo y reportes");
-        unsupported.Children.Add(new TextBlock
+        var layout = new Grid
         {
-            Text = "El respaldo de reportes y de base de datos requiere una integración de almacenamiento que aún no está configurada.",
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 169, 184, 204))
-        });
+            ColumnSpacing = 18,
+            RowSpacing = 16,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        for (var index = 0; index < 3; index++)
+        {
+            layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        }
+        layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+
+        var generalHost = new StackPanel();
+        var general = AddSection(generalHost, "Opciones generales");
+        AddCheckBox(general, "Colocar nombre de compañía en remisión", true);
+        AddCheckBox(general, "Imprimir líneas y títulos en remisión", true);
+        AddCheckBox(general, "Imprimir remisión después de cargar", true);
+        AddCheckBox(general, "Número de remisión automático", true);
+        AddCheckBox(general, "Número de salida automático", true);
+        AddCheckBox(general, "Leyenda por parámetro", true);
+        AddTextField(general, "Número de salida", "1");
+        AddTextField(general, "Número de copias", "1");
+
+        var numberingHost = new StackPanel();
+        var numbering = AddSection(numberingHost, "Folio y leyendas");
+        AddTextField(numbering, "Leyenda copia");
+        AddTextField(numbering, "Sufijo remisión", "+");
+        AddTextField(numbering, "Número remisión", "320");
+        AddTextField(numbering, "Leyenda");
+
+        var printFormatHost = new StackPanel();
+        var printFormat = AddSection(printFormatHost, "Formato de impresión");
+        AddTextField(printFormat, "Opacidad", "100");
+        AddTextField(printFormat, "Tamaño", "10");
+        AddTextField(printFormat, "Rotación", "0");
+        AddSelector(printFormat, "Alineación horizontal", new[] { "Izquierda", "Centro", "Derecha" }, "Izquierda");
+        AddSelector(printFormat, "Alineación vertical", new[] { "Arriba", "Centro", "Abajo" }, "Arriba");
+
+        Grid.SetColumn(generalHost, 0);
+        layout.Children.Add(generalHost);
+        Grid.SetColumn(numberingHost, 1);
+        layout.Children.Add(numberingHost);
+        Grid.SetColumn(printFormatHost, 2);
+        layout.Children.Add(printFormatHost);
+
+        var backupsHost = new StackPanel { Spacing = 12 };
+        var reportsSection = AddSection(backupsHost, "Respaldo y carga de reportes");
+        reportsSection.Orientation = Orientation.Horizontal;
+        reportsSection.Spacing = 12;
+        var exportReportsButton = CreateDatabaseActionButton("Respaldar Reportes", ExportReports_Click);
+        reportsSection.Children.Add(exportReportsButton);
+
+        var restoreReportsButton = CreateDatabaseActionButton("Cargar Reportes", RestoreReports_Click);
+        reportsSection.Children.Add(restoreReportsButton);
+
+        var databaseSection = AddSection(backupsHost, "Respaldo y restauración de la base de datos");
+        databaseSection.Orientation = Orientation.Horizontal;
+        databaseSection.Spacing = 12;
+        var exportDatabaseButton = CreateDatabaseActionButton("Respaldar BD", ExportDatabase_Click);
+        databaseSection.Children.Add(exportDatabaseButton);
+
+        var restoreDatabaseButton = CreateDatabaseActionButton("Restaurar BD", RestoreDatabase_Click);
+        databaseSection.Children.Add(restoreDatabaseButton);
+        Grid.SetColumnSpan(backupsHost, 3);
+        Grid.SetRow(backupsHost, 1);
+        layout.Children.Add(backupsHost);
+
+        layout.SizeChanged += (_, args) =>
+        {
+            var columnCount = args.NewSize.Width >= 1120 ? 3 : args.NewSize.Width >= 720 ? 2 : 1;
+            for (var column = 0; column < layout.ColumnDefinitions.Count; column++)
+            {
+                layout.ColumnDefinitions[column].Width = column < columnCount
+                    ? new GridLength(1, GridUnitType.Star)
+                    : new GridLength(0);
+            }
+
+            var rowCount = (3 + columnCount - 1) / columnCount;
+            for (var row = 0; row < 3; row++)
+            {
+                layout.RowDefinitions[row].Height = row < rowCount
+                    ? GridLength.Auto
+                    : new GridLength(0);
+            }
+            layout.RowDefinitions[rowCount].Height = GridLength.Auto;
+            Grid.SetRow(generalHost, 0);
+            Grid.SetColumn(generalHost, 0);
+            Grid.SetRow(numberingHost, 1 / columnCount);
+            Grid.SetColumn(numberingHost, 1 % columnCount);
+            Grid.SetRow(printFormatHost, 2 / columnCount);
+            Grid.SetColumn(printFormatHost, 2 % columnCount);
+            Grid.SetRow(backupsHost, rowCount);
+            Grid.SetColumn(backupsHost, 0);
+        };
+        host.Children.Add(layout);
+    }
+
+    private async void ExportReports_Click(object sender, RoutedEventArgs e)
+    {
+        await ExportSqlBackupAsync(
+            "Respaldo-Reportes",
+            path => _databaseBackupService.ExportReportsAsync(path),
+            "Respaldo de dbo.Reportes guardado en");
+    }
+
+    private async void ExportDatabase_Click(object sender, RoutedEventArgs e)
+    {
+        await ExportSqlBackupAsync(
+            "Respaldo-BlapaciSQL",
+            path => _databaseBackupService.ExportDatabaseAsync(path),
+            "Respaldo de estructura de tablas y datos guardado en");
+    }
+
+    private async void RestoreReports_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryBeginDatabaseOperation())
+        {
+            return;
+        }
+
+        try
+        {
+            var path = await PickSqlFileAsync(save: false, "Reportes-Blapaci");
+            if (path is null)
+            {
+                return;
+            }
+
+            if (!await ConfirmRestoreAsync(
+                    "Reemplazar reportes",
+                    "Se eliminarán todos los registros actuales de dbo.Reportes y se cargarán los del archivo seleccionado. Esta acción no se puede deshacer. ¿Deseas continuar?"))
+            {
+                return;
+            }
+
+            await _databaseBackupService.RestoreReportsAsync(path);
+            ShowStatus("Los registros de dbo.Reportes se reemplazaron correctamente.", InfoBarSeverity.Success);
+        }
+        catch (Exception exception) when (exception is SqlException or InvalidDataException or IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            ShowStatus($"No se pudieron restaurar los reportes: {exception.Message}", InfoBarSeverity.Error);
+        }
+        finally
+        {
+            EndDatabaseOperation();
+        }
+    }
+
+    private async void RestoreDatabase_Click(object sender, RoutedEventArgs e)
+    {
+        if (!TryBeginDatabaseOperation())
+        {
+            return;
+        }
+
+        try
+        {
+            var path = await PickSqlFileAsync(save: false, "Respaldo-BlapaciSQL");
+            if (path is null)
+            {
+                return;
+            }
+
+            if (!await ConfirmRestoreAsync(
+                    "Reemplazar datos de la base de datos",
+                    "Se borrarán los registros actuales de todas las tablas de usuario y se cargarán los del respaldo. La estructura existente debe coincidir; no se ejecutará el DDL del archivo. Esta acción no se puede deshacer. ¿Deseas continuar?"))
+            {
+                return;
+            }
+
+            await _databaseBackupService.RestoreDatabaseAsync(path);
+            ShowStatus("Los datos de todas las tablas se restauraron correctamente.", InfoBarSeverity.Success);
+        }
+        catch (Exception exception) when (exception is SqlException or InvalidDataException or IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            ShowStatus($"No se pudo restaurar la base de datos: {exception.Message}", InfoBarSeverity.Error);
+        }
+        finally
+        {
+            EndDatabaseOperation();
+        }
+    }
+
+    private async Task ExportSqlBackupAsync(string suggestedName, Func<string, Task> export, string successMessage)
+    {
+        if (!TryBeginDatabaseOperation())
+        {
+            return;
+        }
+
+        try
+        {
+            var path = await PickSqlFileAsync(save: true, suggestedName);
+            if (path is null)
+            {
+                return;
+            }
+
+            await export(path);
+            ShowStatus($"{successMessage} {path}", InfoBarSeverity.Success);
+        }
+        catch (Exception exception) when (exception is SqlException or InvalidDataException or IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            ShowStatus($"No se pudo generar el respaldo: {exception.Message}", InfoBarSeverity.Error);
+        }
+        finally
+        {
+            EndDatabaseOperation();
+        }
+    }
+
+    private Button CreateDatabaseActionButton(string text, RoutedEventHandler handler)
+    {
+        var button = new Button { Content = text, MinWidth = 180 };
+        button.Click += handler;
+        _databaseActionButtons.Add(button);
+        return button;
+    }
+
+    private bool TryBeginDatabaseOperation()
+    {
+        if (_databaseOperationInProgress)
+        {
+            return false;
+        }
+
+        _databaseOperationInProgress = true;
+        foreach (var button in _databaseActionButtons)
+        {
+            button.IsEnabled = false;
+        }
+        return true;
+    }
+
+    private void EndDatabaseOperation()
+    {
+        _databaseOperationInProgress = false;
+        foreach (var button in _databaseActionButtons)
+        {
+            button.IsEnabled = true;
+        }
+    }
+
+    private async Task<string?> PickSqlFileAsync(bool save, string suggestedName)
+    {
+        if (Application.Current is not App { MainWindow: { } window })
+        {
+            ShowStatus("No se pudo abrir el selector porque la ventana principal no está disponible.", InfoBarSeverity.Error);
+            return null;
+        }
+
+        try
+        {
+            var windowHandle = WindowNative.GetWindowHandle(window);
+            if (save)
+            {
+                var picker = new FileSavePicker();
+                picker.FileTypeChoices.Add("Script SQL", new List<string> { ".sql" });
+                picker.SuggestedFileName = suggestedName;
+                InitializeWithWindow.Initialize(picker, windowHandle);
+                var file = await picker.PickSaveFileAsync();
+                return file?.Path;
+            }
+
+            var openPicker = new FileOpenPicker();
+            openPicker.FileTypeFilter.Add(".sql");
+            InitializeWithWindow.Initialize(openPicker, windowHandle);
+            var selectedFile = await openPicker.PickSingleFileAsync();
+            return selectedFile?.Path;
+        }
+        catch (COMException exception)
+        {
+            ShowStatus($"No se pudo abrir el selector de archivos: {exception.Message}", InfoBarSeverity.Error);
+            return null;
+        }
+    }
+
+    private async Task<bool> ConfirmRestoreAsync(string title, string message)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = title,
+            Content = message,
+            PrimaryButtonText = "Restaurar",
+            CloseButtonText = "Cancelar",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot
+        };
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
     }
 
     private void BuildImagePaths(StackPanel host, bool isOn)

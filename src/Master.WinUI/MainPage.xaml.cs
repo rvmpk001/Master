@@ -52,6 +52,7 @@ public sealed partial class MainPage : Page
     private double _plantToolsResizeStartWidth;
     private double _plantToolsWidth = DefaultPlantToolsWidth;
     private bool _isCompanyConfigurationOpen;
+    private bool _isRemissionConfigurationOpen;
     private string _authenticatedUsername = string.Empty;
     private FormulaRow? _selectedFormula;
     private SupplierRecord? _selectedSupplier;
@@ -155,6 +156,7 @@ public sealed partial class MainPage : Page
         {
             ConfigurationFormOverlay.Visibility = Visibility.Collapsed;
             _isCompanyConfigurationOpen = false;
+            _isRemissionConfigurationOpen = false;
             ConfigurationFormBorder.ClearValue(FrameworkElement.WidthProperty);
             ConfigurationFormBorder.ClearValue(FrameworkElement.HeightProperty);
         };
@@ -230,6 +232,10 @@ public sealed partial class MainPage : Page
         if (_isCompanyConfigurationOpen)
         {
             SizeCompanyConfigurationForm(e.NewSize);
+        }
+        else if (_isRemissionConfigurationOpen)
+        {
+            SizeRemissionConfigurationForm(e.NewSize);
         }
 
         var isCompact = e.NewSize.Width < 1100;
@@ -408,9 +414,14 @@ public sealed partial class MainPage : Page
             if (selectedTab >= 0)
             {
                 _isCompanyConfigurationOpen = selectedTab == 2;
+                _isRemissionConfigurationOpen = selectedTab == 3;
                 if (_isCompanyConfigurationOpen)
                 {
                     SizeCompanyConfigurationForm(new Windows.Foundation.Size(ActualWidth, ActualHeight));
+                }
+                else if (_isRemissionConfigurationOpen)
+                {
+                    SizeRemissionConfigurationForm(new Windows.Foundation.Size(ActualWidth, ActualHeight));
                 }
                 else
                 {
@@ -418,7 +429,7 @@ public sealed partial class MainPage : Page
                     ConfigurationFormBorder.ClearValue(FrameworkElement.HeightProperty);
                 }
 
-                ConfigurationView.ShowTab(selectedTab, onlySelectedTab: selectedTab is 1 or 2);
+                ConfigurationView.ShowTab(selectedTab, onlySelectedTab: selectedTab is 1 or 2 or 3);
                 ConfigurationFormOverlay.Visibility = Visibility.Visible;
                 if (selectedTab == 1)
                 {
@@ -504,6 +515,7 @@ public sealed partial class MainPage : Page
         if (module == "Configuración")
         {
             _isCompanyConfigurationOpen = false;
+            _isRemissionConfigurationOpen = false;
             ConfigurationFormBorder.ClearValue(FrameworkElement.WidthProperty);
             ConfigurationFormBorder.ClearValue(FrameworkElement.HeightProperty);
             ConfigurationView.ShowTab(0, onlySelectedTab: false);
@@ -518,6 +530,12 @@ public sealed partial class MainPage : Page
     {
         ConfigurationFormBorder.Width = Math.Min(1120, Math.Max(0, availableSize.Width - 48));
         ConfigurationFormBorder.Height = Math.Min(420, Math.Max(0, availableSize.Height - 48));
+    }
+
+    private void SizeRemissionConfigurationForm(Windows.Foundation.Size availableSize)
+    {
+        ConfigurationFormBorder.Width = Math.Min(1600, Math.Max(0, availableSize.Width - 24));
+        ConfigurationFormBorder.Height = Math.Min(1000, Math.Max(0, availableSize.Height - 24));
     }
 
     private void CloseManualLoad_Click(object sender, RoutedEventArgs e)
