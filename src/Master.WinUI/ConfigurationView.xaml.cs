@@ -27,6 +27,10 @@ public sealed partial class ConfigurationView : UserControl
     private readonly MessageConfigurationService _messageConfigurationService = new();
     private readonly Dictionary<string, ComboBox> _additionalSelectors = new(StringComparer.OrdinalIgnoreCase);
     private readonly AdditionalConfigurationService _additionalConfigurationService = new();
+    private readonly Dictionary<string, CheckBox> _remissionOptions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, TextBox> _remissionTextFields = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, ComboBox> _remissionSelectors = new(StringComparer.Ordinal);
+    private readonly RemissionConfigurationService _remissionConfigurationService = new();
     private readonly List<Button> _databaseActionButtons = new();
     private readonly Dictionary<TreeViewNode, PlcTagRecord> _plcTagsByNode = new();
     private TreeView? _plcTagsTree;
@@ -45,6 +49,7 @@ public sealed partial class ConfigurationView : UserControl
     private Button? _savePlcTagButton;
     private bool _databaseOperationInProgress;
     private int _selectedConfigurationTab;
+    private int? _remissionSettingsId;
 
     public event EventHandler? CloseRequested;
 
@@ -88,6 +93,50 @@ public sealed partial class ConfigurationView : UserControl
         catch (InvalidOperationException exception)
         {
             ShowStatus($"No se pudieron cargar las imágenes: {exception.Message}", InfoBarSeverity.Error);
+        }
+    }
+
+    public async Task LoadRemissionConfigurationAsync()
+    {
+        _remissionSettingsId = null;
+        try
+        {
+            var settings = await _remissionConfigurationService.GetSettingsAsync();
+            foreach (var (column, field) in _remissionOptions)
+            {
+                field.IsChecked = settings.Options[column];
+            }
+
+            foreach (var (column, field) in _remissionTextFields)
+            {
+                field.Text = settings.TextValues[column];
+            }
+
+            foreach (var (column, field) in _remissionSelectors)
+            {
+                var code = settings.AlignmentValues[column];
+                var option = field.Items
+                    .OfType<RemissionAlignmentOption>()
+                    .FirstOrDefault(candidate => candidate.Code == code);
+                if (option is null)
+                {
+                    option = new RemissionAlignmentOption($"Código {code}", code);
+                    field.Items.Add(option);
+                }
+
+                field.SelectedItem = option;
+            }
+
+            _remissionSettingsId = settings.Id;
+            ShowStatus("Ajuste de remisión cargado desde dbo.AjusteRemision.", InfoBarSeverity.Success);
+        }
+        catch (SqlException exception)
+        {
+            ShowStatus($"No se pudo cargar el ajuste de remisión (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ShowStatus($"No se pudo cargar el ajuste de remisión: {exception.Message}", InfoBarSeverity.Error);
         }
     }
 
@@ -1008,29 +1057,40 @@ public sealed partial class ConfigurationView : UserControl
 
         var generalHost = new StackPanel();
         var general = AddSection(generalHost, "Opciones generales");
-        AddCheckBox(general, "Colocar nombre de compañía en remisión", true);
-        AddCheckBox(general, "Imprimir líneas y títulos en remisión", true);
-        AddCheckBox(general, "Imprimir remisión después de cargar", true);
-        AddCheckBox(general, "Número de remisión automático", true);
-        AddCheckBox(general, "Número de salida automático", true);
-        AddCheckBox(general, "Leyenda por parámetro", true);
-        AddTextField(general, "Número de salida", "1");
-        AddTextField(general, "Número de copias", "1");
+        AddRemissionCheckBox(general, "NomCia", "Colocar nombre de compañía en remisión");
+        AddRemissionCheckBox(general, "ImpLineas", "Imprimir líneas y títulos en remisión");
+        AddRemissionCheckBox(general, "ImpDesCa", "Imprimir remisión después de cargar");
+        AddRemissionCheckBox(general, "NumAutomatico", "Número de remisión automático");
+        AddRemissionCheckBox(general, "NumSAutomatico", "Número de salida automático");
+        AddRemissionCheckBox(general, "LoP", "Leyenda por parámetro");
+        AddRemissionTextField(general, "NumSalida", "Número de salida");
+        AddRemissionTextField(general, "NumCopias", "Número de copias");
 
         var numberingHost = new StackPanel();
         var numbering = AddSection(numberingHost, "Folio y leyendas");
-        AddTextField(numbering, "Leyenda copia");
-        AddTextField(numbering, "Sufijo remisión", "+");
-        AddTextField(numbering, "Número remisión", "320");
-        AddTextField(numbering, "Leyenda");
+        AddRemissionTextField(numbering, "Leyendas", "Leyenda copia");
+        AddRemissionTextField(numbering, "Subfijo", "Sufijo remisión");
+        AddRemissionTextField(numbering, "Numremision", "Número remisión");
 
         var printFormatHost = new StackPanel();
         var printFormat = AddSection(printFormatHost, "Formato de impresión");
-        AddTextField(printFormat, "Opacidad", "100");
-        AddTextField(printFormat, "Tamaño", "10");
-        AddTextField(printFormat, "Rotación", "0");
-        AddSelector(printFormat, "Alineación horizontal", new[] { "Izquierda", "Centro", "Derecha" }, "Izquierda");
-        AddSelector(printFormat, "Alineación vertical", new[] { "Arriba", "Centro", "Abajo" }, "Arriba");
+        AddRemissionTextField(printFormat, "Opacidad", "Opacidad");
+        AddRemissionTextField(printFormat, "Tamaño", "Tamaño");
+        AddRemissionTextField(printFormat, "Rotacion", "Rotación");
+        AddRemissionAlignmentSelector(
+            printFormat,
+            "AlineacionH",
+            "Alineación horizontal",
+            new RemissionAlignmentOption("Izquierda", 0),
+            new RemissionAlignmentOption("Centro", 1),
+            new RemissionAlignmentOption("Derecha", 2));
+        AddRemissionAlignmentSelector(
+            printFormat,
+            "AlineacionV",
+            "Alineación vertical",
+            new RemissionAlignmentOption("Arriba", 4),
+            new RemissionAlignmentOption("Centro", 5),
+            new RemissionAlignmentOption("Abajo", 6));
 
         Grid.SetColumn(generalHost, 0);
         layout.Children.Add(generalHost);
@@ -1766,6 +1826,47 @@ public sealed partial class ConfigurationView : UserControl
         }
     }
 
+    private void AddRemissionCheckBox(StackPanel parent, string column, string label)
+    {
+        var field = new CheckBox { Content = label };
+        _remissionOptions.Add(column, field);
+        parent.Children.Add(field);
+    }
+
+    private void AddRemissionTextField(StackPanel parent, string column, string label)
+    {
+        var field = new TextBox
+        {
+            Header = label,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 180
+        };
+        _remissionTextFields.Add(column, field);
+        parent.Children.Add(field);
+    }
+
+    private void AddRemissionAlignmentSelector(
+        StackPanel parent,
+        string column,
+        string label,
+        params RemissionAlignmentOption[] options)
+    {
+        var selector = new ComboBox
+        {
+            Header = label,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 180,
+            DisplayMemberPath = nameof(RemissionAlignmentOption.Label)
+        };
+        foreach (var option in options)
+        {
+            selector.Items.Add(option);
+        }
+
+        _remissionSelectors.Add(column, selector);
+        parent.Children.Add(selector);
+    }
+
     private void AddNumericGroup(StackPanel host, string title, string[] fields)
     {
         var section = AddSection(host, title);
@@ -1830,7 +1931,35 @@ public sealed partial class ConfigurationView : UserControl
         SaveButton.IsEnabled = false;
         try
         {
-            if (_selectedConfigurationTab == 2)
+            if (_selectedConfigurationTab == 3)
+            {
+                if (_remissionSettingsId is not int id)
+                {
+                    throw new InvalidOperationException(
+                        "Carga el ajuste de remisión desde dbo.AjusteRemision antes de guardarlo.");
+                }
+
+                var settings = new RemissionConfigurationUpdate(
+                    id,
+                    _remissionOptions.ToDictionary(
+                        option => option.Key,
+                        option => option.Value.IsChecked == true,
+                        StringComparer.Ordinal),
+                    _remissionTextFields.ToDictionary(
+                        field => field.Key,
+                        field => field.Value.Text.Trim(),
+                        StringComparer.Ordinal),
+                    _remissionSelectors.ToDictionary(
+                        selector => selector.Key,
+                        selector => (selector.Value.SelectedItem as RemissionAlignmentOption
+                            ?? throw new InvalidOperationException(
+                                $"Selecciona un valor para '{selector.Value.Header}' antes de guardar.")).Code,
+                        StringComparer.Ordinal));
+
+                await _remissionConfigurationService.SaveSettingsAsync(settings);
+                ShowStatus("Ajuste de remisión guardado en dbo.AjusteRemision.", InfoBarSeverity.Success);
+            }
+            else if (_selectedConfigurationTab == 2)
             {
                 var companySettings = new CompanyConfigurationSettings(
                     GetCompanyText("Cia"),
@@ -1968,6 +2097,11 @@ public sealed partial class ConfigurationView : UserControl
         }
 
         return parsed;
+    }
+
+    private sealed record RemissionAlignmentOption(string Label, int Code)
+    {
+        public override string ToString() => Label;
     }
 
     private async void EditMessageFormat_Click(object sender, RoutedEventArgs e)

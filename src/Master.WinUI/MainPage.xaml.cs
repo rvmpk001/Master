@@ -494,6 +494,10 @@ public sealed partial class MainPage : Page
                 {
                     await ConfigurationView.LoadCompanyConfigurationAsync();
                 }
+                else if (selectedTab == 3)
+                {
+                    await ConfigurationView.LoadRemissionConfigurationAsync();
+                }
                 else if (selectedTab == 4)
                 {
                     await ConfigurationView.LoadImageConfigurationAsync(isOn: true);
