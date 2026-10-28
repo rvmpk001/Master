@@ -15,9 +15,13 @@ public sealed partial class ConfigurationView : UserControl
     private readonly PlcTagService _plcTagService = new();
     private readonly CompanyConfigurationService _companyConfigurationService = new();
     private readonly DatabaseBackupService _databaseBackupService = new();
+    private readonly ImageConfigurationService _imageConfigurationService = new();
     private readonly Dictionary<string, ComboBox> _plcSelectors = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TextBox> _plcTextFields = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TextBox> _companyTextFields = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, TextBox> _imageOnPathFields = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, TextBox> _imageOffPathFields = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, int> _imageIdsByControl = new(StringComparer.OrdinalIgnoreCase);
     private readonly List<Button> _databaseActionButtons = new();
     private readonly Dictionary<TreeViewNode, PlcTagRecord> _plcTagsByNode = new();
     private TreeView? _plcTagsTree;
@@ -45,6 +49,43 @@ public sealed partial class ConfigurationView : UserControl
         BuildTabs();
     }
 
+    public async Task LoadImageConfigurationAsync(bool isOn)
+    {
+        var fields = isOn ? _imageOnPathFields : _imageOffPathFields;
+        var columnName = isOn ? "ImagenOn" : "ImagenOff";
+        _imageIdsByControl.Clear();
+        try
+        {
+            var images = await _imageConfigurationService.GetImagePathsAsync();
+            var missingControls = fields.Keys
+                .Where(control => !images.ContainsKey(control))
+                .OrderBy(control => control, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (missingControls.Length > 0)
+            {
+                throw new InvalidOperationException(
+                    $"Faltan controles en dbo.Imagenes: {string.Join(", ", missingControls)}.");
+            }
+
+            foreach (var (control, field) in fields)
+            {
+                var image = images[control];
+                field.Text = isOn ? image.ImageOn : image.ImageOff;
+                _imageIdsByControl[control] = image.IdImagen;
+            }
+
+            ShowStatus($"Rutas {columnName} cargadas desde dbo.Imagenes.", InfoBarSeverity.Success);
+        }
+        catch (SqlException exception)
+        {
+            ShowStatus($"No se pudieron cargar las imágenes (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ShowStatus($"No se pudieron cargar las imágenes: {exception.Message}", InfoBarSeverity.Error);
+        }
+    }
+
     public void ShowTab(int index, bool onlySelectedTab)
     {
         if (index < 0 || index >= ConfigurationTabs.TabItems.Count)
@@ -55,6 +96,8 @@ public sealed partial class ConfigurationView : UserControl
         _selectedConfigurationTab = index;
         CompanyContentHost.Visibility = Visibility.Collapsed;
         RemissionContentHost.Visibility = Visibility.Collapsed;
+        ImagesOnContentHost.Visibility = Visibility.Collapsed;
+        ImagesOffContentHost.Visibility = Visibility.Collapsed;
 
         if (index == 1 && onlySelectedTab)
         {
@@ -76,6 +119,22 @@ public sealed partial class ConfigurationView : UserControl
             ConfigurationTabs.Visibility = Visibility.Collapsed;
             PlcContentHost.Visibility = Visibility.Collapsed;
             RemissionContentHost.Visibility = Visibility.Visible;
+            return;
+        }
+
+        if (index == 4 && onlySelectedTab)
+        {
+            ConfigurationTabs.Visibility = Visibility.Collapsed;
+            PlcContentHost.Visibility = Visibility.Collapsed;
+            ImagesOnContentHost.Visibility = Visibility.Visible;
+            return;
+        }
+
+        if (index == 5 && onlySelectedTab)
+        {
+            ConfigurationTabs.Visibility = Visibility.Collapsed;
+            PlcContentHost.Visibility = Visibility.Collapsed;
+            ImagesOffContentHost.Visibility = Visibility.Visible;
             return;
         }
 
@@ -236,6 +295,20 @@ public sealed partial class ConfigurationView : UserControl
         {
             ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
             RemissionContentHost.Content = scrollViewer;
+            return;
+        }
+
+        if (index == 4)
+        {
+            ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
+            ImagesOnContentHost.Content = scrollViewer;
+            return;
+        }
+
+        if (index == 5)
+        {
+            ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
+            ImagesOffContentHost.Content = scrollViewer;
             return;
         }
 
@@ -1052,24 +1125,128 @@ public sealed partial class ConfigurationView : UserControl
 
     private void BuildImagePaths(StackPanel host, bool isOn)
     {
-        var title = isOn ? "Imágenes On" : "Imágenes Off";
-        var section = AddSection(host, $"Rutas de imágenes - {title}");
-        var names = new[]
+        var fields = isOn ? _imageOnPathFields : _imageOffPathFields;
+        host.Children.Add(new TextBlock
         {
-            "Ag 1", "Ag 2", "Ag 3", "Ag 4", "Ag Adc", "Cm 1", "Cm 2", "Cm 3",
-            "Ag 1 (bomba)", "Ag 2 (bomba)", "Adt 1", "Adt 2", "Adt 3",
-            "V_Ad 1", "V_Ad 2", "Ad 1", "Ad 2", "Ad 3", "Ad 4", "Ad 5",
-            "B_Ad 1", "B_Ad 2", "Adicional 1", "Adicional 2", "Adicional 3",
-            "Adicional 4", "Adicional 5", "Adicional 6", "Adicional 7", "Adicional 8",
-            "Adicional 9", "Adicional 10", "Adicional 11", "Adicional 12", "Adicional 13",
-            "Adicional 14", "Adicional 15", "Adicional 16", "Adicional 17", "Adicional 18",
-            "Adicional 19", "Adicional 20", "Adicional 21", "Adicional 22", "Adicional 23",
-            "Adicional 24", "Adicional 25"
+            Text = isOn ? "Imágenes On" : "Imágenes Off",
+            FontSize = 18,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+        });
+        var columns = new Grid
+        {
+            ColumnSpacing = 16,
+            HorizontalAlignment = HorizontalAlignment.Stretch
         };
-        foreach (var name in names)
+        for (var index = 0; index < 4; index++)
         {
-            AddPathField(section, name);
+            columns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            columns.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         }
+
+        var columnPanels = Enumerable.Range(0, 4)
+            .Select(_ => new StackPanel { Spacing = 12 })
+            .ToArray();
+
+        AddImagePathSection(columnPanels[0], "Válvulas", fields,
+            ("Ag 1", "V_Ag1"), ("Ag 2", "V_Ag2"), ("Ag 3", "V_Ag3"), ("Ag 4", "V_Ag4"),
+            ("Ag Adc", "V_Ag"), ("Cm 1", "V_C1"), ("Cm 2", "V_C2"), ("Cm 3", "V_C3"),
+            ("Ag 1", "V_Agua"), ("Ag 2", "V_Agua2"));
+        AddImagePathSection(columnPanels[0], "Bombas", fields,
+            ("Adt 1", "B_Ad1"), ("Adt 2", "B_Ad2"), ("Adt 3", "B_Ad3"),
+            ("Ag 1 (bomba)", "B_Agua"), ("Ag 2 (bomba)", "B_Agua2"));
+
+        AddImagePathSection(columnPanels[1], "Válvulas", fields,
+            ("V_Ad 1", "V_Adic1"), ("V_Ad 2", "V_Adic2"), ("V_Ad 3", "V_Adic3"),
+            ("Ad 1", "Adic1"), ("Ad 2", "Adic2"), ("Ad 3", "Adic3"), ("Ad 4", "Adic4"), ("Ad 5", "Adic5"));
+        AddImagePathSection(columnPanels[1], "Bombas", fields,
+            ("B_Ad 1", "B_Adic1"), ("B_Ad 2", "B_Adic2"));
+        AddImagePathSection(columnPanels[1], "Adicionales", fields,
+            ("Adl1", "AdI1"), ("Adl2", "AdI2"), ("Adl3", "AdI3"));
+
+        AddImagePathSection(columnPanels[2], "Adicionales", fields,
+            Enumerable.Range(4, 15).Select(index => ($"Adl{index}", $"AdI{index}")).ToArray());
+        AddImagePathSection(columnPanels[3], "Adicionales", fields,
+            Enumerable.Range(19, 7).Select(index => ($"Adl{index}", $"AdI{index}")).ToArray());
+
+        for (var index = 0; index < columnPanels.Length; index++)
+        {
+            Grid.SetColumn(columnPanels[index], index);
+            columns.Children.Add(columnPanels[index]);
+        }
+
+        columns.SizeChanged += (_, args) =>
+        {
+            var columnCount = args.NewSize.Width >= 1180 ? 4 : args.NewSize.Width >= 620 ? 2 : 1;
+            for (var index = 0; index < columns.ColumnDefinitions.Count; index++)
+            {
+                columns.ColumnDefinitions[index].Width = index < columnCount
+                    ? new GridLength(1, GridUnitType.Star)
+                    : new GridLength(0);
+                Grid.SetRow(columnPanels[index], index / columnCount);
+                Grid.SetColumn(columnPanels[index], index % columnCount);
+            }
+        };
+        host.Children.Add(columns);
+    }
+
+    private void AddImagePathSection(
+        StackPanel host,
+        string title,
+        Dictionary<string, TextBox> fields,
+        params (string Label, string Control)[] imageFields)
+    {
+        var section = AddSection(host, title);
+        foreach (var (label, control) in imageFields)
+        {
+            AddCompactPathField(section, label, control, fields);
+        }
+    }
+
+    private void AddCompactPathField(
+        StackPanel parent,
+        string label,
+        string control,
+        Dictionary<string, TextBox> fields)
+    {
+        var row = new Grid
+        {
+            ColumnSpacing = 6,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Margin = new Thickness(0, 2, 0, 2)
+        };
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(58) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var labelControl = new TextBlock
+        {
+            Text = label,
+            VerticalAlignment = VerticalAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis
+        };
+        ToolTipService.SetToolTip(labelControl, label);
+        var path = new TextBox
+        {
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinWidth = 0
+        };
+        fields.Add(control, path);
+        var browse = new Button
+        {
+            Content = "...",
+            Width = 36,
+            Padding = new Thickness(0),
+            Tag = path
+        };
+        ToolTipService.SetToolTip(browse, $"Seleccionar archivo para {label}");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(browse, $"Examinar {label}");
+        browse.Click += BrowseImage_Click;
+        Grid.SetColumn(path, 1);
+        Grid.SetColumn(browse, 2);
+        row.Children.Add(labelControl);
+        row.Children.Add(path);
+        row.Children.Add(browse);
+        parent.Children.Add(row);
     }
 
     private void BuildImageSizes(StackPanel host)
@@ -1290,6 +1467,26 @@ public sealed partial class ConfigurationView : UserControl
                         ? "Configuración compatible guardada en dbo.Comunicacion. La tabla actual no contiene parámetros para guardar Dirección IP ni Password."
                         : "Configuración PLC guardada en dbo.Comunicacion.",
                     settings.ConnectionType == "ETHERNET" ? InfoBarSeverity.Warning : InfoBarSeverity.Success);
+            }
+            else if (_selectedConfigurationTab is 4 or 5)
+            {
+                var isOn = _selectedConfigurationTab == 4;
+                var fields = isOn ? _imageOnPathFields : _imageOffPathFields;
+                var updates = fields.Select(field =>
+                {
+                    if (!_imageIdsByControl.TryGetValue(field.Key, out var idImagen))
+                    {
+                        throw new InvalidOperationException(
+                            $"No se ha cargado el identificador de '{field.Key}' desde dbo.Imagenes.");
+                    }
+
+                    return new ImagePathUpdate(idImagen, field.Key, field.Value.Text);
+                }).ToArray();
+
+                await _imageConfigurationService.SaveImagePathsAsync(updates, isOn);
+                ShowStatus(
+                    $"Rutas de Imágenes {(isOn ? "On" : "Off")} guardadas en dbo.Imagenes.{(isOn ? "ImagenOn" : "ImagenOff")}.",
+                    InfoBarSeverity.Success);
             }
             else
             {
