@@ -19,6 +19,10 @@ namespace Master_WinUI;
 
 public sealed partial class MainPage : Page
 {
+    private static readonly string ThemeSettingsPath = Path.Combine(
+        Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+        "Master.WinUI",
+        "theme.txt");
     private const double DefaultPlantToolsWidth = 240;
     private const double MinimumPlantToolsWidth = 180;
     private const double MinimumWorkspaceWidth = 500;
@@ -32,6 +36,7 @@ public sealed partial class MainPage : Page
     };
 
     private readonly DispatcherQueueTimer _clockTimer;
+    private readonly ThemeBrushSet _themeBrushes = new();
     private readonly AuthenticationService _authenticationService = new();
     private readonly AccessConfigurationService _accessConfigurationService = new();
     private readonly InventoryService _inventoryService = new();
@@ -155,6 +160,7 @@ public sealed partial class MainPage : Page
     public MainPage()
     {
         InitializeComponent();
+        ApplyTheme(LoadSavedTheme(), persist: false);
         ConfigurationView.CanSaveConfigurationTab = CanSaveConfigurationTab;
         ConfigurationView.HasProfileModuleAccess = HasModulePermission;
         ConfigurationView.HasProfileAction = HasActionPermission;
@@ -349,6 +355,54 @@ public sealed partial class MainPage : Page
                 PlantToolsPanel.Visibility = showPlantTools ? Visibility.Visible : Visibility.Collapsed;
                 PlantToolsResizeHandle.Visibility = showPlantTools ? Visibility.Visible : Visibility.Collapsed;
                 break;
+        }
+    }
+
+    private void ThemeMenuItem_Click(object sender, RoutedEventArgs e)
+    {
+        var theme = ReferenceEquals(sender, LightThemeMenuItem)
+            ? ElementTheme.Light
+            : ElementTheme.Dark;
+        ApplyTheme(theme, persist: true);
+    }
+
+    private void ApplyTheme(ElementTheme theme, bool persist)
+    {
+        RequestedTheme = theme;
+        _themeBrushes.ApplyTheme(theme);
+        ConfigurationView.ApplyTheme(theme);
+        MachineConfigurationView.ApplyTheme(theme);
+        SecurityView.RequestedTheme = theme;
+        DarkThemeMenuItem.IsChecked = theme == ElementTheme.Dark;
+        LightThemeMenuItem.IsChecked = theme == ElementTheme.Light;
+
+        if (persist)
+        {
+            try
+            {
+                Directory.CreateDirectory(Path.GetDirectoryName(ThemeSettingsPath)!);
+                File.WriteAllText(ThemeSettingsPath, theme == ElementTheme.Light ? "Light" : "Dark");
+            }
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+            {
+                ModuleStatusText.Text = $"No se pudo guardar la preferencia del tema: {exception.Message}";
+            }
+        }
+    }
+
+    private ElementTheme LoadSavedTheme()
+    {
+        try
+        {
+            return File.Exists(ThemeSettingsPath)
+                && string.Equals(File.ReadAllText(ThemeSettingsPath).Trim(), "Light", StringComparison.OrdinalIgnoreCase)
+                    ? ElementTheme.Light
+                    : ElementTheme.Dark;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            ModuleStatusText.Text = $"No se pudo leer la preferencia del tema: {exception.Message}";
+            return ElementTheme.Dark;
         }
     }
 
@@ -1189,8 +1243,8 @@ public sealed partial class MainPage : Page
 
     private void SetManualLoadRequiredFieldHighlight(ISet<string> invalidFields)
     {
-        var normalBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 64, 81, 106));
-        var errorBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 239, 68, 68));
+        var normalBrush = _themeBrushes.GetBrush("#40516A");
+        var errorBrush = _themeBrushes.GetBrush("#EF4444");
         foreach (var (column, input) in new (string Column, TextBox Input)[]
         {
             ("A1C", ManualLoadA1TextBox),
@@ -1282,8 +1336,7 @@ public sealed partial class MainPage : Page
     {
         if (_selectedOrderRow is not null)
         {
-            _selectedOrderRow.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 30, 45, 67));
+            _selectedOrderRow.Background = _themeBrushes.GetBrush("#1E2D43");
         }
 
         _selectedOrder = null;
@@ -1296,11 +1349,15 @@ public sealed partial class MainPage : Page
             VisibleOrders.Add(order);
         }
 
-        var activeBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 120, 212));
-        var inactiveBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 38, 54, 77));
+        var activeBrush = _themeBrushes.GetBrush("#0078D4");
+        var inactiveBrush = _themeBrushes.GetBrush("#26364D");
         OrderActiveTabButton.Background = selectedTab == OrderActiveTabButton ? activeBrush : inactiveBrush;
         OrderCompletedTabButton.Background = selectedTab == OrderCompletedTabButton ? activeBrush : inactiveBrush;
         OrderCancelledTabButton.Background = selectedTab == OrderCancelledTabButton ? activeBrush : inactiveBrush;
+        foreach (var tab in new[] { OrderActiveTabButton, OrderCompletedTabButton, OrderCancelledTabButton })
+        {
+            tab.Foreground = _themeBrushes.GetBrush("#F1F5F9");
+        }
         AddOrderButton.Content = _showingCancelledOrders ? "Restaurar" : "Agregar";
         AddOrderButton.IsEnabled = selectedTab == OrderActiveTabButton;
         UpdateOrderActionButtons();
@@ -1323,14 +1380,12 @@ public sealed partial class MainPage : Page
 
         if (_selectedOrderRow is not null)
         {
-            _selectedOrderRow.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 30, 45, 67));
+            _selectedOrderRow.Background = _themeBrushes.GetBrush("#1E2D43");
         }
 
         _selectedOrder = order;
         _selectedOrderRow = row;
-        row.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-            Windows.UI.Color.FromArgb(255, 0, 88, 160));
+        row.Background = _themeBrushes.GetBrush("#0058A0");
         UpdateOrderActionButtons();
     }
 
@@ -2834,10 +2889,10 @@ public sealed partial class MainPage : Page
         FormulaAddRestoreButton.Content = "Agregar";
         ClearFormulaSelection();
         ShowFormulaRows(ActiveFormulaRows);
-        FormulaActiveTabButton.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-            Windows.UI.Color.FromArgb(255, 0, 120, 212));
-        FormulaCancelledTabButton.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-            Windows.UI.Color.FromArgb(255, 38, 54, 77));
+        FormulaActiveTabButton.Background = _themeBrushes.GetBrush("#0078D4");
+        FormulaCancelledTabButton.Background = _themeBrushes.GetBrush("#26364D");
+        FormulaActiveTabButton.Foreground = _themeBrushes.GetBrush("#F1F5F9");
+        FormulaCancelledTabButton.Foreground = _themeBrushes.GetBrush("#F1F5F9");
         UpdateFormulaActionButtons();
     }
 
@@ -2847,10 +2902,10 @@ public sealed partial class MainPage : Page
         FormulaAddRestoreButton.Content = "Restaurar";
         ClearFormulaSelection();
         ShowFormulaRows(CancelledFormulaRows);
-        FormulaActiveTabButton.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-            Windows.UI.Color.FromArgb(255, 38, 54, 77));
-        FormulaCancelledTabButton.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-            Windows.UI.Color.FromArgb(255, 0, 120, 212));
+        FormulaActiveTabButton.Background = _themeBrushes.GetBrush("#26364D");
+        FormulaCancelledTabButton.Background = _themeBrushes.GetBrush("#0078D4");
+        FormulaActiveTabButton.Foreground = _themeBrushes.GetBrush("#F1F5F9");
+        FormulaCancelledTabButton.Foreground = _themeBrushes.GetBrush("#F1F5F9");
         UpdateFormulaActionButtons();
     }
 
@@ -2888,8 +2943,7 @@ public sealed partial class MainPage : Page
         ClearFormulaSelection();
         _selectedFormula = formula;
         _selectedFormulaBorder = border;
-        border.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-            Windows.UI.Color.FromArgb(255, 0, 94, 167));
+        border.Background = _themeBrushes.GetBrush("#005EA7");
         UpdateFormulaActionButtons();
         FormulaFormStatusText.Text = $"Fórmula seleccionada: {formula.Values.GetValueOrDefault("Cod_Formula", string.Empty)} (ID {formula.Id}).";
         e.Handled = true;
@@ -2899,8 +2953,7 @@ public sealed partial class MainPage : Page
     {
         if (_selectedFormulaBorder is not null)
         {
-            _selectedFormulaBorder.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 30, 45, 67));
+            _selectedFormulaBorder.Background = _themeBrushes.GetBrush("#1E2D43");
         }
 
         _selectedFormulaBorder = null;
@@ -3098,8 +3151,8 @@ public sealed partial class MainPage : Page
         panel.Children.Add(new TextBlock { Text = title, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         var border = new Border
         {
-            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 23, 35, 55)),
-            BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 64, 81, 106)),
+            Background = _themeBrushes.GetBrush("#172337"),
+            BorderBrush = _themeBrushes.GetBrush("#40516A"),
             BorderThickness = new Thickness(1),
             Padding = new Thickness(10),
             Child = panel
@@ -3159,8 +3212,8 @@ public sealed partial class MainPage : Page
             var materialPicker = new ComboBox
             {
                 ItemsSource = _formulaMaterialOptions.GetValueOrDefault(fieldPrefix, Array.Empty<string>()),
-                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
-                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 17, 27, 43)),
+                Foreground = _themeBrushes.GetBrush("#F1F5F9"),
+                Background = _themeBrushes.GetBrush("#111B2B"),
                 Tag = materialField
             };
             materialPicker.SelectionChanged += FormulaMaterial_SelectionChanged;
@@ -3168,7 +3221,7 @@ public sealed partial class MainPage : Page
             var materialState = new TextBlock
             {
                 Text = materialPicker.SelectedItem as string ?? "DESHABILITADA",
-                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 34, 197, 94)),
+                Foreground = _themeBrushes.GetBrush("#22C55E"),
                 VerticalAlignment = VerticalAlignment.Center,
                 FontSize = 11,
                 TextTrimming = TextTrimming.CharacterEllipsis
@@ -3199,8 +3252,8 @@ public sealed partial class MainPage : Page
         {
             Text = values.GetValueOrDefault(fieldName, string.Empty),
             MaxLength = FormulaService.GetFieldMaxLength(fieldName),
-            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249)),
-            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 17, 27, 43)),
+            Foreground = _themeBrushes.GetBrush("#F1F5F9"),
+            Background = _themeBrushes.GetBrush("#111B2B"),
             Tag = fieldName
         };
         _formulaEditorInputs[fieldName] = input;
@@ -3220,16 +3273,20 @@ public sealed partial class MainPage : Page
     {
         FormulaEditorConfigurationHost.Visibility = Visibility.Visible;
         FormulaEditorAdditionalHost.Visibility = Visibility.Collapsed;
-        FormulaEditorConfigurationTabButton.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 120, 212));
-        FormulaEditorAdditionalTabButton.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 38, 54, 77));
+        FormulaEditorConfigurationTabButton.Background = _themeBrushes.GetBrush("#0078D4");
+        FormulaEditorAdditionalTabButton.Background = _themeBrushes.GetBrush("#26364D");
+        FormulaEditorConfigurationTabButton.Foreground = _themeBrushes.GetBrush("#F1F5F9");
+        FormulaEditorAdditionalTabButton.Foreground = _themeBrushes.GetBrush("#F1F5F9");
     }
 
     private void FormulaEditorAdditionalTab_Click(object sender, RoutedEventArgs e)
     {
         FormulaEditorConfigurationHost.Visibility = Visibility.Collapsed;
         FormulaEditorAdditionalHost.Visibility = Visibility.Visible;
-        FormulaEditorConfigurationTabButton.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 38, 54, 77));
-        FormulaEditorAdditionalTabButton.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 120, 212));
+        FormulaEditorConfigurationTabButton.Background = _themeBrushes.GetBrush("#26364D");
+        FormulaEditorAdditionalTabButton.Background = _themeBrushes.GetBrush("#0078D4");
+        FormulaEditorConfigurationTabButton.Foreground = _themeBrushes.GetBrush("#F1F5F9");
+        FormulaEditorAdditionalTabButton.Foreground = _themeBrushes.GetBrush("#F1F5F9");
     }
 
     private void UpdateFormulaMaterialPicker(ComboBox picker, string fieldName, IReadOnlyDictionary<string, string> values)
@@ -3904,10 +3961,8 @@ public sealed partial class MainPage : Page
         CanvasEditStatusText.Text = _isCanvasLocked
             ? "Lienzo bloqueado. Desbloquéalo para cambiar la imagen o editar controles."
             : "Lienzo desbloqueado. Puedes cambiar la imagen y editar controles.";
-        CanvasEditStatusText.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-            _isCanvasLocked
-                ? Windows.UI.Color.FromArgb(255, 255, 190, 90)
-                : Windows.UI.Color.FromArgb(255, 114, 212, 154));
+        CanvasEditStatusText.Foreground = _themeBrushes.GetBrush(
+            _isCanvasLocked ? "#FFBE5A" : "#72D49A");
     }
 
     private async void AddCanvasControl_Click(object sender, RoutedEventArgs e)
@@ -3943,8 +3998,8 @@ public sealed partial class MainPage : Page
         {
             Width = 190,
             Padding = new Thickness(6),
-            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(230, 17, 28, 45)),
-            BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 0, 120, 212)),
+            Background = _themeBrushes.GetBrush("#E6111C2D"),
+            BorderBrush = _themeBrushes.GetBrush("#0078D4"),
             BorderThickness = new Thickness(1),
             CornerRadius = new CornerRadius(4),
             Tag = control
@@ -3971,7 +4026,7 @@ public sealed partial class MainPage : Page
         {
             Text = control.Type,
             VerticalAlignment = VerticalAlignment.Center,
-            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 169, 184, 204))
+            Foreground = _themeBrushes.GetBrush("#A9B8CC")
         };
         Grid.SetColumn(typeLabel, 1);
         var removeButton = new Button
@@ -3992,7 +4047,7 @@ public sealed partial class MainPage : Page
             {
                 Text = control.Text,
                 TextWrapping = TextWrapping.Wrap,
-                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 241, 245, 249))
+                Foreground = _themeBrushes.GetBrush("#F1F5F9")
             }
         };
         Grid.SetRow(visual, 1);

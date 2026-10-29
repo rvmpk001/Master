@@ -6,6 +6,78 @@
     xmlns:local="using:Master_WinUI">
     <Application.Resources>
         <ResourceDictionary>
+            <ResourceDictionary.ThemeDictionaries>
+                <ResourceDictionary x:Key="Dark">
+                    <SolidColorBrush x:Key="Palette0057A8" Color="#0057A8" />
+                    <SolidColorBrush x:Key="Palette0078D4" Color="#0078D4" />
+                    <SolidColorBrush x:Key="Palette0B1220" Color="#0B1220" />
+                    <SolidColorBrush x:Key="Palette101B2D" Color="#101B2D" />
+                    <SolidColorBrush x:Key="Palette111B2B" Color="#111B2B" />
+                    <SolidColorBrush x:Key="Palette111C2D" Color="#111C2D" />
+                    <SolidColorBrush x:Key="Palette162033" Color="#162033" />
+                    <SolidColorBrush x:Key="Palette172337" Color="#172337" />
+                    <SolidColorBrush x:Key="Palette1A2638" Color="#1A2638" />
+                    <SolidColorBrush x:Key="Palette1E2D43" Color="#1E2D43" />
+                    <SolidColorBrush x:Key="Palette22B7FF" Color="#22B7FF" />
+                    <SolidColorBrush x:Key="Palette24B64B" Color="#24B64B" />
+                    <SolidColorBrush x:Key="Palette26364D" Color="#26364D" />
+                    <SolidColorBrush x:Key="Palette263B5A" Color="#263B5A" />
+                    <SolidColorBrush x:Key="Palette332B18" Color="#332B18" />
+                    <SolidColorBrush x:Key="Palette3B4A60" Color="#3B4A60" />
+                    <SolidColorBrush x:Key="Palette40516A" Color="#40516A" />
+                    <SolidColorBrush x:Key="Palette465A75" Color="#465A75" />
+                    <SolidColorBrush x:Key="Palette4D7EFF" Color="#4D7EFF" />
+                    <SolidColorBrush x:Key="Palette72D49A" Color="#72D49A" />
+                    <SolidColorBrush x:Key="Palette8293AA" Color="#8293AA" />
+                    <SolidColorBrush x:Key="Palette8F6C25" Color="#8F6C25" />
+                    <SolidColorBrush x:Key="Palette9BB52A" Color="#9BB52A" />
+                    <SolidColorBrush x:Key="Palette99000000" Color="#99000000" />
+                    <SolidColorBrush x:Key="PaletteA9B8CC" Color="#A9B8CC" />
+                    <SolidColorBrush x:Key="PaletteB3000000" Color="#B3000000" />
+                    <SolidColorBrush x:Key="PaletteE6EDF7" Color="#E6EDF7" />
+                    <SolidColorBrush x:Key="PaletteF1F5F9" Color="#F1F5F9" />
+                    <SolidColorBrush x:Key="PaletteFBBF24" Color="#FBBF24" />
+                    <SolidColorBrush x:Key="PaletteFF641C" Color="#FF641C" />
+                    <SolidColorBrush x:Key="PaletteFF8A80" Color="#FF8A80" />
+                    <SolidColorBrush x:Key="PaletteFFE08A" Color="#FFE08A" />
+                    <SolidColorBrush x:Key="PaletteFFFFFF" Color="#FFFFFF" />
+                </ResourceDictionary>
+                <ResourceDictionary x:Key="Light">
+                    <SolidColorBrush x:Key="Palette0057A8" Color="#0057A8" />
+                    <SolidColorBrush x:Key="Palette0078D4" Color="#A5D2F5" />
+                    <SolidColorBrush x:Key="Palette0B1220" Color="#F5F7FA" />
+                    <SolidColorBrush x:Key="Palette101B2D" Color="#E9EEF5" />
+                    <SolidColorBrush x:Key="Palette111B2B" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="Palette111C2D" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="Palette162033" Color="#162033" />
+                    <SolidColorBrush x:Key="Palette172337" Color="#F0F3F8" />
+                    <SolidColorBrush x:Key="Palette1A2638" Color="#FFFFFF" />
+                    <SolidColorBrush x:Key="Palette1E2D43" Color="#F2F5F9" />
+                    <SolidColorBrush x:Key="Palette22B7FF" Color="#007CAB" />
+                    <SolidColorBrush x:Key="Palette24B64B" Color="#16803A" />
+                    <SolidColorBrush x:Key="Palette26364D" Color="#E7ECF2" />
+                    <SolidColorBrush x:Key="Palette263B5A" Color="#DEE6EF" />
+                    <SolidColorBrush x:Key="Palette332B18" Color="#FFF5D9" />
+                    <SolidColorBrush x:Key="Palette3B4A60" Color="#D4DCE6" />
+                    <SolidColorBrush x:Key="Palette40516A" Color="#B3C0CE" />
+                    <SolidColorBrush x:Key="Palette465A75" Color="#AAB8C8" />
+                    <SolidColorBrush x:Key="Palette4D7EFF" Color="#315BCC" />
+                    <SolidColorBrush x:Key="Palette72D49A" Color="#137A45" />
+                    <SolidColorBrush x:Key="Palette8293AA" Color="#5E6B7A" />
+                    <SolidColorBrush x:Key="Palette8F6C25" Color="#805B12" />
+                    <SolidColorBrush x:Key="Palette9BB52A" Color="#657B00" />
+                    <SolidColorBrush x:Key="Palette99000000" Color="#66000000" />
+                    <SolidColorBrush x:Key="PaletteA9B8CC" Color="#586779" />
+                    <SolidColorBrush x:Key="PaletteB3000000" Color="#55000000" />
+                    <SolidColorBrush x:Key="PaletteE6EDF7" Color="#253244" />
+                    <SolidColorBrush x:Key="PaletteF1F5F9" Color="#1F2937" />
+                    <SolidColorBrush x:Key="PaletteFBBF24" Color="#8A5E00" />
+                    <SolidColorBrush x:Key="PaletteFF641C" Color="#C94300" />
+                    <SolidColorBrush x:Key="PaletteFF8A80" Color="#B42318" />
+                    <SolidColorBrush x:Key="PaletteFFE08A" Color="#7A5200" />
+                    <SolidColorBrush x:Key="PaletteFFFFFF" Color="#FFFFFF" />
+                </ResourceDictionary>
+            </ResourceDictionary.ThemeDictionaries>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
                 <!-- Other merged dictionaries here -->

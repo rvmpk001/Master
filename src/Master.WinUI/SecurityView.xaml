@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="utf-8" ?>
 <UserControl
     x:Class="Master_WinUI.SecurityView"
-    RequestedTheme="Dark"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid Background="#111C2D">
+    <Grid Background="{ThemeResource Palette111C2D}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="Auto" />
@@ -12,7 +11,7 @@
             <RowDefinition Height="*" />
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="#0078D4" Padding="12,4">
+        <Border Grid.Row="0" Background="{ThemeResource Palette0078D4}" Padding="12,4">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -20,7 +19,7 @@
                 </Grid.ColumnDefinitions>
                 <TextBlock
                     Text="Seguridad"
-                    Foreground="#FFFFFF"
+                    Foreground="{ThemeResource PaletteF1F5F9}"
                     FontSize="16"
                     FontWeight="SemiBold"
                     VerticalAlignment="Center" />
@@ -32,7 +31,7 @@
                     Padding="0"
                     Background="Transparent"
                     BorderThickness="0"
-                    Foreground="#FFFFFF"
+                    Foreground="{ThemeResource PaletteF1F5F9}"
                     ToolTipService.ToolTip="Cerrar"
                     AutomationProperties.Name="Cerrar">
                     <SymbolIcon Symbol="Cancel" />
@@ -45,13 +44,13 @@
             Orientation="Horizontal"
             Spacing="6"
             Padding="8,6"
-            Background="#172337">
+            Background="{ThemeResource Palette172337}">
             <Button
                 x:Name="AddUserButton"
                 Click="AddUser_Click"
-                Background="#26364D"
-                Foreground="#F1F5F9"
-                BorderBrush="#40516A"
+                Background="{ThemeResource Palette26364D}"
+                Foreground="{ThemeResource PaletteF1F5F9}"
+                BorderBrush="{ThemeResource Palette40516A}"
                 ToolTipService.ToolTip="Los accesos del nuevo usuario se asignan en Configuración, Accesos.">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <SymbolIcon Symbol="Add" />
@@ -61,9 +60,9 @@
             <Button
                 x:Name="EditUserButton"
                 Click="EditUser_Click"
-                Background="#26364D"
-                Foreground="#F1F5F9"
-                BorderBrush="#40516A"
+                Background="{ThemeResource Palette26364D}"
+                Foreground="{ThemeResource PaletteF1F5F9}"
+                BorderBrush="{ThemeResource Palette40516A}"
                 ToolTipService.ToolTip="Editar usuarios requiere una operación de seguridad autorizada.">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <SymbolIcon Symbol="Edit" />
@@ -73,9 +72,9 @@
             <Button
                 x:Name="DeleteUserButton"
                 Click="DeleteUser_Click"
-                Background="#26364D"
-                Foreground="#F1F5F9"
-                BorderBrush="#40516A"
+                Background="{ThemeResource Palette26364D}"
+                Foreground="{ThemeResource PaletteF1F5F9}"
+                BorderBrush="{ThemeResource Palette40516A}"
                 ToolTipService.ToolTip="Borrar usuarios requiere una operación de seguridad autorizada.">
                 <StackPanel Orientation="Horizontal" Spacing="6">
                     <SymbolIcon Symbol="Delete" />
@@ -90,12 +89,12 @@
             IsOpen="False"
             IsClosable="True" />
 
-        <Grid Grid.Row="3" Padding="16" Background="#111C2D">
+        <Grid Grid.Row="3" Padding="16" Background="{ThemeResource Palette111C2D}">
             <Border
-                BorderBrush="#40516A"
+                BorderBrush="{ThemeResource Palette40516A}"
                 BorderThickness="1"
                 Padding="12"
-                Background="#172337">
+                Background="{ThemeResource Palette172337}">
                 <Grid RowSpacing="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
@@ -103,7 +102,7 @@
                     </Grid.RowDefinitions>
                     <TextBlock
                         Text="Usuarios"
-                        Foreground="#E6EDF7"
+                        Foreground="{ThemeResource PaletteE6EDF7}"
                         FontWeight="SemiBold" />
                     <ListView
                         x:Name="UsersListView"
@@ -112,8 +111,8 @@
                         DisplayMemberPath="Username"
                         SelectionMode="Single"
                         SelectionChanged="UsersListView_SelectionChanged"
-                        Background="#111C2D"
-                        Foreground="#F1F5F9"
+                        Background="{ThemeResource Palette111C2D}"
+                        Foreground="{ThemeResource PaletteF1F5F9}"
                         HorizontalAlignment="Stretch"
                         VerticalAlignment="Stretch" />
                 </Grid>

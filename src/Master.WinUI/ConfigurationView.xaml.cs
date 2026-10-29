@@ -26,6 +26,7 @@ public sealed partial class ConfigurationView : UserControl
     private readonly Dictionary<string, MessageFields> _messageFields = new(StringComparer.OrdinalIgnoreCase);
     private readonly MessageConfigurationService _messageConfigurationService = new();
     private readonly AccessConfigurationService _accessConfigurationService = new();
+    private readonly ThemeBrushSet _themeBrushes = new();
     private readonly Dictionary<string, ComboBox> _additionalSelectors = new(StringComparer.OrdinalIgnoreCase);
     private readonly AdditionalConfigurationService _additionalConfigurationService = new();
     private readonly OrderService _orderService = new();
@@ -92,6 +93,12 @@ public sealed partial class ConfigurationView : UserControl
     {
         InitializeComponent();
         BuildTabs();
+    }
+
+    public void ApplyTheme(ElementTheme theme)
+    {
+        RequestedTheme = theme;
+        _themeBrushes.ApplyTheme(theme);
     }
 
     public void ShowBackupToolsOnly(bool backupToolsOnly)
@@ -2117,8 +2124,7 @@ public sealed partial class ConfigurationView : UserControl
         {
             Text = string.Empty,
             VerticalAlignment = VerticalAlignment.Center,
-            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                Windows.UI.Color.FromArgb(255, 169, 184, 204))
+            Foreground = _themeBrushes.GetBrush("#A9B8CC")
         };
         var formatButton = new Button
         {
@@ -2173,8 +2179,7 @@ public sealed partial class ConfigurationView : UserControl
             {
                 Text = $"Txt{index}:",
                 VerticalAlignment = VerticalAlignment.Center,
-                Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(
-                    Windows.UI.Color.FromArgb(255, 169, 184, 204))
+                Foreground = _themeBrushes.GetBrush("#A9B8CC")
             };
             var selector = new ComboBox
             {
@@ -2581,7 +2586,7 @@ public sealed partial class ConfigurationView : UserControl
         return section.Content;
     }
 
-    private static AccessSection CreateSection(string title)
+    private AccessSection CreateSection(string title)
     {
         var content = new StackPanel { Spacing = 10 };
         var section = new StackPanel { Spacing = 8 };
@@ -2589,8 +2594,8 @@ public sealed partial class ConfigurationView : UserControl
         var border = new Border
         {
             Padding = new Thickness(12),
-            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 23, 35, 55)),
-            BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 64, 81, 106)),
+            Background = _themeBrushes.GetBrush("#172337"),
+            BorderBrush = _themeBrushes.GetBrush("#40516A"),
             BorderThickness = new Thickness(1),
             Child = content
         };
@@ -2693,7 +2698,7 @@ public sealed partial class ConfigurationView : UserControl
     private void AddPathField(StackPanel parent, string label)
     {
         var field = new StackPanel { Spacing = 4 };
-        field.Children.Add(new TextBlock { Text = label, Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 230, 237, 247)) });
+        field.Children.Add(new TextBlock { Text = label, Foreground = _themeBrushes.GetBrush("#E6EDF7") });
         var row = new Grid { ColumnSpacing = 8 };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });

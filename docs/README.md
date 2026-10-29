@@ -23,9 +23,11 @@ La pantalla objetivo confirmada es el dashboard de “SISTEMA BLAPACI VER
 3.2.0.0”, planta B-40. La versión WinUI reproduce la composición principal
 observable en la captura: navegación de módulos, esquema visual de planta,
 controles de producción, materiales, datos de remisión y tablas de ajuste de
-humedad y absorción. La interfaz utiliza tema oscuro con contraste explícito,
-abre maximizada y adapta sus paneles al tamaño de la ventana, usando
-desplazamiento cuando el ancho disponible no permite mostrar todas las tablas.
+humedad y absorción. En Ver > Tema se puede elegir modo oscuro o claro; la
+preferencia se conserva localmente y la paleta adapta también los formularios
+y controles generados en tiempo de ejecución. La interfaz abre maximizada y
+adapta sus paneles al tamaño de la ventana, usando desplazamiento cuando el
+ancho disponible no permite mostrar todas las tablas.
 
 Los datos visibles del tablero son de referencia y no están conectados al PLC.
 La navegación y las acciones de datos consultan el perfil asignado al usuario

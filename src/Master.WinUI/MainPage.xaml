@@ -12,17 +12,17 @@
 
     <Page.Resources>
         <Style TargetType="TextBlock">
-            <Setter Property="Foreground" Value="#E6EDF7" />
+            <Setter Property="Foreground" Value="{ThemeResource PaletteE6EDF7}" />
         </Style>
         <Style x:Key="DefaultButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#26364D" />
-            <Setter Property="Foreground" Value="#F1F5F9" />
-            <Setter Property="BorderBrush" Value="#465A75" />
+            <Setter Property="Background" Value="{ThemeResource Palette26364D}" />
+            <Setter Property="Foreground" Value="{ThemeResource PaletteF1F5F9}" />
+            <Setter Property="BorderBrush" Value="{ThemeResource Palette465A75}" />
             <Setter Property="BorderThickness" Value="1" />
         </Style>
     </Page.Resources>
 
-    <Grid Background="#0B1220" SizeChanged="Page_SizeChanged">
+    <Grid Background="{ThemeResource Palette0B1220}" SizeChanged="Page_SizeChanged">
         <Grid x:Name="DashboardShell" Visibility="Collapsed">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -31,26 +31,26 @@
                 <RowDefinition Height="Auto" />
             </Grid.RowDefinitions>
 
-        <Grid Grid.Row="0" Height="60" Background="#111C2D" Padding="12,6">
+        <Grid Grid.Row="0" Height="60" Background="{ThemeResource Palette111C2D}" Padding="12,6">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                <Border Width="48" Height="42" Background="#0057A8" CornerRadius="4">
+                <Border Width="48" Height="42" Background="{ThemeResource Palette0057A8}" CornerRadius="4">
                     <TextBlock Text="BL" Foreground="White" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
                 <StackPanel VerticalAlignment="Center">
-                    <TextBlock Text="SISTEMA BLAPACI" FontSize="16" FontWeight="Bold" Foreground="#F1F5F9" />
-                    <TextBlock Text="CONTROL DE PLANTA" FontSize="10" Foreground="#A9B8CC" />
+                    <TextBlock Text="SISTEMA BLAPACI" FontSize="16" FontWeight="Bold" Foreground="{ThemeResource PaletteF1F5F9}" />
+                    <TextBlock Text="CONTROL DE PLANTA" FontSize="10" Foreground="{ThemeResource PaletteA9B8CC}" />
                 </StackPanel>
             </StackPanel>
-            <TextBlock x:Name="PlantNameTextBlock" Grid.Column="1" Text="Cargando planta..." FontSize="16" FontWeight="Bold" Foreground="#E6EDF7" HorizontalAlignment="Stretch" VerticalAlignment="Center" TextAlignment="Center" TextTrimming="CharacterEllipsis" />
-            <TextBlock x:Name="MachineNameTextBlock" Grid.Column="2" Text="Cargando máquina..." FontSize="16" FontWeight="Bold" Foreground="#E6EDF7" HorizontalAlignment="Right" VerticalAlignment="Center" TextAlignment="Right" TextTrimming="CharacterEllipsis" />
+            <TextBlock x:Name="PlantNameTextBlock" Grid.Column="1" Text="Cargando planta..." FontSize="16" FontWeight="Bold" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Stretch" VerticalAlignment="Center" TextAlignment="Center" TextTrimming="CharacterEllipsis" />
+            <TextBlock x:Name="MachineNameTextBlock" Grid.Column="2" Text="Cargando máquina..." FontSize="16" FontWeight="Bold" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Right" VerticalAlignment="Center" TextAlignment="Right" TextTrimming="CharacterEllipsis" />
         </Grid>
 
-        <MenuBar x:Name="MainMenuBar" Grid.Row="1" Background="#101B2D">
+        <MenuBar x:Name="MainMenuBar" Grid.Row="1" Background="{ThemeResource Palette101B2D}">
             <MenuBarItem Title="Reportes">
                 <MenuFlyoutItem Text="Reporte de producción general" Tag="Reporte de producción general" Click="ModuleNavigation_Click" />
                 <MenuFlyoutItem Text="Reporte de producción real" Tag="Reporte de producción real" Click="ModuleNavigation_Click" />
@@ -98,14 +98,17 @@
                 <MenuFlyoutItem Text="Mensajes" Tag="Config:Messages" Click="ModuleNavigation_Click" />
                 <MenuFlyoutItem Text="Adicionales" Tag="Config:Additional" Click="ModuleNavigation_Click" />
                 <MenuFlyoutItem Text="Pedidos" Tag="Config:Orders" Click="ModuleNavigation_Click" />
-                <MenuFlyoutItem Text="Respaldar Reportes" Tag="Config:BackupReports" Click="ModuleNavigation_Click" />
-                <MenuFlyoutItem Text="Respaldar BD" Tag="Config:BackupDatabase" Click="ModuleNavigation_Click" />
                 <MenuFlyoutItem Text="Accesos" Tag="Config:Access" Click="ModuleNavigation_Click" />
             </MenuBarItem>
             <MenuBarItem Title="Seguridad">
                 <MenuFlyoutItem x:Name="SecurityMenuItem" Text="Abrir" Tag="Seguridad" Click="ModuleNavigation_Click" />
             </MenuBarItem>
             <MenuBarItem Title="Ver">
+                <MenuFlyoutSubItem Text="Tema">
+                    <RadioMenuFlyoutItem x:Name="DarkThemeMenuItem" Text="Modo oscuro" GroupName="ApplicationTheme" IsChecked="True" Click="ThemeMenuItem_Click" />
+                    <RadioMenuFlyoutItem x:Name="LightThemeMenuItem" Text="Modo claro" GroupName="ApplicationTheme" Click="ThemeMenuItem_Click" />
+                </MenuFlyoutSubItem>
+                <MenuFlyoutSeparator />
                 <ToggleMenuFlyoutItem Text="Lienzo de diseño" Tag="DesignPanel" IsChecked="True" Click="ViewPanel_Toggled" />
                 <ToggleMenuFlyoutItem Text="Estado del panel" Tag="StatusPanel" IsChecked="True" Click="ViewPanel_Toggled" />
                 <MenuFlyoutSeparator />
@@ -135,8 +138,8 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <Border x:Name="DesignPanel" Background="#101B2D" BorderBrush="#40516A" BorderThickness="1">
-                        <Grid x:Name="DesignSurface" Background="#1A2638" AllowDrop="True" DragOver="DesignSurface_DragOver" Drop="DesignSurface_Drop">
+                    <Border x:Name="DesignPanel" Background="{ThemeResource Palette101B2D}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1">
+                        <Grid x:Name="DesignSurface" Background="{ThemeResource Palette1A2638}" AllowDrop="True" DragOver="DesignSurface_DragOver" Drop="DesignSurface_Drop">
                             <Image x:Name="TemplateImage" Stretch="Uniform" IsHitTestVisible="False" />
                             <Canvas x:Name="DesignCanvas" Background="Transparent" />
 
@@ -146,21 +149,21 @@
 
                             <StackPanel x:Name="EmptyCanvasPrompt" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="10">
                                 <TextBlock Text="Lienzo de diseño" FontSize="22" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                <TextBlock Text="Carga una imagen de la máquina como plantilla o arrástrala aquí." Foreground="#A9B8CC" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" />
+                                <TextBlock Text="Carga una imagen de la máquina como plantilla o arrástrala aquí." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center" />
                                 <Button Content="Cargar imagen" Click="LoadTemplateImage_Click" HorizontalAlignment="Center" Padding="12,6" Style="{StaticResource DefaultButtonStyle}" />
                             </StackPanel>
 
-                            <TextBlock Text="Lienzo preparado para agregar controles" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10,0,0,8" FontSize="11" Foreground="#E6EDF7" />
+                            <TextBlock Text="Lienzo preparado para agregar controles" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10,0,0,8" FontSize="11" Foreground="{ThemeResource PaletteE6EDF7}" />
                         </Grid>
                     </Border>
 
-                    <Border x:Name="StatusPanel" Grid.Row="1" Background="#332B18" BorderBrush="#8F6C25" BorderThickness="1" Padding="10,6" CornerRadius="4" Margin="0,6,0,0">
-                        <TextBlock x:Name="ModuleStatusText" Text="Panel principal de planta. Las acciones de producción requieren una integración autorizada." TextWrapping="WrapWholeWords" FontSize="12" Foreground="#FFE08A" />
+                    <Border x:Name="StatusPanel" Grid.Row="1" Background="{ThemeResource Palette332B18}" BorderBrush="{ThemeResource Palette8F6C25}" BorderThickness="1" Padding="10,6" CornerRadius="4" Margin="0,6,0,0">
+                        <TextBlock x:Name="ModuleStatusText" Text="Panel principal de planta. Las acciones de producción requieren una integración autorizada." TextWrapping="WrapWholeWords" FontSize="12" Foreground="{ThemeResource PaletteFFE08A}" />
                     </Border>
                 </Grid>
 
-                <Border x:Name="DashboardPanelsResizeHandle" Grid.Row="1" Height="8" Background="#26364D" CornerRadius="3" ToolTipService.ToolTip="Arrastra para cambiar la altura de los paneles inferiores." PointerPressed="DashboardPanelsResizeHandle_PointerPressed" PointerMoved="DashboardPanelsResizeHandle_PointerMoved" PointerReleased="DashboardPanelsResizeHandle_PointerReleased" PointerCaptureLost="DashboardPanelsResizeHandle_PointerCaptureLost">
-                    <Border Width="52" Height="3" Background="#8293AA" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                <Border x:Name="DashboardPanelsResizeHandle" Grid.Row="1" Height="8" Background="{ThemeResource Palette26364D}" CornerRadius="3" ToolTipService.ToolTip="Arrastra para cambiar la altura de los paneles inferiores." PointerPressed="DashboardPanelsResizeHandle_PointerPressed" PointerMoved="DashboardPanelsResizeHandle_PointerMoved" PointerReleased="DashboardPanelsResizeHandle_PointerReleased" PointerCaptureLost="DashboardPanelsResizeHandle_PointerCaptureLost">
+                    <Border Width="52" Height="3" Background="{ThemeResource Palette8293AA}" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" />
                 </Border>
 
                 <ScrollViewer x:Name="DashboardPanelsScrollViewer" Grid.Row="2" Height="200" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" SizeChanged="DashboardPanelsScrollViewer_SizeChanged">
@@ -175,24 +178,24 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <Expander x:Name="MaterialsPanel" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Header="Materiales" IsExpanded="False" Background="#172337" Foreground="#E6EDF7">
+                        <Expander x:Name="MaterialsPanel" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Header="Materiales" IsExpanded="False" Background="{ThemeResource Palette172337}" Foreground="{ThemeResource PaletteE6EDF7}">
                             <Grid RowSpacing="4">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
-                                <Grid Background="#263B5A" Padding="4">
+                                <Grid Background="{ThemeResource Palette263B5A}" Padding="4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="75" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Material" Foreground="#F1F5F9" FontSize="11" />
-                                    <TextBlock Grid.Column="1" Text="Cantidad" Foreground="#F1F5F9" FontSize="11" />
+                                    <TextBlock Text="Material" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="11" />
+                                    <TextBlock Grid.Column="1" Text="Cantidad" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="11" />
                                 </Grid>
                                 <ItemsControl Grid.Row="1" ItemsSource="{x:Bind MaterialRows}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="local:MaterialRow">
-                                            <Grid Background="#1E2D43" BorderBrush="#3B4A60" BorderThickness="0,0,0,1" Padding="6,6">
+                                            <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette3B4A60}" BorderThickness="0,0,0,1" Padding="6,6">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="75" />
@@ -206,30 +209,30 @@
                             </Grid>
                         </Expander>
 
-                        <Expander x:Name="RemissionPanel" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Header="Datos de Remisión" IsExpanded="False" Background="#172337" Foreground="#E6EDF7">
+                        <Expander x:Name="RemissionPanel" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Header="Datos de Remisión" IsExpanded="False" Background="{ThemeResource Palette172337}" Foreground="{ThemeResource PaletteE6EDF7}">
                             <Grid RowSpacing="4">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
-                                <Grid Background="#263B5A" Padding="4">
+                                <Grid Background="{ThemeResource Palette263B5A}" Padding="4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="115" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Título" Foreground="#F1F5F9" FontSize="11" />
-                                    <TextBlock Grid.Column="1" Text="Descripción" Foreground="#F1F5F9" FontSize="11" />
+                                    <TextBlock Text="Título" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="11" />
+                                    <TextBlock Grid.Column="1" Text="Descripción" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="11" />
                                 </Grid>
                                 <ItemsControl Grid.Row="1" ItemsSource="{x:Bind RemissionRows}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="local:RemissionField">
-                                            <Grid Background="#1E2D43" BorderBrush="#3B4A60" BorderThickness="0,0,0,1" Padding="4,3">
+                                            <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette3B4A60}" BorderThickness="0,0,0,1" Padding="4,3">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="115" />
                                                     <ColumnDefinition Width="*" />
                                                 </Grid.ColumnDefinitions>
                                                 <TextBlock Text="{x:Bind Titulo}" FontSize="10" />
-                                                <TextBox Grid.Column="1" Text="{x:Bind Valor, Mode=TwoWay}" MinHeight="26" Padding="5,2" FontSize="11" Foreground="#F1F5F9" Background="#111B2B" IsEnabled="{x:Bind Editable}" />
+                                                <TextBox Grid.Column="1" Text="{x:Bind Valor, Mode=TwoWay}" MinHeight="26" Padding="5,2" FontSize="11" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" IsEnabled="{x:Bind Editable}" />
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -237,25 +240,25 @@
                             </Grid>
                         </Expander>
 
-                        <Expander x:Name="HumidityPanel" Grid.Row="0" Grid.Column="2" Visibility="Collapsed" VerticalAlignment="Center" Header="Ajuste de Humedad" IsExpanded="False" Background="#172337" Foreground="#E6EDF7">
+                        <Expander x:Name="HumidityPanel" Grid.Row="0" Grid.Column="2" Visibility="Collapsed" VerticalAlignment="Center" Header="Ajuste de Humedad" IsExpanded="False" Background="{ThemeResource Palette172337}" Foreground="{ThemeResource PaletteE6EDF7}">
                             <Grid RowSpacing="4">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <Grid Background="#263B5A" Padding="4">
+                                <Grid Background="{ThemeResource Palette263B5A}" Padding="4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="45" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Agregados" Foreground="#F1F5F9" FontSize="10" />
-                                    <TextBlock Grid.Column="1" Text="%" Foreground="#F1F5F9" FontSize="10" />
+                                    <TextBlock Text="Agregados" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
+                                    <TextBlock Grid.Column="1" Text="%" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
                                 </Grid>
                                 <ItemsControl Grid.Row="1" ItemsSource="{x:Bind HumidityRows}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="local:PlantValue">
-                                            <Grid Background="#1E2D43" BorderBrush="#3B4A60" BorderThickness="0,0,0,1" Padding="6,5">
+                                            <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette3B4A60}" BorderThickness="0,0,0,1" Padding="6,5">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="45" />
@@ -270,25 +273,25 @@
                             </Grid>
                         </Expander>
 
-                        <Expander x:Name="AbsorptionPanel" Grid.Row="0" Grid.Column="3" Visibility="Collapsed" VerticalAlignment="Center" Header="Ajuste de Absorción" IsExpanded="False" Background="#172337" Foreground="#E6EDF7">
+                        <Expander x:Name="AbsorptionPanel" Grid.Row="0" Grid.Column="3" Visibility="Collapsed" VerticalAlignment="Center" Header="Ajuste de Absorción" IsExpanded="False" Background="{ThemeResource Palette172337}" Foreground="{ThemeResource PaletteE6EDF7}">
                             <Grid RowSpacing="4">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <Grid Background="#263B5A" Padding="4">
+                                <Grid Background="{ThemeResource Palette263B5A}" Padding="4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="45" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Agregados" Foreground="#F1F5F9" FontSize="10" />
-                                    <TextBlock Grid.Column="1" Text="%" Foreground="#F1F5F9" FontSize="10" />
+                                    <TextBlock Text="Agregados" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
+                                    <TextBlock Grid.Column="1" Text="%" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
                                 </Grid>
                                 <ItemsControl Grid.Row="1" ItemsSource="{x:Bind AbsorptionRows}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="local:PlantValue">
-                                            <Grid Background="#1E2D43" BorderBrush="#3B4A60" BorderThickness="0,0,0,1" Padding="6,5">
+                                            <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette3B4A60}" BorderThickness="0,0,0,1" Padding="6,5">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="*" />
                                                     <ColumnDefinition Width="45" />
@@ -307,11 +310,11 @@
                 </ScrollViewer>
             </Grid>
 
-            <Border x:Name="PlantToolsResizeHandle" Grid.Column="1" Width="8" Background="#26364D" ToolTipService.ToolTip="Arrastra para cambiar el ancho de Acciones y Controles." PointerPressed="PlantToolsResizeHandle_PointerPressed" PointerMoved="PlantToolsResizeHandle_PointerMoved" PointerReleased="PlantToolsResizeHandle_PointerReleased" PointerCaptureLost="PlantToolsResizeHandle_PointerCaptureLost">
-                <Border Width="3" Height="52" Background="#8293AA" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <Border x:Name="PlantToolsResizeHandle" Grid.Column="1" Width="8" Background="{ThemeResource Palette26364D}" ToolTipService.ToolTip="Arrastra para cambiar el ancho de Acciones y Controles." PointerPressed="PlantToolsResizeHandle_PointerPressed" PointerMoved="PlantToolsResizeHandle_PointerMoved" PointerReleased="PlantToolsResizeHandle_PointerReleased" PointerCaptureLost="PlantToolsResizeHandle_PointerCaptureLost">
+                <Border Width="3" Height="52" Background="{ThemeResource Palette8293AA}" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
 
-            <TabView x:Name="PlantToolsPanel" Grid.Column="2" IsAddTabButtonVisible="False" CanReorderTabs="False" Background="#101B2D">
+            <TabView x:Name="PlantToolsPanel" Grid.Column="2" IsAddTabButtonVisible="False" CanReorderTabs="False" Background="{ThemeResource Palette101B2D}">
                 <TabViewItem Header="Acciones" IsClosable="False">
                     <StackPanel Padding="8" Spacing="8">
                         <Button Content="PROGRAMAR" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
@@ -324,18 +327,18 @@
                 <TabViewItem Header="Controles" IsClosable="False">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <StackPanel x:Name="CanvasControlPalette" Padding="8" Spacing="8">
-                            <TextBlock Text="Agregar controles al lienzo" Foreground="#A9B8CC" TextWrapping="Wrap" />
+                            <TextBlock Text="Agregar controles al lienzo" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                             <Button Content="Agregar etiqueta" Tag="Etiqueta" Click="AddCanvasControl_Click" Style="{StaticResource DefaultButtonStyle}" />
                             <Button Content="Agregar botón" Tag="Botón" Click="AddCanvasControl_Click" Style="{StaticResource DefaultButtonStyle}" />
                             <Button Content="Agregar interruptor" Tag="Interruptor" Click="AddCanvasControl_Click" Style="{StaticResource DefaultButtonStyle}" />
-                            <TextBlock x:Name="CanvasEditStatusText" Text="Desbloquea el lienzo para editarlo." Foreground="#A9B8CC" TextWrapping="Wrap" />
+                            <TextBlock x:Name="CanvasEditStatusText" Text="Desbloquea el lienzo para editarlo." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                         </StackPanel>
                     </ScrollViewer>
                 </TabViewItem>
             </TabView>
         </Grid>
 
-        <Grid Grid.Row="3" Background="#111C2D" Padding="8,7">
+        <Grid Grid.Row="3" Background="{ThemeResource Palette111C2D}" Padding="8,7">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
@@ -344,12 +347,12 @@
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="CurrentUserText" Text="USUARIO:" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" />
             <TextBlock x:Name="CurrentRoleText" Grid.Column="1" Text="TIPO:" FontSize="10" FontWeight="SemiBold" Margin="24,0,0,0" VerticalAlignment="Center" />
-            <TextBlock x:Name="SystemStatusText" Grid.Column="2" Text="Sin conexión con PLC ni base de datos" Foreground="#FBBF24" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <TextBlock x:Name="SystemStatusText" Grid.Column="2" Text="Sin conexión con PLC ni base de datos" Foreground="{ThemeResource PaletteFBBF24}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
             <TextBlock x:Name="ClockText" Grid.Column="3" FontSize="10" VerticalAlignment="Center" />
         </Grid>
 
-        <Grid x:Name="InventoryFormOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
-            <Border MaxWidth="1200" MaxHeight="900" Margin="8" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+        <Grid x:Name="InventoryFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
+            <Border MaxWidth="1200" MaxHeight="900" Margin="8" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Stretch" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -358,19 +361,19 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <Grid Background="#0078D4" CornerRadius="7,7,0,0" Padding="12,2">
-                        <TextBlock Text="Inventario" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CloseInventoryForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Inventario" />
+                    <Grid Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,2">
+                        <TextBlock Text="Inventario" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CloseInventoryForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Inventario" />
                     </Grid>
 
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="{ThemeResource Palette172337}" Padding="8,5" Spacing="8">
                         <Button x:Name="InventorySaveButton" Content="Guardar" Click="SaveInventory_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
-                        <CheckBox x:Name="InventoryEntriesCheckBox" Content="Entradas" Foreground="#E6EDF7" Checked="InventoryOperation_Changed" Unchecked="InventoryOperation_Changed" VerticalAlignment="Center" Visibility="Collapsed" />
-                        <CheckBox x:Name="InventoryExitsCheckBox" Content="Salidas" Foreground="#E6EDF7" Checked="InventoryOperation_Changed" Unchecked="InventoryOperation_Changed" VerticalAlignment="Center" Visibility="Collapsed" />
+                        <CheckBox x:Name="InventoryEntriesCheckBox" Content="Entradas" Foreground="{ThemeResource PaletteE6EDF7}" Checked="InventoryOperation_Changed" Unchecked="InventoryOperation_Changed" VerticalAlignment="Center" Visibility="Collapsed" />
+                        <CheckBox x:Name="InventoryExitsCheckBox" Content="Salidas" Foreground="{ThemeResource PaletteE6EDF7}" Checked="InventoryOperation_Changed" Unchecked="InventoryOperation_Changed" VerticalAlignment="Center" Visibility="Collapsed" />
                     </StackPanel>
 
-                    <Border Grid.Row="2" Background="#172337" BorderBrush="#40516A" BorderThickness="0,0,0,1" Padding="10,5">
-                        <TextBlock Text="Inventario de Materiales" Foreground="#F1F5F9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border Grid.Row="2" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1" Padding="10,5">
+                        <TextBlock Text="Inventario de Materiales" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </Border>
 
                     <Grid Grid.Row="3" Padding="10" RowSpacing="8">
@@ -378,9 +381,9 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                            <Border Grid.Row="0" Background="#172337" BorderBrush="#40516A" BorderThickness="1" Padding="8">
+                            <Border Grid.Row="0" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="8">
                                 <StackPanel Spacing="6">
-                                    <TextBlock Text="Existencias actuales en BlapaciSQL" Foreground="#E6EDF7" FontWeight="SemiBold" />
+                                    <TextBlock Text="Existencias actuales en BlapaciSQL" Foreground="{ThemeResource PaletteE6EDF7}" FontWeight="SemiBold" />
                                     <Grid ColumnSpacing="12" RowSpacing="8">
                                         <Grid.RowDefinitions>
                                             <RowDefinition Height="Auto" />
@@ -393,19 +396,19 @@
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel Grid.Row="0" Grid.Column="0" Spacing="5">
-                                            <TextBlock Text="AGREGADOS" Foreground="#F1F5F9" FontWeight="Bold" HorizontalAlignment="Center" />
-                                            <Grid Background="#263B5A" Padding="5">
+                                            <TextBlock Text="AGREGADOS" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="Bold" HorizontalAlignment="Center" />
+                                            <Grid Background="{ThemeResource Palette263B5A}" Padding="5">
                                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                <TextBlock Text="Nombre" Foreground="#F1F5F9" FontWeight="SemiBold" />
-                                                <TextBlock Grid.Column="1" Text="Existencia" Foreground="#F1F5F9" FontWeight="SemiBold" />
+                                                <TextBlock Text="Nombre" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" />
+                                                <TextBlock Grid.Column="1" Text="Existencia" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" />
                                             </Grid>
                                             <ItemsControl ItemsSource="{x:Bind AggregateInventory}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="services:InventoryMaterial">
-                                                        <Grid Background="#1E2D43" Padding="5">
+                                                        <Grid Background="{ThemeResource Palette1E2D43}" Padding="5">
                                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{x:Bind Name}" Foreground="#E6EDF7" />
-                                                            <TextBlock Grid.Column="1" Text="{x:Bind Quantity}" Foreground="#E6EDF7" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{x:Bind Name}" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                                            <TextBlock Grid.Column="1" Text="{x:Bind Quantity}" Foreground="{ThemeResource PaletteE6EDF7}" TextTrimming="CharacterEllipsis" />
                                                         </Grid>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
@@ -413,15 +416,15 @@
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="0" Grid.Column="1" Spacing="5">
-                                            <TextBlock Text="ADITIVOS" Foreground="#F1F5F9" FontWeight="Bold" HorizontalAlignment="Center" />
-                                            <Grid Background="#263B5A" Padding="5"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="Nombre" Foreground="#F1F5F9" FontWeight="SemiBold" /><TextBlock Grid.Column="1" Text="Existencia" Foreground="#F1F5F9" FontWeight="SemiBold" /></Grid>
+                                            <TextBlock Text="ADITIVOS" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="Bold" HorizontalAlignment="Center" />
+                                            <Grid Background="{ThemeResource Palette263B5A}" Padding="5"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="Nombre" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" /><TextBlock Grid.Column="1" Text="Existencia" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" /></Grid>
                                             <ItemsControl ItemsSource="{x:Bind AdditiveInventory}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="services:InventoryMaterial">
-                                                        <Grid Background="#1E2D43" Padding="5">
+                                                        <Grid Background="{ThemeResource Palette1E2D43}" Padding="5">
                                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{x:Bind Name}" Foreground="#E6EDF7" />
-                                                            <TextBlock Grid.Column="1" Text="{x:Bind Quantity}" Foreground="#E6EDF7" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{x:Bind Name}" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                                            <TextBlock Grid.Column="1" Text="{x:Bind Quantity}" Foreground="{ThemeResource PaletteE6EDF7}" TextTrimming="CharacterEllipsis" />
                                                         </Grid>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
@@ -429,15 +432,15 @@
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="0" Grid.Column="2" Spacing="5">
-                                            <TextBlock Text="FIBRAS" Foreground="#F1F5F9" FontWeight="Bold" HorizontalAlignment="Center" />
-                                            <Grid Background="#263B5A" Padding="5"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="Nombre" Foreground="#F1F5F9" FontWeight="SemiBold" /><TextBlock Grid.Column="1" Text="Existencia" Foreground="#F1F5F9" FontWeight="SemiBold" /></Grid>
+                                            <TextBlock Text="FIBRAS" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="Bold" HorizontalAlignment="Center" />
+                                            <Grid Background="{ThemeResource Palette263B5A}" Padding="5"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="Nombre" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" /><TextBlock Grid.Column="1" Text="Existencia" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" /></Grid>
                                             <ItemsControl ItemsSource="{x:Bind FiberInventory}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="services:InventoryMaterial">
-                                                        <Grid Background="#1E2D43" Padding="5">
+                                                        <Grid Background="{ThemeResource Palette1E2D43}" Padding="5">
                                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{x:Bind Name}" Foreground="#E6EDF7" />
-                                                            <TextBlock Grid.Column="1" Text="{x:Bind Quantity}" Foreground="#E6EDF7" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{x:Bind Name}" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                                            <TextBlock Grid.Column="1" Text="{x:Bind Quantity}" Foreground="{ThemeResource PaletteE6EDF7}" TextTrimming="CharacterEllipsis" />
                                                         </Grid>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
@@ -445,15 +448,15 @@
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="1" Grid.Column="0" Spacing="5">
-                                            <TextBlock Text="AGUAS" Foreground="#F1F5F9" FontWeight="Bold" HorizontalAlignment="Center" />
-                                            <Grid Background="#263B5A" Padding="5"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="Nombre" Foreground="#F1F5F9" FontWeight="SemiBold" /><TextBlock Grid.Column="1" Text="Existencia" Foreground="#F1F5F9" FontWeight="SemiBold" /></Grid>
+                                            <TextBlock Text="AGUAS" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="Bold" HorizontalAlignment="Center" />
+                                            <Grid Background="{ThemeResource Palette263B5A}" Padding="5"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="Nombre" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" /><TextBlock Grid.Column="1" Text="Existencia" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" /></Grid>
                                             <ItemsControl ItemsSource="{x:Bind WaterInventory}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="services:InventoryMaterial">
-                                                        <Grid Background="#1E2D43" Padding="5">
+                                                        <Grid Background="{ThemeResource Palette1E2D43}" Padding="5">
                                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{x:Bind Name}" Foreground="#E6EDF7" />
-                                                            <TextBlock Grid.Column="1" Text="{x:Bind Quantity}" Foreground="#E6EDF7" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{x:Bind Name}" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                                            <TextBlock Grid.Column="1" Text="{x:Bind Quantity}" Foreground="{ThemeResource PaletteE6EDF7}" TextTrimming="CharacterEllipsis" />
                                                         </Grid>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
@@ -461,15 +464,15 @@
                                         </StackPanel>
 
                                         <StackPanel Grid.Row="1" Grid.Column="1" Spacing="5">
-                                            <TextBlock Text="CEMENTOS" Foreground="#F1F5F9" FontWeight="Bold" HorizontalAlignment="Center" />
-                                            <Grid Background="#263B5A" Padding="5"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="Nombre" Foreground="#F1F5F9" FontWeight="SemiBold" /><TextBlock Grid.Column="1" Text="Existencia" Foreground="#F1F5F9" FontWeight="SemiBold" /></Grid>
+                                            <TextBlock Text="CEMENTOS" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="Bold" HorizontalAlignment="Center" />
+                                            <Grid Background="{ThemeResource Palette263B5A}" Padding="5"><Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions><TextBlock Text="Nombre" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" /><TextBlock Grid.Column="1" Text="Existencia" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" /></Grid>
                                             <ItemsControl ItemsSource="{x:Bind CementInventory}">
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate x:DataType="services:InventoryMaterial">
-                                                        <Grid Background="#1E2D43" Padding="5">
+                                                        <Grid Background="{ThemeResource Palette1E2D43}" Padding="5">
                                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="*" /></Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{x:Bind Name}" Foreground="#E6EDF7" />
-                                                            <TextBlock Grid.Column="1" Text="{x:Bind Quantity}" Foreground="#E6EDF7" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Text="{x:Bind Name}" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                                            <TextBlock Grid.Column="1" Text="{x:Bind Quantity}" Foreground="{ThemeResource PaletteE6EDF7}" TextTrimming="CharacterEllipsis" />
                                                         </Grid>
                                                     </DataTemplate>
                                                 </ItemsControl.ItemTemplate>
@@ -479,38 +482,38 @@
                                 </StackPanel>
                             </Border>
 
-                            <Border Grid.Row="1" Background="#172337" BorderBrush="#40516A" BorderThickness="1" Padding="8">
+                            <Border Grid.Row="1" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="8">
                                 <StackPanel Spacing="6">
-                                    <TextBlock x:Name="InventoryMovementTitleText" Text="Entrada General" Foreground="#E6EDF7" FontWeight="SemiBold" />
+                                    <TextBlock x:Name="InventoryMovementTitleText" Text="Entrada General" Foreground="{ThemeResource PaletteE6EDF7}" FontWeight="SemiBold" />
                                     <StackPanel Spacing="6">
                                         <StackPanel Orientation="Horizontal" Spacing="8">
-                                            <TextBlock Text="Material:" Foreground="#E6EDF7" VerticalAlignment="Center" />
-                                            <ComboBox x:Name="InventoryMaterialComboBox" Width="220" PlaceholderText="Selecciona material" Foreground="#F1F5F9" Background="#111B2B" SelectionChanged="InventoryMaterial_SelectionChanged">
+                                            <TextBlock Text="Material:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
+                                            <ComboBox x:Name="InventoryMaterialComboBox" Width="220" PlaceholderText="Selecciona material" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" SelectionChanged="InventoryMaterial_SelectionChanged">
                                                 <ComboBoxItem Content="AGREGADOS" />
                                                 <ComboBoxItem Content="CEMENTOS" />
                                                 <ComboBoxItem Content="AGUAS" />
                                                 <ComboBoxItem Content="ADITIVOS" />
                                                 <ComboBoxItem Content="FIBRAS" />
                                             </ComboBox>
-                                            <TextBlock Text="Tipo:" Foreground="#E6EDF7" VerticalAlignment="Center" />
-                                            <ComboBox x:Name="InventoryTypeComboBox" Width="220" PlaceholderText="Selecciona tipo" DisplayMemberPath="Name" ItemsSource="{x:Bind SelectedInventoryMaterials}" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <TextBlock Text="Cantidad:" Foreground="#E6EDF7" VerticalAlignment="Center" />
-                                            <TextBox x:Name="InventoryQuantityTextBox" Width="100" Text="0.0" InputScope="Number" Foreground="#F1F5F9" Background="#111B2B" />
+                                            <TextBlock Text="Tipo:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
+                                            <ComboBox x:Name="InventoryTypeComboBox" Width="220" PlaceholderText="Selecciona tipo" DisplayMemberPath="Name" ItemsSource="{x:Bind SelectedInventoryMaterials}" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBlock Text="Cantidad:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
+                                            <TextBox x:Name="InventoryQuantityTextBox" Width="100" Text="0.0" InputScope="Number" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                         </StackPanel>
                                         <StackPanel x:Name="InventoryAdditionalFieldsPanel" Spacing="6">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="Proveedor:" Foreground="#E6EDF7" VerticalAlignment="Center" />
-                                                <ComboBox x:Name="InventorySupplierComboBox" Width="420" PlaceholderText="Selecciona proveedor" ItemsSource="{x:Bind InventorySuppliers}" Foreground="#F1F5F9" Background="#111B2B" />
+                                                <TextBlock Text="Proveedor:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
+                                                <ComboBox x:Name="InventorySupplierComboBox" Width="420" PlaceholderText="Selecciona proveedor" ItemsSource="{x:Bind InventorySuppliers}" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             </StackPanel>
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="Origen:" Foreground="#E6EDF7" VerticalAlignment="Center" />
-                                                <TextBox x:Name="InventoryOriginTextBox" Width="180" MaxLength="50" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBlock Text="Factura:" Foreground="#E6EDF7" VerticalAlignment="Center" />
-                                                <TextBox x:Name="InventoryInvoiceTextBox" Width="180" MaxLength="50" Foreground="#F1F5F9" Background="#111B2B" />
+                                                <TextBlock Text="Origen:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
+                                                <TextBox x:Name="InventoryOriginTextBox" Width="180" MaxLength="50" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBlock Text="Factura:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
+                                                <TextBox x:Name="InventoryInvoiceTextBox" Width="180" MaxLength="50" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             </StackPanel>
                                         </StackPanel>
                                     </StackPanel>
-                                    <TextBlock x:Name="InventoryFormStatusText" Text="La consulta y captura requieren conexión autorizada al inventario." Foreground="#A9B8CC" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="InventoryFormStatusText" Text="La consulta y captura requieren conexión autorizada al inventario." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                                 </StackPanel>
                             </Border>
                     </Grid>
@@ -519,22 +522,22 @@
             </Border>
         </Grid>
 
-        <Grid x:Name="ReportFormOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
-            <Border MaxWidth="1200" Margin="16" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid x:Name="ReportFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
+            <Border MaxWidth="1200" Margin="16" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <Grid Background="#0078D4" CornerRadius="7,7,0,0" Padding="12,2">
-                        <TextBlock Text="Reportes" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CloseReportForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Reportes" />
+                    <Grid Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,2">
+                        <TextBlock Text="Reportes" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CloseReportForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Reportes" />
                     </Grid>
 
-                    <Border Grid.Row="1" Background="#172337" BorderBrush="#40516A" BorderThickness="1" Padding="20">
+                    <Border Grid.Row="1" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="20">
                         <StackPanel Width="700" Spacing="12">
-                            <TextBlock Text="Fechas del reporte" Foreground="#F1F5F9" FontWeight="SemiBold" FontSize="18" />
+                            <TextBlock Text="Fechas del reporte" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" FontSize="18" />
 
                             <Grid ColumnSpacing="12" RowSpacing="6">
                                 <Grid.ColumnDefinitions>
@@ -545,8 +548,8 @@
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <RadioButton x:Name="ReportPresetRadioButton" Grid.Row="0" Grid.Column="0" Content="Predeterminado" GroupName="ReportPeriodMode" IsChecked="True" Foreground="#E6EDF7" />
-                                <ComboBox x:Name="ReportPresetComboBox" Grid.Row="0" Grid.Column="1" PlaceholderText="Selecciona periodo" IsEnabled="True" Foreground="#F1F5F9" Background="#111B2B">
+                                <RadioButton x:Name="ReportPresetRadioButton" Grid.Row="0" Grid.Column="0" Content="Predeterminado" GroupName="ReportPeriodMode" IsChecked="True" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                <ComboBox x:Name="ReportPresetComboBox" Grid.Row="0" Grid.Column="1" PlaceholderText="Selecciona periodo" IsEnabled="True" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}">
                                     <ComboBoxItem Content="Día actual" />
                                     <ComboBoxItem Content="Día anterior" />
                                     <ComboBoxItem Content="Últimos siete días" />
@@ -554,7 +557,7 @@
                                     <ComboBoxItem Content="Mes anterior" />
                                     <ComboBoxItem Content="Año Actual" />
                                 </ComboBox>
-                                <RadioButton x:Name="ReportCustomRadioButton" Grid.Row="1" Grid.Column="0" Content="Personalizado" GroupName="ReportPeriodMode" Foreground="#E6EDF7" />
+                                <RadioButton x:Name="ReportCustomRadioButton" Grid.Row="1" Grid.Column="0" Content="Personalizado" GroupName="ReportPeriodMode" Foreground="{ThemeResource PaletteE6EDF7}" />
                             </Grid>
 
                             <Grid ColumnSpacing="18" RowSpacing="12">
@@ -570,21 +573,21 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Fecha inicio:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Fecha inicio:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
                                 <DatePicker x:Name="ReportStartDatePicker" Grid.Row="0" Grid.Column="1" Width="220" IsEnabled="False" HorizontalAlignment="Left" />
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Fecha final:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Fecha final:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
                                 <DatePicker x:Name="ReportEndDatePicker" Grid.Row="1" Grid.Column="1" Width="220" IsEnabled="False" HorizontalAlignment="Left" />
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Turno:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Turno:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
                                 <ComboBox Grid.Row="2" Grid.Column="1" Width="220" HorizontalAlignment="Left" SelectedIndex="0">
                                     <ComboBoxItem Content="Todos" />
                                 </ComboBox>
 
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Chofer:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Chofer:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
                                 <ComboBox x:Name="ReportDriverComboBox" Grid.Row="3" Grid.Column="1" Width="220" HorizontalAlignment="Left" ItemsSource="{x:Bind ReportDrivers}" SelectedIndex="0" />
 
-                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Formula:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="4" Grid.Column="0" Text="Formula:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
                                 <ComboBox x:Name="ReportFormulaComboBox" Grid.Row="4" Grid.Column="1" Width="220" HorizontalAlignment="Left" ItemsSource="{x:Bind ReportFormulas}" SelectedIndex="0" />
                             </Grid>
 
@@ -600,16 +603,16 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="R.Inicial" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="R.Inicial" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
                                 <TextBox Grid.Row="0" Grid.Column="1" Width="220" HorizontalAlignment="Left" />
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="R.Final" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="R.Final" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
                                 <TextBox Grid.Row="1" Grid.Column="1" Width="220" HorizontalAlignment="Left" />
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Operador:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Operador:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
                                 <ComboBox Grid.Row="2" Grid.Column="1" Width="220" HorizontalAlignment="Left" PlaceholderText="Selecciona operador" />
 
-                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Remisión:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="3" Grid.Column="0" Text="Remisión:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
                                 <TextBox Grid.Row="3" Grid.Column="1" Width="220" HorizontalAlignment="Left" />
                             </Grid>
 
@@ -624,28 +627,28 @@
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Cliente:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="Cliente:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
                                 <ComboBox x:Name="ReportClientComboBox" Grid.Row="0" Grid.Column="1" Width="220" HorizontalAlignment="Left" ItemsSource="{x:Bind ReportClients}" SelectedIndex="0" />
 
-                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Tipo de Carga:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Tipo de Carga:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
                                 <ComboBox Grid.Row="1" Grid.Column="1" Width="220" HorizontalAlignment="Left" PlaceholderText="Selecciona tipo" />
 
-                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Obra:" Foreground="#E6EDF7" VerticalAlignment="Center" />
+                                <TextBlock Grid.Row="2" Grid.Column="0" Text="Obra:" Foreground="{ThemeResource PaletteE6EDF7}" VerticalAlignment="Center" />
                                 <TextBox Grid.Row="2" Grid.Column="1" Width="220" HorizontalAlignment="Left" />
                             </Grid>
 
                             <StackPanel Orientation="Horizontal" Spacing="8" HorizontalAlignment="Right">
                                 <Button Content="Visualiza" Style="{StaticResource DefaultButtonStyle}" />
                             </StackPanel>
-                            <TextBlock x:Name="ReportFormStatusText" Foreground="#A9B8CC" TextWrapping="Wrap" />
+                            <TextBlock x:Name="ReportFormStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                         </StackPanel>
                     </Border>
                 </Grid>
             </Border>
         </Grid>
 
-        <Grid x:Name="FormulaFormOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
-            <Border Width="1500" MaxWidth="1600" Height="620" MaxHeight="900" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid x:Name="FormulaFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
+            <Border Width="1500" MaxWidth="1600" Height="620" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -655,24 +658,24 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <Grid Grid.Row="0" Background="#0078D4" CornerRadius="7,7,0,0" Padding="12,2">
-                        <TextBlock Text="Fórmulas" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CloseFormulaForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Fórmulas" />
+                    <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,2">
+                        <TextBlock Text="Fórmulas" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CloseFormulaForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Fórmulas" />
                     </Grid>
 
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="{ThemeResource Palette172337}" Padding="8,5" Spacing="8">
                         <Button x:Name="FormulaAddRestoreButton" Content="Agregar" Click="AddFormula_Click" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="FormulaEditButton" Content="Editar" Click="EditFormula_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="FormulaDeleteButton" Content="Borrar" Click="DeleteFormula_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="FormulaViewButton" Content="Visualizar" Click="ViewFormula_Click" IsEnabled="False" ToolTipService.ToolTip="Selecciona una fórmula para visualizarla." Style="{StaticResource DefaultButtonStyle}" />
                     </StackPanel>
 
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Background="#172337" BorderBrush="#40516A" BorderThickness="0,0,0,1">
-                        <Button x:Name="FormulaActiveTabButton" Content="Fórmulas Activas" Click="ActiveFormulasTab_Click" Background="#0078D4" Foreground="#F1F5F9" BorderThickness="0" Padding="12,6" />
-                        <Button x:Name="FormulaCancelledTabButton" Content="Fórmulas Canceladas" Click="CancelledFormulasTab_Click" Background="#26364D" Foreground="#F1F5F9" BorderThickness="0" Padding="12,6" />
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1">
+                        <Button x:Name="FormulaActiveTabButton" Content="Fórmulas Activas" Click="ActiveFormulasTab_Click" Background="{ThemeResource Palette0078D4}" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" Padding="12,6" />
+                        <Button x:Name="FormulaCancelledTabButton" Content="Fórmulas Canceladas" Click="CancelledFormulasTab_Click" Background="{ThemeResource Palette26364D}" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" Padding="12,6" />
                     </StackPanel>
 
-                    <Border Grid.Row="3" Margin="12" Background="#101B2D" BorderBrush="#40516A" BorderThickness="1" Padding="6">
+                    <Border Grid.Row="3" Margin="12" Background="{ThemeResource Palette101B2D}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="6">
                         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" ZoomMode="Disabled">
                             <StackPanel>
                                 <ItemsControl ItemsSource="{x:Bind FormulaColumns}">
@@ -683,8 +686,8 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="services:FormulaColumn">
-                                            <Border Width="{x:Bind Width}" Padding="6,8" Background="#0078D4" BorderBrush="#40516A" BorderThickness="0,0,1,1">
-                                                <TextBlock Text="{x:Bind Title}" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <Border Width="{x:Bind Width}" Padding="6,8" Background="{ThemeResource Palette0078D4}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,1,1">
+                                                <TextBlock Text="{x:Bind Title}" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -693,7 +696,7 @@
                                 <ItemsControl ItemsSource="{x:Bind VisibleFormulaRows}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="services:FormulaRow">
-                                            <Border Background="#1E2D43" BorderBrush="#40516A" BorderThickness="0,0,0,1" Tapped="FormulaRow_Tapped">
+                                            <Border Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1" Tapped="FormulaRow_Tapped">
                                                 <ItemsControl ItemsSource="{x:Bind Cells}">
                                                     <ItemsControl.ItemsPanel>
                                                         <ItemsPanelTemplate>
@@ -702,8 +705,8 @@
                                                     </ItemsControl.ItemsPanel>
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate x:DataType="services:FormulaCell">
-                                                            <Border Width="{x:Bind Width}" Padding="6,6" BorderBrush="#40516A" BorderThickness="0,0,1,0">
-                                                                <TextBlock Text="{x:Bind Value}" Foreground="#E6EDF7" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Value}" />
+                                                            <Border Width="{x:Bind Width}" Padding="6,6" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,1,0">
+                                                                <TextBlock Text="{x:Bind Value}" Foreground="{ThemeResource PaletteE6EDF7}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Value}" />
                                                             </Border>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
@@ -715,12 +718,12 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
-                    <TextBlock x:Name="FormulaFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando fórmulas..." Foreground="#A9B8CC" TextWrapping="Wrap" />
+                    <TextBlock x:Name="FormulaFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando fórmulas..." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                 </Grid>
             </Border>
         </Grid>
-        <Grid x:Name="FormulaEditorOverlay" Grid.RowSpan="4" Background="#B3000000" Visibility="Collapsed">
-            <Border Width="1500" MaxWidth="1600" Height="820" MaxHeight="950" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid x:Name="FormulaEditorOverlay" Grid.RowSpan="4" Background="{ThemeResource PaletteB3000000}" Visibility="Collapsed">
+            <Border Width="1500" MaxWidth="1600" Height="820" MaxHeight="950" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid RowSpacing="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -729,16 +732,16 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Background="#0078D4" CornerRadius="7,7,0,0" Padding="12,2">
-                        <TextBlock x:Name="FormulaEditorTitle" Text="Fórmulas" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CancelFormulaEditor_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar formulario de fórmulas" />
+                    <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,2">
+                        <TextBlock x:Name="FormulaEditorTitle" Text="Fórmulas" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CancelFormulaEditor_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar formulario de fórmulas" />
                     </Grid>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="{ThemeResource Palette172337}" Padding="8,5" Spacing="8">
                         <Button x:Name="FormulaEditorSaveButton" Content="Guardar" Click="SaveFormulaEditor_Click" Style="{StaticResource DefaultButtonStyle}" />
                     </StackPanel>
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Background="#172337" BorderBrush="#40516A" BorderThickness="0,0,0,1">
-                        <Button x:Name="FormulaEditorConfigurationTabButton" Content="Configuración de Fórmulas" Click="FormulaEditorConfigurationTab_Click" Background="#0078D4" Foreground="#F1F5F9" BorderThickness="0" Padding="12,6" />
-                        <Button x:Name="FormulaEditorAdditionalTabButton" Content="Datos Adicionales" Click="FormulaEditorAdditionalTab_Click" Background="#26364D" Foreground="#F1F5F9" BorderThickness="0" Padding="12,6" />
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1">
+                        <Button x:Name="FormulaEditorConfigurationTabButton" Content="Configuración de Fórmulas" Click="FormulaEditorConfigurationTab_Click" Background="{ThemeResource Palette0078D4}" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" Padding="12,6" />
+                        <Button x:Name="FormulaEditorAdditionalTabButton" Content="Datos Adicionales" Click="FormulaEditorAdditionalTab_Click" Background="{ThemeResource Palette26364D}" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" Padding="12,6" />
                     </StackPanel>
                     <ScrollViewer Grid.Row="3" Padding="16" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
@@ -747,13 +750,13 @@
                         </StackPanel>
                     </ScrollViewer>
                     <StackPanel Grid.Row="4" Padding="12,0,12,8">
-                        <TextBlock x:Name="FormulaEditorStatusText" Foreground="#A9B8CC" TextWrapping="Wrap" />
+                        <TextBlock x:Name="FormulaEditorStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                     </StackPanel>
                 </Grid>
             </Border>
         </Grid>
-        <Grid x:Name="SupplierFormOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
-            <Border Width="1500" MaxWidth="1600" MaxHeight="600" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid x:Name="SupplierFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
+            <Border Width="1500" MaxWidth="1600" MaxHeight="600" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -762,20 +765,20 @@
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Background="#0078D4" CornerRadius="7,7,0,0" Padding="12,2">
-                        <TextBlock Text="Proveedores" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CloseSupplierForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Proveedores" />
+                    <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,2">
+                        <TextBlock Text="Proveedores" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CloseSupplierForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Proveedores" />
                     </Grid>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="{ThemeResource Palette172337}" Padding="8,5" Spacing="8">
                         <Button x:Name="AddSupplierButton" Content="Agregar" Click="AddSupplier_Click" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="EditSupplierButton" Content="Editar" Click="EditSupplier_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="DeleteSupplierButton" Content="Borrar" Click="DeleteSupplier_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="ViewSupplierButton" Content="Visualizar" Click="ViewSupplier_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                     </StackPanel>
-                    <Border Grid.Row="2" Background="#172337" BorderBrush="#40516A" BorderThickness="0,0,0,1" Padding="10,5">
-                        <TextBlock Text="Proveedores" Foreground="#F1F5F9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border Grid.Row="2" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1" Padding="10,5">
+                        <TextBlock Text="Proveedores" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </Border>
-                    <Border Grid.Row="3" Margin="12" Background="#101B2D" BorderBrush="#40516A" BorderThickness="1" Padding="6">
+                    <Border Grid.Row="3" Margin="12" Background="{ThemeResource Palette101B2D}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="6">
                         <ScrollViewer MaxHeight="420" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" ZoomMode="Disabled">
                             <StackPanel>
                                 <ItemsControl ItemsSource="{x:Bind SupplierColumns}">
@@ -784,8 +787,8 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="services:SupplierCell">
-                                            <Border Width="{x:Bind Width}" Padding="6,8" Background="#0078D4" BorderBrush="#40516A" BorderThickness="0,0,1,1">
-                                                <TextBlock Text="{x:Bind Title}" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <Border Width="{x:Bind Width}" Padding="6,8" Background="{ThemeResource Palette0078D4}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,1,1">
+                                                <TextBlock Text="{x:Bind Title}" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -800,15 +803,15 @@
                                     </ListView.ItemContainerStyle>
                                     <ListView.ItemTemplate>
                                         <DataTemplate x:DataType="services:SupplierRecord">
-                                            <Border HorizontalAlignment="Stretch" Background="#1E2D43" BorderBrush="#40516A" BorderThickness="0,0,0,1">
+                                            <Border HorizontalAlignment="Stretch" Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1">
                                                 <ItemsControl ItemsSource="{x:Bind Cells}">
                                                     <ItemsControl.ItemsPanel>
                                                         <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
                                                     </ItemsControl.ItemsPanel>
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate x:DataType="services:SupplierCell">
-                                                            <Border Width="{x:Bind Width}" Padding="6,6" BorderBrush="#40516A" BorderThickness="0,0,1,0">
-                                                                <TextBlock Text="{x:Bind Value}" Foreground="#E6EDF7" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Value}" />
+                                                            <Border Width="{x:Bind Width}" Padding="6,6" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,1,0">
+                                                                <TextBlock Text="{x:Bind Value}" Foreground="{ThemeResource PaletteE6EDF7}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Value}" />
                                                             </Border>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
@@ -820,12 +823,12 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
-                    <TextBlock x:Name="SupplierFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando proveedores..." Foreground="#A9B8CC" TextWrapping="Wrap" />
+                    <TextBlock x:Name="SupplierFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando proveedores..." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                 </Grid>
             </Border>
         </Grid>
-        <Grid x:Name="SupplierEditorOverlay" Grid.RowSpan="4" Background="#B3000000" Visibility="Collapsed">
-            <Border Width="760" MaxWidth="900" Height="700" MaxHeight="900" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid x:Name="SupplierEditorOverlay" Grid.RowSpan="4" Background="{ThemeResource PaletteB3000000}" Visibility="Collapsed">
+            <Border Width="760" MaxWidth="900" Height="700" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -834,15 +837,15 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Background="#0078D4" CornerRadius="7,7,0,0" Padding="12,2">
-                        <TextBlock x:Name="SupplierEditorTitleText" Text="Proveedor" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CloseSupplierEditor_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar formulario de proveedor" />
+                    <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,2">
+                        <TextBlock x:Name="SupplierEditorTitleText" Text="Proveedor" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CloseSupplierEditor_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar formulario de proveedor" />
                     </Grid>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="{ThemeResource Palette172337}" Padding="8,5" Spacing="8">
                         <Button x:Name="SupplierEditorSaveButton" Content="Guardar" Click="SaveSupplier_Click" Style="{StaticResource DefaultButtonStyle}" />
                     </StackPanel>
-                    <Border Grid.Row="2" Background="#172337" BorderBrush="#40516A" BorderThickness="0,0,0,1" Padding="10,5">
-                        <TextBlock Text="Información de Proveedor" Foreground="#F1F5F9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border Grid.Row="2" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1" Padding="10,5">
+                        <TextBlock Text="Información de Proveedor" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </Border>
                     <ScrollViewer Grid.Row="3" Padding="18" VerticalScrollBarVisibility="Auto">
                         <Grid ColumnSpacing="12" RowSpacing="10">
@@ -882,12 +885,12 @@
                             <TextBox x:Name="SupplierWebsiteTextBox" Grid.Row="10" Grid.Column="1" MaxLength="80" />
                         </Grid>
                     </ScrollViewer>
-                    <TextBlock x:Name="SupplierEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="#A9B8CC" TextWrapping="Wrap" />
+                    <TextBlock x:Name="SupplierEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                 </Grid>
             </Border>
         </Grid>
-        <Grid x:Name="ClientFormOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
-            <Border Width="1600" MaxWidth="1600" Height="380" MaxHeight="900" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid x:Name="ClientFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
+            <Border Width="1600" MaxWidth="1600" Height="380" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -896,20 +899,20 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Background="#0078D4" CornerRadius="7,7,0,0" Padding="12,2">
-                        <TextBlock Text="Clientes" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CloseClientForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Clientes" />
+                    <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,2">
+                        <TextBlock Text="Clientes" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CloseClientForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Clientes" />
                     </Grid>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="{ThemeResource Palette172337}" Padding="8,5" Spacing="8">
                         <Button x:Name="AddClientButton" Content="Agregar" Click="AddClient_Click" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="EditClientButton" Content="Editar" Click="EditClient_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="DeleteClientButton" Content="Borrar" Click="DeleteClient_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="ViewClientButton" Content="Visualizar" Click="ViewClient_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                     </StackPanel>
-                    <Border Grid.Row="2" Background="#172337" BorderBrush="#40516A" BorderThickness="0,0,0,1" Padding="10,5">
-                        <TextBlock Text="Información de Clientes" Foreground="#F1F5F9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border Grid.Row="2" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1" Padding="10,5">
+                        <TextBlock Text="Información de Clientes" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </Border>
-                    <Border Grid.Row="3" Margin="12" Background="#101B2D" BorderBrush="#40516A" BorderThickness="1" Padding="6">
+                    <Border Grid.Row="3" Margin="12" Background="{ThemeResource Palette101B2D}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="6">
                         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" ZoomMode="Disabled">
                             <StackPanel>
                                 <ItemsControl ItemsSource="{x:Bind ClientColumns}">
@@ -918,8 +921,8 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="services:ClientCell">
-                                            <Border Width="{x:Bind Width}" Padding="6,8" Background="#0078D4" BorderBrush="#40516A" BorderThickness="0,0,1,1">
-                                                <TextBlock Text="{x:Bind Title}" Foreground="White" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <Border Width="{x:Bind Width}" Padding="6,8" Background="{ThemeResource Palette0078D4}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,1,1">
+                                                <TextBlock Text="{x:Bind Title}" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -934,15 +937,15 @@
                                     </ListView.ItemContainerStyle>
                                     <ListView.ItemTemplate>
                                         <DataTemplate x:DataType="services:ClientRecord">
-                                            <Border HorizontalAlignment="Stretch" Background="#1E2D43" BorderBrush="#40516A" BorderThickness="0,0,0,1">
+                                            <Border HorizontalAlignment="Stretch" Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1">
                                                 <ItemsControl ItemsSource="{x:Bind Cells}">
                                                     <ItemsControl.ItemsPanel>
                                                         <ItemsPanelTemplate><StackPanel Orientation="Horizontal" /></ItemsPanelTemplate>
                                                     </ItemsControl.ItemsPanel>
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate x:DataType="services:ClientCell">
-                                                            <Border Width="{x:Bind Width}" Padding="6,6" BorderBrush="#40516A" BorderThickness="0,0,1,0">
-                                                                <TextBlock Text="{x:Bind Value}" Foreground="#E6EDF7" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Value}" />
+                                                            <Border Width="{x:Bind Width}" Padding="6,6" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,1,0">
+                                                                <TextBlock Text="{x:Bind Value}" Foreground="{ThemeResource PaletteE6EDF7}" TextTrimming="CharacterEllipsis" ToolTipService.ToolTip="{x:Bind Value}" />
                                                             </Border>
                                                         </DataTemplate>
                                                     </ItemsControl.ItemTemplate>
@@ -954,12 +957,12 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
-                    <TextBlock x:Name="ClientFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando clientes..." Foreground="#A9B8CC" TextWrapping="Wrap" />
+                    <TextBlock x:Name="ClientFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando clientes..." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                 </Grid>
             </Border>
         </Grid>
-        <Grid x:Name="ClientEditorOverlay" Grid.RowSpan="4" Background="#B3000000" Visibility="Collapsed">
-            <Border Width="720" MaxWidth="900" Height="750" MaxHeight="900" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid x:Name="ClientEditorOverlay" Grid.RowSpan="4" Background="{ThemeResource PaletteB3000000}" Visibility="Collapsed">
+            <Border Width="720" MaxWidth="900" Height="750" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -968,15 +971,15 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Background="#0078D4" CornerRadius="7,7,0,0" Padding="12,2">
-                        <TextBlock x:Name="ClientEditorTitleText" Text="Agregar Cliente" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CloseClientEditor_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar formulario de cliente" />
+                    <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,2">
+                        <TextBlock x:Name="ClientEditorTitleText" Text="Agregar Cliente" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CloseClientEditor_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar formulario de cliente" />
                     </Grid>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="{ThemeResource Palette172337}" Padding="8,5" Spacing="8">
                         <Button x:Name="ClientEditorSaveButton" Content="Guardar" Click="SaveClient_Click" Style="{StaticResource DefaultButtonStyle}" />
                     </StackPanel>
-                    <Border Grid.Row="2" Background="#172337" BorderBrush="#40516A" BorderThickness="0,0,0,1" Padding="10,5">
-                        <TextBlock Text="Información de Cliente" Foreground="#F1F5F9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border Grid.Row="2" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1" Padding="10,5">
+                        <TextBlock Text="Información de Cliente" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </Border>
                     <ScrollViewer Grid.Row="3" Padding="18" VerticalScrollBarVisibility="Auto">
                         <Grid ColumnSpacing="12" RowSpacing="8">
@@ -1021,12 +1024,12 @@
                             <TextBox x:Name="ClientWebsiteTextBox" Grid.Row="12" Grid.Column="1" MaxLength="80" />
                         </Grid>
                     </ScrollViewer>
-                    <TextBlock x:Name="ClientEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="#A9B8CC" TextWrapping="Wrap" />
+                    <TextBlock x:Name="ClientEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                 </Grid>
             </Border>
         </Grid>
-        <Grid x:Name="TruckFormOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
-            <Border Width="1600" MaxWidth="1600" Height="600" MaxHeight="900" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid x:Name="TruckFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
+            <Border Width="1600" MaxWidth="1600" Height="600" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1035,11 +1038,11 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Background="#0078D4" CornerRadius="7,7,0,0" Padding="12,2">
-                        <TextBlock Text="Camiones" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CloseTruckForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Camiones" />
+                    <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,2">
+                        <TextBlock Text="Camiones" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CloseTruckForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Camiones" />
                     </Grid>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="{ThemeResource Palette172337}" Padding="8,5" Spacing="8">
                         <Button x:Name="AddTruckButton" Content="Agregar" Click="AddTruck_Click" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="EditTruckButton" Content="Editar" Click="EditTruck_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="DeleteTruckButton" Content="Borrar" Click="DeleteTruck_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
@@ -1048,64 +1051,64 @@
                         <Button x:Name="DeleteOperatorButton" Content="Borrar" Click="DeleteOperator_Click" IsEnabled="False" Visibility="Collapsed" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="ViewOperatorButton" Content="Visualizar" Click="ViewOperator_Click" IsEnabled="False" Visibility="Collapsed" Style="{StaticResource DefaultButtonStyle}" />
                     </StackPanel>
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Background="#172337" BorderBrush="#40516A" BorderThickness="0,0,0,1">
-                        <Button x:Name="TruckTabButton" Content="Camiones" Click="TruckTab_Click" Background="#0078D4" Foreground="#F1F5F9" BorderThickness="0" Padding="12,6" />
-                        <Button x:Name="OperatorTabButton" Content="Operadores" Click="TruckTab_Click" Background="#26364D" Foreground="#F1F5F9" BorderThickness="0" Padding="12,6" Opacity="0.65" />
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1">
+                        <Button x:Name="TruckTabButton" Content="Camiones" Click="TruckTab_Click" Background="{ThemeResource Palette0078D4}" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" Padding="12,6" />
+                        <Button x:Name="OperatorTabButton" Content="Operadores" Click="TruckTab_Click" Background="{ThemeResource Palette26364D}" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" Padding="12,6" Opacity="0.65" />
                     </StackPanel>
-                    <Border Grid.Row="3" Margin="12" Background="#101B2D" BorderBrush="#40516A" BorderThickness="1" Padding="6">
+                    <Border Grid.Row="3" Margin="12" Background="{ThemeResource Palette101B2D}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="6">
                         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" ZoomMode="Disabled">
                             <Grid>
                                 <StackPanel x:Name="TruckTablePanel">
-                                    <Grid Background="#26364D" Padding="6,8">
+                                    <Grid Background="{ThemeResource Palette26364D}" Padding="6,8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="1*" /><ColumnDefinition Width="1*" /><ColumnDefinition Width="1.5*" />
                                             <ColumnDefinition Width="1*" /><ColumnDefinition Width="1*" /><ColumnDefinition Width="1.5*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Código camión" Grid.Column="0" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                        <TextBlock Text="Iniciales" Grid.Column="1" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                        <TextBlock Text="Nombre" Grid.Column="2" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                        <TextBlock Text="Placas" Grid.Column="3" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                        <TextBlock Text="Unidad" Grid.Column="4" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                        <TextBlock Text="Capacidad" Grid.Column="5" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Código camión" Grid.Column="0" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Iniciales" Grid.Column="1" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Nombre" Grid.Column="2" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Placas" Grid.Column="3" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Unidad" Grid.Column="4" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Capacidad" Grid.Column="5" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
                                     </Grid>
                                     <ItemsControl ItemsSource="{x:Bind TruckRecords}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="services:TruckRecord">
-                                                <Grid Background="#1E2D43" BorderBrush="#40516A" BorderThickness="0,0,0,1" Padding="6,6" Tapped="TruckRow_Tapped">
+                                                <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1" Padding="6,6" Tapped="TruckRow_Tapped">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="1*" /><ColumnDefinition Width="1*" /><ColumnDefinition Width="1.5*" />
                                                         <ColumnDefinition Width="1*" /><ColumnDefinition Width="1*" /><ColumnDefinition Width="1.5*" />
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="{x:Bind Code}" Grid.Column="0" Foreground="#E6EDF7" HorizontalAlignment="Center" />
-                                                    <TextBlock Text="{x:Bind Initials}" Grid.Column="1" Foreground="#E6EDF7" HorizontalAlignment="Center" />
-                                                    <TextBlock Text="{x:Bind Name}" Grid.Column="2" Foreground="#E6EDF7" HorizontalAlignment="Center" />
-                                                    <TextBlock Text="{x:Bind Plates}" Grid.Column="3" Foreground="#E6EDF7" HorizontalAlignment="Center" />
-                                                    <TextBlock Text="{x:Bind Unit}" Grid.Column="4" Foreground="#E6EDF7" HorizontalAlignment="Center" />
-                                                    <TextBlock Text="{x:Bind Capacity}" Grid.Column="5" Foreground="#E6EDF7" HorizontalAlignment="Center" />
+                                                    <TextBlock Text="{x:Bind Code}" Grid.Column="0" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
+                                                    <TextBlock Text="{x:Bind Initials}" Grid.Column="1" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
+                                                    <TextBlock Text="{x:Bind Name}" Grid.Column="2" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
+                                                    <TextBlock Text="{x:Bind Plates}" Grid.Column="3" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
+                                                    <TextBlock Text="{x:Bind Unit}" Grid.Column="4" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
+                                                    <TextBlock Text="{x:Bind Capacity}" Grid.Column="5" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
                                     </ItemsControl>
                                 </StackPanel>
                                 <StackPanel x:Name="OperatorTablePanel" Visibility="Collapsed">
-                                    <Grid Background="#26364D" Padding="6,8">
+                                    <Grid Background="{ThemeResource Palette26364D}" Padding="6,8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="1*" /><ColumnDefinition Width="1*" /><ColumnDefinition Width="2*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="Código operador" Grid.Column="0" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                        <TextBlock Text="Iniciales" Grid.Column="1" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                        <TextBlock Text="Nombre" Grid.Column="2" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Código operador" Grid.Column="0" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Iniciales" Grid.Column="1" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                        <TextBlock Text="Nombre" Grid.Column="2" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
                                     </Grid>
                                     <ItemsControl ItemsSource="{x:Bind OperatorRecords}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate x:DataType="services:OperatorRecord">
-                                                <Grid Background="#1E2D43" BorderBrush="#40516A" BorderThickness="0,0,0,1" Padding="6" Tapped="OperatorRow_Tapped">
+                                                <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1" Padding="6" Tapped="OperatorRow_Tapped">
                                                     <Grid.ColumnDefinitions>
                                                         <ColumnDefinition Width="1*" /><ColumnDefinition Width="1*" /><ColumnDefinition Width="2*" />
                                                     </Grid.ColumnDefinitions>
-                                                    <TextBlock Text="{x:Bind Code}" Grid.Column="0" Foreground="#E6EDF7" HorizontalAlignment="Center" />
-                                                    <TextBlock Text="{x:Bind Initials}" Grid.Column="1" Foreground="#E6EDF7" HorizontalAlignment="Center" />
-                                                    <TextBlock Text="{x:Bind Name}" Grid.Column="2" Foreground="#E6EDF7" HorizontalAlignment="Center" />
+                                                    <TextBlock Text="{x:Bind Code}" Grid.Column="0" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
+                                                    <TextBlock Text="{x:Bind Initials}" Grid.Column="1" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
+                                                    <TextBlock Text="{x:Bind Name}" Grid.Column="2" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
                                                 </Grid>
                                             </DataTemplate>
                                         </ItemsControl.ItemTemplate>
@@ -1114,12 +1117,12 @@
                             </Grid>
                         </ScrollViewer>
                     </Border>
-                    <TextBlock x:Name="TruckFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando camiones..." Foreground="#A9B8CC" TextWrapping="Wrap" />
+                    <TextBlock x:Name="TruckFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando camiones..." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                 </Grid>
             </Border>
         </Grid>
-        <Grid x:Name="TruckEditorOverlay" Grid.RowSpan="4" Background="#B3000000" Visibility="Collapsed">
-            <Border Width="560" MaxWidth="760" Height="500" MaxHeight="700" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid x:Name="TruckEditorOverlay" Grid.RowSpan="4" Background="{ThemeResource PaletteB3000000}" Visibility="Collapsed">
+            <Border Width="560" MaxWidth="760" Height="500" MaxHeight="700" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1128,15 +1131,15 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Background="#0078D4" CornerRadius="7,7,0,0" Padding="12,2">
-                        <TextBlock x:Name="TruckEditorTitleText" Text="frmCamion" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CloseTruckEditor_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar formulario de camión" />
+                    <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,2">
+                        <TextBlock x:Name="TruckEditorTitleText" Text="frmCamion" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CloseTruckEditor_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar formulario de camión" />
                     </Grid>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="{ThemeResource Palette172337}" Padding="8,5" Spacing="8">
                         <Button x:Name="TruckEditorSaveButton" Content="Guardar" Click="SaveTruck_Click" Style="{StaticResource DefaultButtonStyle}" />
                     </StackPanel>
-                    <Border Grid.Row="2" Background="#172337" BorderBrush="#40516A" BorderThickness="0,0,0,1" Padding="10,5">
-                        <TextBlock Text="Información de Camión" Foreground="#F1F5F9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border Grid.Row="2" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1" Padding="10,5">
+                        <TextBlock Text="Información de Camión" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </Border>
                     <ScrollViewer Grid.Row="3" Padding="18" VerticalScrollBarVisibility="Auto">
                         <Grid ColumnSpacing="12" RowSpacing="16">
@@ -1164,12 +1167,12 @@
                             </StackPanel>
                         </Grid>
                     </ScrollViewer>
-                    <TextBlock x:Name="TruckEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="#A9B8CC" TextWrapping="Wrap" />
+                    <TextBlock x:Name="TruckEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                 </Grid>
             </Border>
         </Grid>
-        <Grid x:Name="OperatorEditorOverlay" Grid.RowSpan="4" Background="#B3000000" Visibility="Collapsed">
-            <Border Width="560" MaxWidth="760" Height="420" MaxHeight="600" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid x:Name="OperatorEditorOverlay" Grid.RowSpan="4" Background="{ThemeResource PaletteB3000000}" Visibility="Collapsed">
+            <Border Width="560" MaxWidth="760" Height="420" MaxHeight="600" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1178,15 +1181,15 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Background="#0078D4" CornerRadius="7,7,0,0" Padding="12,2">
-                        <TextBlock x:Name="OperatorEditorTitleText" Text="frmCamion" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CloseOperatorEditor_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar formulario de operador" />
+                    <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,2">
+                        <TextBlock x:Name="OperatorEditorTitleText" Text="frmCamion" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CloseOperatorEditor_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar formulario de operador" />
                     </Grid>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="{ThemeResource Palette172337}" Padding="8,5" Spacing="8">
                         <Button x:Name="OperatorEditorSaveButton" Content="Guardar" Click="SaveOperator_Click" Style="{StaticResource DefaultButtonStyle}" />
                     </StackPanel>
-                    <Border Grid.Row="2" Background="#172337" BorderBrush="#40516A" BorderThickness="0,0,0,1" Padding="10,5">
-                        <TextBlock Text="Información Operador" Foreground="#F1F5F9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border Grid.Row="2" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1" Padding="10,5">
+                        <TextBlock Text="Información Operador" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </Border>
                     <Grid Grid.Row="3" Padding="20" ColumnSpacing="12" RowSpacing="18">
                         <Grid.ColumnDefinitions>
@@ -1202,12 +1205,12 @@
                         <TextBlock Grid.Row="1" Text="Iniciales Operador:" VerticalAlignment="Center" />
                         <TextBox x:Name="OperatorInitialsTextBox" Grid.Row="1" Grid.Column="1" Width="120" HorizontalAlignment="Left" MaxLength="50" />
                     </Grid>
-                    <TextBlock x:Name="OperatorEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="#A9B8CC" TextWrapping="Wrap" />
+                    <TextBlock x:Name="OperatorEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                 </Grid>
             </Border>
         </Grid>
-        <Grid x:Name="OrderFormOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
-            <Border Width="1500" MaxWidth="1600" Height="600" MaxHeight="900" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+        <Grid x:Name="OrderFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
+            <Border Width="1500" MaxWidth="1600" Height="600" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1216,62 +1219,62 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Background="#0078D4" CornerRadius="7,7,0,0" Padding="12,2">
-                        <TextBlock Text="Pedidos" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CloseOrderForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Pedidos" />
+                    <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,2">
+                        <TextBlock Text="Pedidos" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CloseOrderForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Pedidos" />
                     </Grid>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="{ThemeResource Palette172337}" Padding="8,5" Spacing="8">
                         <Button x:Name="AddOrderButton" Content="Agregar" Click="AddOrder_Click" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="EditOrderButton" Content="Editar" Click="EditOrder_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="CancelOrderButton" Content="Cancelar" Click="CancelOrder_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="ViewOrderButton" Content="Visualizar" Click="ViewOrder_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                     </StackPanel>
-                    <StackPanel Grid.Row="2" Orientation="Horizontal" Background="#172337" BorderBrush="#40516A" BorderThickness="0,0,0,1">
-                        <Button x:Name="OrderActiveTabButton" Content="Activos (A,P)" Click="ActiveOrdersTab_Click" Background="#0078D4" Foreground="#F1F5F9" BorderThickness="0" Padding="12,6" />
-                        <Button x:Name="OrderCompletedTabButton" Content="Terminados (T)" Click="CompletedOrdersTab_Click" Background="#26364D" Foreground="#F1F5F9" BorderThickness="0" Padding="12,6" />
-                        <Button x:Name="OrderCancelledTabButton" Content="Cancelados (C)" Click="CancelledOrdersTab_Click" Background="#26364D" Foreground="#F1F5F9" BorderThickness="0" Padding="12,6" />
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1">
+                        <Button x:Name="OrderActiveTabButton" Content="Activos (A,P)" Click="ActiveOrdersTab_Click" Background="{ThemeResource Palette0078D4}" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" Padding="12,6" />
+                        <Button x:Name="OrderCompletedTabButton" Content="Terminados (T)" Click="CompletedOrdersTab_Click" Background="{ThemeResource Palette26364D}" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" Padding="12,6" />
+                        <Button x:Name="OrderCancelledTabButton" Content="Cancelados (C)" Click="CancelledOrdersTab_Click" Background="{ThemeResource Palette26364D}" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" Padding="12,6" />
                     </StackPanel>
-                    <Border Grid.Row="3" Margin="12" Background="#101B2D" BorderBrush="#40516A" BorderThickness="1" Padding="6">
+                    <Border Grid.Row="3" Margin="12" Background="{ThemeResource Palette101B2D}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="6">
                         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" ZoomMode="Disabled">
                             <StackPanel>
-                                <Grid Background="#26364D" Padding="6,8">
+                                <Grid Background="{ThemeResource Palette26364D}" Padding="6,8">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="80" /><ColumnDefinition Width="90" /><ColumnDefinition Width="120" />
                                         <ColumnDefinition Width="2*" /><ColumnDefinition Width="120" /><ColumnDefinition Width="90" />
                                         <ColumnDefinition Width="110" /><ColumnDefinition Width="2*" /><ColumnDefinition Width="100" />
                                         <ColumnDefinition Width="100" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Pedido" Grid.Column="0" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                    <TextBlock Text="Estatus" Grid.Column="1" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                    <TextBlock Text="Fecha" Grid.Column="2" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                    <TextBlock Text="Cliente" Grid.Column="3" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                    <TextBlock Text="Entrega" Grid.Column="4" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                    <TextBlock Text="Hora" Grid.Column="5" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                    <TextBlock Text="Cantidad" Grid.Column="6" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                    <TextBlock Text="Receta" Grid.Column="7" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                    <TextBlock Text="Surtida" Grid.Column="8" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
-                                    <TextBlock Text="XSurtir" Grid.Column="9" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    <TextBlock Text="Pedido" Grid.Column="0" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    <TextBlock Text="Estatus" Grid.Column="1" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    <TextBlock Text="Fecha" Grid.Column="2" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    <TextBlock Text="Cliente" Grid.Column="3" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    <TextBlock Text="Entrega" Grid.Column="4" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    <TextBlock Text="Hora" Grid.Column="5" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    <TextBlock Text="Cantidad" Grid.Column="6" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    <TextBlock Text="Receta" Grid.Column="7" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    <TextBlock Text="Surtida" Grid.Column="8" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
+                                    <TextBlock Text="XSurtir" Grid.Column="9" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" HorizontalAlignment="Center" />
                                 </Grid>
                                 <ItemsControl ItemsSource="{x:Bind VisibleOrders}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="services:OrderRecord">
-                                            <Grid Background="#1E2D43" BorderBrush="#40516A" BorderThickness="0,0,0,1" Padding="6,6" Tapped="OrderRow_Tapped">
+                                            <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1" Padding="6,6" Tapped="OrderRow_Tapped">
                                                 <Grid.ColumnDefinitions>
                                                     <ColumnDefinition Width="80" /><ColumnDefinition Width="90" /><ColumnDefinition Width="120" />
                                                     <ColumnDefinition Width="2*" /><ColumnDefinition Width="120" /><ColumnDefinition Width="90" />
                                                     <ColumnDefinition Width="110" /><ColumnDefinition Width="2*" /><ColumnDefinition Width="100" />
                                                     <ColumnDefinition Width="100" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{x:Bind Number}" Grid.Column="0" Foreground="#E6EDF7" HorizontalAlignment="Center" />
-                                                <TextBlock Text="{x:Bind Status}" Grid.Column="1" Foreground="#E6EDF7" HorizontalAlignment="Center" />
-                                                <TextBlock Text="{x:Bind Date}" Grid.Column="2" Foreground="#E6EDF7" HorizontalAlignment="Center" />
-                                                <TextBlock Text="{x:Bind Client}" Grid.Column="3" Foreground="#E6EDF7" TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Text="{x:Bind Delivery}" Grid.Column="4" Foreground="#E6EDF7" HorizontalAlignment="Center" />
-                                                <TextBlock Text="{x:Bind Time}" Grid.Column="5" Foreground="#E6EDF7" HorizontalAlignment="Center" />
-                                                <TextBlock Text="{x:Bind Quantity}" Grid.Column="6" Foreground="#E6EDF7" HorizontalAlignment="Center" />
-                                                <TextBlock Text="{x:Bind Recipe}" Grid.Column="7" Foreground="#E6EDF7" TextTrimming="CharacterEllipsis" />
-                                                <TextBlock Text="{x:Bind Supplied}" Grid.Column="8" Foreground="#E6EDF7" HorizontalAlignment="Center" />
-                                                <TextBlock Text="{x:Bind ToSupply}" Grid.Column="9" Foreground="#E6EDF7" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{x:Bind Number}" Grid.Column="0" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{x:Bind Status}" Grid.Column="1" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{x:Bind Date}" Grid.Column="2" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{x:Bind Client}" Grid.Column="3" Foreground="{ThemeResource PaletteE6EDF7}" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{x:Bind Delivery}" Grid.Column="4" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{x:Bind Time}" Grid.Column="5" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{x:Bind Quantity}" Grid.Column="6" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{x:Bind Recipe}" Grid.Column="7" Foreground="{ThemeResource PaletteE6EDF7}" TextTrimming="CharacterEllipsis" />
+                                                <TextBlock Text="{x:Bind Supplied}" Grid.Column="8" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
+                                                <TextBlock Text="{x:Bind ToSupply}" Grid.Column="9" Foreground="{ThemeResource PaletteE6EDF7}" HorizontalAlignment="Center" />
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -1279,12 +1282,12 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
-                    <TextBlock x:Name="OrderFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando pedidos..." Foreground="#A9B8CC" TextWrapping="Wrap" />
+                    <TextBlock x:Name="OrderFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando pedidos..." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                 </Grid>
             </Border>
         </Grid>
-        <Grid x:Name="OrderEditorOverlay" Grid.RowSpan="4" Background="#B3000000" Visibility="Collapsed">
-            <Border MaxWidth="900" MaxHeight="950" Margin="16" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <Grid x:Name="OrderEditorOverlay" Grid.RowSpan="4" Background="{ThemeResource PaletteB3000000}" Visibility="Collapsed">
+            <Border MaxWidth="900" MaxHeight="950" Margin="16" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1293,15 +1296,15 @@
                         <RowDefinition Height="*" />
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Background="#0078D4" CornerRadius="7,7,0,0" Padding="12,2">
-                        <TextBlock x:Name="OrderEditorTitleText" Text="Agregar Pedido" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CloseOrderEditor_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar formulario de pedido" />
+                    <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,2">
+                        <TextBlock x:Name="OrderEditorTitleText" Text="Agregar Pedido" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CloseOrderEditor_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar formulario de pedido" />
                     </Grid>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="{ThemeResource Palette172337}" Padding="8,5" Spacing="8">
                         <Button x:Name="OrderEditorSaveButton" Content="Guardar" Click="SaveOrder_Click" Style="{StaticResource DefaultButtonStyle}" />
                     </StackPanel>
-                    <Border Grid.Row="2" Background="#172337" BorderBrush="#40516A" BorderThickness="0,0,0,1" Padding="10,5">
-                        <TextBlock Text="Información de Pedido" Foreground="#F1F5F9" FontWeight="SemiBold" VerticalAlignment="Center" />
+                    <Border Grid.Row="2" Background="{ThemeResource Palette172337}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="0,0,0,1" Padding="10,5">
+                        <TextBlock Text="Información de Pedido" Foreground="{ThemeResource PaletteF1F5F9}" FontWeight="SemiBold" VerticalAlignment="Center" />
                     </Border>
                     <ScrollViewer Grid.Row="3" Padding="14" VerticalScrollBarVisibility="Auto">
                         <Grid ColumnSpacing="10" RowSpacing="8">
@@ -1367,29 +1370,29 @@
                             <TextBox x:Name="OrderNumberTextBox" Grid.Row="14" Grid.Column="3" HorizontalAlignment="Stretch" IsReadOnly="True" />
                         </Grid>
                     </ScrollViewer>
-                    <TextBlock x:Name="OrderEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="#A9B8CC" TextWrapping="Wrap" />
+                    <TextBlock x:Name="OrderEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                 </Grid>
             </Border>
         </Grid>
-        <Grid x:Name="ManualLoadOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
-            <Border MaxWidth="1200" MaxHeight="850" Margin="12" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+        <Grid x:Name="ManualLoadOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
+            <Border MaxWidth="1200" MaxHeight="850" Margin="12" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
                         <RowDefinition Height="42" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Background="#0078D4" CornerRadius="5,5,0,0" Padding="12,2">
-                        <TextBlock Text="Carga Manual" Foreground="White" FontSize="14" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CloseManualLoad_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Carga Manual" />
+                    <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="5,5,0,0" Padding="12,2">
+                        <TextBlock Text="Carga Manual" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
+                        <Button Content="×" Click="CloseManualLoad_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Carga Manual" />
                     </Grid>
-                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" Background="{ThemeResource Palette172337}" Padding="8,5" Spacing="8">
                         <Button x:Name="ManualLoadSaveButton" Content="Guardar" Click="SaveManualLoad_Click" Style="{StaticResource DefaultButtonStyle}" IsEnabled="False" />
                     </StackPanel>
-                    <TabView Grid.Row="2" IsAddTabButtonVisible="False" CanReorderTabs="False" Background="#101B2D">
+                    <TabView Grid.Row="2" IsAddTabButtonVisible="False" CanReorderTabs="False" Background="{ThemeResource Palette101B2D}">
                         <TabViewItem Header="Materiales">
                             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                <Grid Padding="16" RowSpacing="12" ColumnSpacing="14" Background="#101B2D">
+                                <Grid Padding="16" RowSpacing="12" ColumnSpacing="14" Background="{ThemeResource Palette101B2D}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="180" />
@@ -1405,34 +1408,34 @@
                                             <ColumnDefinition Width="155" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="CÓDIGO DE RECETA:" VerticalAlignment="Center" Foreground="#E6EDF7" />
-                                        <ComboBox x:Name="ManualLoadRecipeComboBox" Grid.Column="1" IsEditable="True" PlaceholderText="Selecciona o escribe receta" ItemsSource="{x:Bind ManualLoadRecipes}" DisplayMemberPath="Code" SelectionChanged="ManualLoadRecipe_SelectionChanged" Foreground="#F1F5F9" Background="#111B2B" />
+                                        <TextBlock Text="CÓDIGO DE RECETA:" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                        <ComboBox x:Name="ManualLoadRecipeComboBox" Grid.Column="1" IsEditable="True" PlaceholderText="Selecciona o escribe receta" ItemsSource="{x:Bind ManualLoadRecipes}" DisplayMemberPath="Code" SelectionChanged="ManualLoadRecipe_SelectionChanged" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                     </Grid>
                                     <Grid Grid.Row="1" ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="155" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="DESCRIPCIÓN DE LA FÓRMULA:" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="#E6EDF7" />
-                                        <TextBox x:Name="ManualLoadDescriptionTextBox" Grid.Column="1" Foreground="#F1F5F9" Background="#111B2B" />
+                                        <TextBlock Text="DESCRIPCIÓN DE LA FÓRMULA:" VerticalAlignment="Center" TextWrapping="Wrap" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                        <TextBox x:Name="ManualLoadDescriptionTextBox" Grid.Column="1" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                     </Grid>
                                     <Grid Grid.Row="0" Grid.Column="1" ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="CANTIDAD:" VerticalAlignment="Center" Foreground="#E6EDF7" />
-                                        <NumberBox x:Name="ManualLoadQuantityNumberBox" Grid.Column="1" Value="0" Minimum="0" Foreground="#F1F5F9" Background="#111B2B" />
+                                        <TextBlock Text="CANTIDAD:" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                        <NumberBox x:Name="ManualLoadQuantityNumberBox" Grid.Column="1" Value="0" Minimum="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                     </Grid>
                                     <Grid Grid.Row="1" Grid.Column="1" ColumnSpacing="8">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-                                        <TextBlock Text="PEDIDO:" VerticalAlignment="Center" Foreground="#E6EDF7" />
-                                        <ComboBox x:Name="ManualLoadOrderComboBox" Grid.Column="1" PlaceholderText="Selecciona pedido" ItemsSource="{x:Bind ManualLoadOrderNumbers}" SelectedIndex="0" SelectionChanged="ManualLoadOrder_SelectionChanged" Foreground="#F1F5F9" Background="#111B2B" />
+                                        <TextBlock Text="PEDIDO:" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                        <ComboBox x:Name="ManualLoadOrderComboBox" Grid.Column="1" PlaceholderText="Selecciona pedido" ItemsSource="{x:Bind ManualLoadOrderNumbers}" SelectedIndex="0" SelectionChanged="ManualLoadOrder_SelectionChanged" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                     </Grid>
-                                    <Border Grid.Row="2" Grid.ColumnSpan="2" BorderBrush="#40516A" BorderThickness="1" Padding="10" Background="#172337">
+                                    <Border Grid.Row="2" Grid.ColumnSpan="2" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="10" Background="{ThemeResource Palette172337}">
                                         <Grid ColumnSpacing="14">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
@@ -1440,75 +1443,75 @@
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Spacing="8">
-                                                <TextBox x:Name="ManualLoadA1TextBox" Header="CANTIDAD GRAVA *" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadA2TextBox" Header="CANTIDAD ARENA *" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadA3TextBox" Header="CANTIDAD AGREGADO 3" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadA4TextBox" Header="CANTIDAD AGREGADO 4" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadA5TextBox" Header="CANTIDAD AGREGADO 5" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadA6TextBox" Header="CANTIDAD AGREGADO 6" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadA7TextBox" Header="CANTIDAD AGREGADO 7" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadA8TextBox" Header="CANTIDAD AGREGADO 8" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
+                                                <TextBox x:Name="ManualLoadA1TextBox" Header="CANTIDAD GRAVA *" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadA2TextBox" Header="CANTIDAD ARENA *" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadA3TextBox" Header="CANTIDAD AGREGADO 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadA4TextBox" Header="CANTIDAD AGREGADO 4" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadA5TextBox" Header="CANTIDAD AGREGADO 5" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadA6TextBox" Header="CANTIDAD AGREGADO 6" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadA7TextBox" Header="CANTIDAD AGREGADO 7" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadA8TextBox" Header="CANTIDAD AGREGADO 8" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" Spacing="8">
-                                                <TextBox x:Name="ManualLoadC1TextBox" Header="CANTIDAD CEMENTO *" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadC2TextBox" Header="CANTIDAD CEMENTO 2" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadC3TextBox" Header="CANTIDAD CEMENTO 3" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadC4TextBox" Header="CANTIDAD CEMENTO 4" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadC5TextBox" Header="CANTIDAD CEMENTO 5" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadWater1TextBox" Header="CANTIDAD AGUA 1 *" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadWater2TextBox" Header="CANTIDAD AGUA 2" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadWater3TextBox" Header="CANTIDAD AGUA 3" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
+                                                <TextBox x:Name="ManualLoadC1TextBox" Header="CANTIDAD CEMENTO *" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadC2TextBox" Header="CANTIDAD CEMENTO 2" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadC3TextBox" Header="CANTIDAD CEMENTO 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadC4TextBox" Header="CANTIDAD CEMENTO 4" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadC5TextBox" Header="CANTIDAD CEMENTO 5" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadWater1TextBox" Header="CANTIDAD AGUA 1 *" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadWater2TextBox" Header="CANTIDAD AGUA 2" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadWater3TextBox" Header="CANTIDAD AGUA 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             </StackPanel>
                                             <StackPanel Grid.Column="2" Spacing="8">
-                                                <TextBox x:Name="ManualLoadD1TextBox" Header="CANTIDAD ADITIVO 1 *" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadD2TextBox" Header="CANTIDAD ADITIVO 2 *" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadD3TextBox" Header="CANTIDAD ADITIVO 3" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadD4TextBox" Header="CANTIDAD ADITIVO 4" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadD5TextBox" Header="CANTIDAD ADITIVO 5" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadD6TextBox" Header="CANTIDAD ADITIVO 6" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadFI1TextBox" Header="CANTIDAD FIBRA 1" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadFI2TextBox" Header="CANTIDAD FIBRA 2" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                                <TextBox x:Name="ManualLoadFI3TextBox" Header="CANTIDAD FIBRA 3" Text="0" Foreground="#F1F5F9" Background="#111B2B" />
+                                                <TextBox x:Name="ManualLoadD1TextBox" Header="CANTIDAD ADITIVO 1 *" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadD2TextBox" Header="CANTIDAD ADITIVO 2 *" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadD3TextBox" Header="CANTIDAD ADITIVO 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadD4TextBox" Header="CANTIDAD ADITIVO 4" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadD5TextBox" Header="CANTIDAD ADITIVO 5" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadD6TextBox" Header="CANTIDAD ADITIVO 6" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadFI1TextBox" Header="CANTIDAD FIBRA 1" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadFI2TextBox" Header="CANTIDAD FIBRA 2" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadFI3TextBox" Header="CANTIDAD FIBRA 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             </StackPanel>
                                         </Grid>
                                     </Border>
-                                    <TextBlock x:Name="ManualLoadStatusText" Grid.Row="3" Grid.ColumnSpan="2" Foreground="#A9B8CC" TextWrapping="Wrap" />
+                                    <TextBlock x:Name="ManualLoadStatusText" Grid.Row="3" Grid.ColumnSpan="2" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                                 </Grid>
                             </ScrollViewer>
                         </TabViewItem>
                         <TabViewItem Header="Datos Remisión">
                             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                <Grid Padding="16" ColumnSpacing="12" RowSpacing="12" Background="#101B2D">
+                                <Grid Padding="16" ColumnSpacing="12" RowSpacing="12" Background="{ThemeResource Palette101B2D}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <Border BorderBrush="#40516A" BorderThickness="1" Padding="10" Background="#172337">
+                                    <Border BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="10" Background="{ThemeResource Palette172337}">
                                         <StackPanel Spacing="8">
-                                            <TextBlock Text="DATOS DE REMISIÓN" FontWeight="SemiBold" Foreground="#F1F5F9" />
-                                            <ComboBox x:Name="ManualLoadRemissionOrderComboBox" Header="PEDIDO" ItemsSource="{x:Bind ManualLoadOrderNumbers}" SelectionChanged="ManualLoadRemissionOrder_SelectionChanged" PlaceholderText="Selecciona pedido activo" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <ComboBox x:Name="ManualLoadRemissionClientComboBox" Header="CLIENTE" ItemsSource="{x:Bind OrderClients}" DisplayMemberPath="Client" IsEditable="True" PlaceholderText="Selecciona cliente" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <ComboBox x:Name="ManualLoadRemissionConstructionComboBox" Header="OBRA" ItemsSource="{x:Bind ManualLoadConstructionOptions}" IsEditable="True" PlaceholderText="Selecciona obra" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <ComboBox x:Name="ManualLoadRemissionOperatorComboBox" Header="OPERADOR" ItemsSource="{x:Bind ManualLoadOperators}" DisplayMemberPath="Name" PlaceholderText="Selecciona operador" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <TextBox x:Name="ManualLoadRemissionStatusTextBox" Header="ESTATUS" IsReadOnly="True" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <ComboBox x:Name="ManualLoadRemissionProductComboBox" Header="PRODUCTO" ItemsSource="{x:Bind OrderProducts}" IsEditable="True" PlaceholderText="Selecciona producto" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <ComboBox x:Name="ManualLoadRemissionPaymentComboBox" Header="CONDICIONES PAGO" ItemsSource="{x:Bind OrderPaymentConditions}" IsEditable="True" PlaceholderText="Selecciona condiciones" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <ComboBox x:Name="ManualLoadRemissionDischargeComboBox" Header="TIPO DESCARGA" ItemsSource="{x:Bind OrderDischargeTypes}" IsEditable="True" PlaceholderText="Selecciona tipo" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <TextBox Header="DESPACHADOR" Text="1" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <TextBox x:Name="ManualLoadRemissionTextBox" Header="REMISIÓN" MaxLength="50" IsReadOnly="True" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <ComboBox x:Name="ManualLoadRemissionTruckComboBox" Header="CAMIÓN" ItemsSource="{x:Bind ManualLoadTrucks}" DisplayMemberPath="Unit" PlaceholderText="Selecciona camión" Foreground="#F1F5F9" Background="#111B2B" />
+                                            <TextBlock Text="DATOS DE REMISIÓN" FontWeight="SemiBold" Foreground="{ThemeResource PaletteF1F5F9}" />
+                                            <ComboBox x:Name="ManualLoadRemissionOrderComboBox" Header="PEDIDO" ItemsSource="{x:Bind ManualLoadOrderNumbers}" SelectionChanged="ManualLoadRemissionOrder_SelectionChanged" PlaceholderText="Selecciona pedido activo" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionClientComboBox" Header="CLIENTE" ItemsSource="{x:Bind OrderClients}" DisplayMemberPath="Client" IsEditable="True" PlaceholderText="Selecciona cliente" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionConstructionComboBox" Header="OBRA" ItemsSource="{x:Bind ManualLoadConstructionOptions}" IsEditable="True" PlaceholderText="Selecciona obra" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionOperatorComboBox" Header="OPERADOR" ItemsSource="{x:Bind ManualLoadOperators}" DisplayMemberPath="Name" PlaceholderText="Selecciona operador" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadRemissionStatusTextBox" Header="ESTATUS" IsReadOnly="True" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionProductComboBox" Header="PRODUCTO" ItemsSource="{x:Bind OrderProducts}" IsEditable="True" PlaceholderText="Selecciona producto" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionPaymentComboBox" Header="CONDICIONES PAGO" ItemsSource="{x:Bind OrderPaymentConditions}" IsEditable="True" PlaceholderText="Selecciona condiciones" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionDischargeComboBox" Header="TIPO DESCARGA" ItemsSource="{x:Bind OrderDischargeTypes}" IsEditable="True" PlaceholderText="Selecciona tipo" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox Header="DESPACHADOR" Text="1" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadRemissionTextBox" Header="REMISIÓN" MaxLength="50" IsReadOnly="True" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionTruckComboBox" Header="CAMIÓN" ItemsSource="{x:Bind ManualLoadTrucks}" DisplayMemberPath="Unit" PlaceholderText="Selecciona camión" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                         </StackPanel>
                                     </Border>
-                                    <Border Grid.Column="1" BorderBrush="#40516A" BorderThickness="1" Padding="10" Background="#172337">
+                                    <Border Grid.Column="1" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="10" Background="{ThemeResource Palette172337}">
                                         <StackPanel Spacing="8">
-                                            <TextBlock Text="ESTATUS" FontWeight="SemiBold" Foreground="#F1F5F9" />
-                                            <NumberBox x:Name="ManualLoadOrderedQuantityNumberBox" Header="PEDIDOS (M³)" Value="0" Minimum="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <NumberBox x:Name="ManualLoadSuppliedQuantityNumberBox" Header="SURTIDOS (M³)" Value="0" Minimum="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <NumberBox x:Name="ManualLoadToSupplyQuantityNumberBox" Header="X SURTIR (M³)" Value="0" Minimum="0" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <TextBox x:Name="ManualLoadRemissionObservationsTextBox" Header="OBSERVACIONES" AcceptsReturn="True" Height="90" TextWrapping="Wrap" Foreground="#F1F5F9" Background="#111B2B" />
-                                            <DatePicker Header="FECHA REMISIÓN REAL" Foreground="#F1F5F9" />
-                                            <TimePicker Header="HORA REMISIÓN REAL" Foreground="#F1F5F9" />
-                                            <ComboBox Header="TURNO" PlaceholderText="Selecciona turno" Foreground="#F1F5F9" Background="#111B2B" />
+                                            <TextBlock Text="ESTATUS" FontWeight="SemiBold" Foreground="{ThemeResource PaletteF1F5F9}" />
+                                            <NumberBox x:Name="ManualLoadOrderedQuantityNumberBox" Header="PEDIDOS (M³)" Value="0" Minimum="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <NumberBox x:Name="ManualLoadSuppliedQuantityNumberBox" Header="SURTIDOS (M³)" Value="0" Minimum="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <NumberBox x:Name="ManualLoadToSupplyQuantityNumberBox" Header="X SURTIR (M³)" Value="0" Minimum="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadRemissionObservationsTextBox" Header="OBSERVACIONES" AcceptsReturn="True" Height="90" TextWrapping="Wrap" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <DatePicker Header="FECHA REMISIÓN REAL" Foreground="{ThemeResource PaletteF1F5F9}" />
+                                            <TimePicker Header="HORA REMISIÓN REAL" Foreground="{ThemeResource PaletteF1F5F9}" />
+                                            <ComboBox Header="TURNO" PlaceholderText="Selecciona turno" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                         </StackPanel>
                                     </Border>
                                 </Grid>
@@ -1518,12 +1521,12 @@
                 </Grid>
             </Border>
         </Grid>
-        <Grid x:Name="ConfigurationFormOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
+        <Grid x:Name="ConfigurationFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
             <Border
                 x:Name="ConfigurationFormBorder"
                 Margin="12"
-                Background="#111C2D"
-                BorderBrush="#0078D4"
+                Background="{ThemeResource Palette111C2D}"
+                BorderBrush="{ThemeResource Palette0078D4}"
                 BorderThickness="1"
                 CornerRadius="8"
                 HorizontalAlignment="Center"
@@ -1531,12 +1534,12 @@
                 <local:ConfigurationView x:Name="ConfigurationView" />
             </Border>
         </Grid>
-        <Grid x:Name="SecurityFormOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
+        <Grid x:Name="SecurityFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
             <Border
                 x:Name="SecurityFormBorder"
                 Margin="12"
                 Background="White"
-                BorderBrush="#0078D4"
+                BorderBrush="{ThemeResource Palette0078D4}"
                 BorderThickness="1"
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center">
@@ -1545,19 +1548,19 @@
         </Grid>
         </Grid>
 
-        <Grid x:Name="MachineConfigurationOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
-            <Border Margin="12" Background="#111C2D" BorderBrush="#0078D4" BorderThickness="1" CornerRadius="8">
+        <Grid x:Name="MachineConfigurationOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
+            <Border Margin="12" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8">
                 <local:MachineConfigurationView x:Name="MachineConfigurationView" />
             </Border>
         </Grid>
 
         <Grid x:Name="LoginShell" HorizontalAlignment="Center" VerticalAlignment="Center" Width="420" MaxWidth="520" Padding="24">
-            <Border Background="#111C2D" BorderBrush="#40516A" BorderThickness="1" CornerRadius="12" Padding="28">
+            <Border Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" CornerRadius="12" Padding="28">
                 <StackPanel Spacing="14">
-                    <TextBlock Text="SISTEMA BLAPACI" FontSize="26" FontWeight="Bold" Foreground="#E6EDF7" />
-                    <TextBox x:Name="UsernameTextBox" Header="Usuario" MaxLength="15" Foreground="#F1F5F9" />
-                    <PasswordBox x:Name="PasswordInput" Header="Contraseña" MaxLength="15" Foreground="#F1F5F9" />
-                    <TextBlock x:Name="LoginErrorText" Visibility="Collapsed" Foreground="#FF8A80" TextWrapping="WrapWholeWords" />
+                    <TextBlock Text="SISTEMA BLAPACI" FontSize="26" FontWeight="Bold" Foreground="{ThemeResource PaletteE6EDF7}" />
+                    <TextBox x:Name="UsernameTextBox" Header="Usuario" MaxLength="15" Foreground="{ThemeResource PaletteF1F5F9}" />
+                    <PasswordBox x:Name="PasswordInput" Header="Contraseña" MaxLength="15" Foreground="{ThemeResource PaletteF1F5F9}" />
+                    <TextBlock x:Name="LoginErrorText" Visibility="Collapsed" Foreground="{ThemeResource PaletteFF8A80}" TextWrapping="WrapWholeWords" />
                     <ProgressRing x:Name="LoginProgress" IsActive="False" Visibility="Collapsed" Width="28" Height="28" HorizontalAlignment="Center" />
                     <Button x:Name="LoginButton" Content="Ingresar" Click="LoginButton_Click" HorizontalAlignment="Stretch" Padding="12,10" Style="{StaticResource DefaultButtonStyle}" />
                 </StackPanel>

@@ -31,8 +31,23 @@ public sealed partial class MachineConfigurationView : UserControl
         ["AGUA"] = "#22B7FF",
         ["FIBRAS"] = "#24B64B"
     };
+    private static readonly IReadOnlyDictionary<string, string> LightThemeColors = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+    {
+        ["#9BB52A"] = "#657B00",
+        ["#4D7EFF"] = "#315BCC",
+        ["#FF641C"] = "#C94300",
+        ["#22B7FF"] = "#007CAB",
+        ["#24B64B"] = "#16803A",
+        ["#162033"] = "#FFFFFF",
+        ["#E6EDF7"] = "#253244",
+        ["#A9B8CC"] = "#586779",
+        ["#40516A"] = "#B3C0CE",
+        ["#FF8A80"] = "#B42318",
+        ["#72D49A"] = "#137A45"
+    };
 
     private readonly MachineConfigurationService _service = new();
+    private readonly Dictionary<string, SolidColorBrush> _themeBrushes = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, ComboBox> _materialPickers = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> _selectedMaterials = new(StringComparer.Ordinal);
     private readonly Dictionary<string, NumberBox> _humidityInputs = new(StringComparer.Ordinal);
@@ -42,6 +57,7 @@ public sealed partial class MachineConfigurationView : UserControl
     private readonly HashSet<string> _missingMaterialAssignments = new(StringComparer.Ordinal);
     private bool _isLoading;
     private bool _isEditing;
+    private ElementTheme _theme = ElementTheme.Dark;
 
     public event EventHandler? CloseRequested;
     public event EventHandler<string>? MachineNameSaved;
@@ -53,6 +69,16 @@ public sealed partial class MachineConfigurationView : UserControl
     {
         InitializeComponent();
         BuildForm();
+    }
+
+    public void ApplyTheme(ElementTheme theme)
+    {
+        _theme = theme;
+        RequestedTheme = theme;
+        foreach (var (color, brush) in _themeBrushes)
+        {
+            brush.Color = ParseColor(ResolveThemeColor(color, theme));
+        }
     }
 
     public async Task LoadAsync()
@@ -218,7 +244,7 @@ public sealed partial class MachineConfigurationView : UserControl
         FormContent.Children.Add(BuildMachineGroup());
     }
 
-    private static Border BuildAdjustmentGroup(string title, string parameterPrefix, Dictionary<string, NumberBox> inputs)
+    private Border BuildAdjustmentGroup(string title, string parameterPrefix, Dictionary<string, NumberBox> inputs)
     {
         var layout = new Grid { ColumnSpacing = 16, RowSpacing = 8 };
         for (var column = 0; column < 4; column++)
@@ -671,12 +697,28 @@ public sealed partial class MachineConfigurationView : UserControl
     private static string FormatNumber(double value) =>
         double.IsFinite(value) ? value.ToString("0.##", CultureInfo.InvariantCulture) : "0";
 
-    private static SolidColorBrush Brush(string color) =>
-        new(Microsoft.UI.ColorHelper.FromArgb(
+    private SolidColorBrush Brush(string color)
+    {
+        if (!_themeBrushes.TryGetValue(color, out var brush))
+        {
+            brush = new SolidColorBrush(ParseColor(ResolveThemeColor(color, _theme)));
+            _themeBrushes.Add(color, brush);
+        }
+
+        return brush;
+    }
+
+    private static string ResolveThemeColor(string color, ElementTheme theme) =>
+        theme == ElementTheme.Light && LightThemeColors.TryGetValue(color, out var lightColor)
+            ? lightColor
+            : color;
+
+    private static Windows.UI.Color ParseColor(string color) =>
+        Microsoft.UI.ColorHelper.FromArgb(
             255,
             Convert.ToByte(color[1..3], 16),
             Convert.ToByte(color[3..5], 16),
-            Convert.ToByte(color[5..7], 16)));
+            Convert.ToByte(color[5..7], 16));
 
     private static void SetInputsEnabled(UIElement element, bool isEnabled)
     {
