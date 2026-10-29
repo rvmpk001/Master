@@ -6,7 +6,8 @@
     <RootNamespace>Master_WinUI</RootNamespace>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon Condition="Exists('Assets\AppIcon.ico')">Assets\AppIcon.ico</ApplicationIcon>
-    <Platforms>x86;x64;ARM64</Platforms>
+    <Platforms>x86</Platforms>
+    <PlatformTarget>x86</PlatformTarget>
     <PublishProfile Condition="Exists('Properties\PublishProfiles\win-$(Platform).pubxml')">win-$(Platform).pubxml</PublishProfile>
     <UseWinUI>true</UseWinUI>
     <WinUISDKReferences>false</WinUISDKReferences>
@@ -64,6 +65,33 @@
   <PropertyGroup Condition="'$(DisableHasPackageAndPublishMenuAddedByProject)'!='true' and '$(EnableMsixTooling)'=='true'">
     <HasPackageAndPublishMenu>true</HasPackageAndPublishMenu>
   </PropertyGroup>
+
+  <Target Name="BuildPlcProbe" BeforeTargets="Build">
+    <MSBuild
+      Projects="$(MSBuildProjectDirectory)\..\Master.PlcProbe\Master.PlcProbe.csproj"
+      Targets="Build"
+      Properties="Configuration=$(Configuration);Platform=x86" />
+  </Target>
+
+  <Target Name="CopyPlcProbeToOutput" AfterTargets="Build">
+    <ItemGroup>
+      <PlcProbeFiles Include="$(MSBuildProjectDirectory)\..\Master.PlcProbe\bin\$(Platform)\$(Configuration)\net48\**\*.*" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(PlcProbeFiles)"
+      DestinationFiles="@(PlcProbeFiles->'$(OutDir)PlcProbe\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyPlcProbeToPublish" AfterTargets="Publish">
+    <ItemGroup>
+      <PlcProbePublishFiles Include="$(MSBuildProjectDirectory)\..\Master.PlcProbe\bin\$(Platform)\$(Configuration)\net48\**\*.*" />
+    </ItemGroup>
+    <Copy
+      SourceFiles="@(PlcProbePublishFiles)"
+      DestinationFiles="@(PlcProbePublishFiles->'$(PublishDir)PlcProbe\%(RecursiveDir)%(Filename)%(Extension)')"
+      SkipUnchangedFiles="true" />
+  </Target>
 
   <!-- Publish Properties -->
   <PropertyGroup>

@@ -36,8 +36,10 @@ public sealed partial class MainPage : Page
     };
 
     private readonly DispatcherQueueTimer _clockTimer;
+    private readonly DispatcherQueueTimer _plcStatusTimer;
     private readonly ThemeBrushSet _themeBrushes = new();
     private readonly AuthenticationService _authenticationService = new();
+    private readonly PlcCommunicationService _plcCommunicationService = new();
     private readonly AccessConfigurationService _accessConfigurationService = new();
     private readonly InventoryService _inventoryService = new();
     private readonly FormulaService _formulaService = new();
@@ -98,6 +100,9 @@ public sealed partial class MainPage : Page
     private Border? _movingCanvasControl;
     private Windows.Foundation.Point _canvasControlPointerOffset;
     private bool _isCanvasLocked;
+    private bool _isPlcStatusCheckRunning;
+    private PlcConnectionState? _lastPlcConnectionState;
+    private string? _lastPlcStatusDetail;
 
     public ObservableCollection<MaterialRow> MaterialRows { get; } = new()
     {
@@ -173,6 +178,7 @@ public sealed partial class MainPage : Page
         };
         MachineConfigurationView.DashboardOptionsChanged += ApplyMachineDashboardOptions;
         Loaded += MainPage_Loaded;
+        Unloaded += MainPage_Unloaded;
         ConfigurationView.CloseRequested += (_, _) =>
         {
             ConfigurationFormOverlay.Visibility = Visibility.Collapsed;
@@ -213,6 +219,9 @@ public sealed partial class MainPage : Page
         _clockTimer.Interval = TimeSpan.FromSeconds(1);
         _clockTimer.Tick += ClockTimer_Tick;
         _clockTimer.Start();
+        _plcStatusTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
+        _plcStatusTimer.Interval = TimeSpan.FromSeconds(5);
+        _plcStatusTimer.Tick += PlcStatusTimer_Tick;
     }
 
     private async void MainPage_Loaded(object sender, RoutedEventArgs e)
@@ -268,6 +277,55 @@ public sealed partial class MainPage : Page
         {
             ModuleStatusText.Text = exception.Message;
             UpdateCanvasEditMode();
+        }
+    }
+
+    private void MainPage_Unloaded(object sender, RoutedEventArgs e)
+    {
+        _plcStatusTimer.Stop();
+    }
+
+    private async void PlcStatusTimer_Tick(DispatcherQueueTimer sender, object args)
+    {
+        await RefreshPlcStatusAsync();
+    }
+
+    private async Task RefreshPlcStatusAsync()
+    {
+        if (_isPlcStatusCheckRunning)
+        {
+            return;
+        }
+
+        _isPlcStatusCheckRunning = true;
+        try
+        {
+            var status = await _plcCommunicationService.CheckConnectionAsync();
+            var message = status.State switch
+            {
+                PlcConnectionState.Connected => $"Sesión iniciada • PLC conectado ({status.Port})",
+                PlcConnectionState.Disconnected => $"Sesión iniciada • PLC sin comunicación ({status.Port})",
+                PlcConnectionState.PortBusy => $"Sesión iniciada • puerto PLC ocupado ({status.Port})",
+                _ => "Sesión iniciada • PLC sin verificar"
+            };
+            var color = status.State switch
+            {
+                PlcConnectionState.Connected => "#72D49A",
+                PlcConnectionState.Disconnected or PlcConnectionState.PortBusy => "#F87171",
+                _ => "#FBBF24"
+            };
+
+            SetSystemStatus(message, color, status.Detail);
+            if (_lastPlcConnectionState != status.State || _lastPlcStatusDetail != status.Detail)
+            {
+                ModuleStatusText.Text = $"Estado PLC: {status.Detail}";
+                _lastPlcConnectionState = status.State;
+                _lastPlcStatusDetail = status.Detail;
+            }
+        }
+        finally
+        {
+            _isPlcStatusCheckRunning = false;
         }
     }
 
@@ -4206,10 +4264,13 @@ public sealed partial class MainPage : Page
             CurrentRoleText.Text = $"TIPO: {user.Role}";
             _authenticatedUserId = user.UserId;
             _authenticatedUsername = user.Username;
+            SetSystemStatus("Sesión iniciada • verificando configuración...", "#FBBF24");
             await RefreshCurrentUserPermissionsAsync();
             LoginShell.Visibility = Visibility.Collapsed;
             DashboardShell.Visibility = Visibility.Visible;
             await LoadPlantNameAsync();
+            _plcStatusTimer.Start();
+            await RefreshPlcStatusAsync();
         }
         catch (SqlException)
         {
@@ -4227,29 +4288,67 @@ public sealed partial class MainPage : Page
     {
         PlantNameTextBlock.Text = "Cargando planta...";
         MachineNameTextBlock.Text = "Cargando máquina...";
+        var errors = new List<string>();
+
         try
         {
             var plantName = await _companyConfigurationService.GetPlantNameAsync();
             if (string.IsNullOrWhiteSpace(plantName))
             {
                 PlantNameTextBlock.Text = "Planta no configurada";
-                ModuleStatusText.Text = "No se encontró un valor para Param = 'ptl' en dbo.Cia_Datos.";
+                errors.Add("No se encontró un valor para Param = 'ptl' en dbo.Cia_Datos.");
             }
             else
             {
                 PlantNameTextBlock.Text = plantName;
             }
-
-            var machineName = await _companyConfigurationService.GetMachineNameAsync();
-            MachineNameTextBlock.Text = string.IsNullOrWhiteSpace(machineName) ? "Máquina no configurada" : machineName;
-            ApplyMachineDashboardOptions(await _machineConfigurationService.GetDashboardOptionsAsync());
         }
         catch (SqlException exception)
         {
             PlantNameTextBlock.Text = "Planta no disponible";
-            MachineNameTextBlock.Text = "Máquina no disponible";
-            ModuleStatusText.Text = $"No se pudo cargar el nombre de la planta desde dbo.Cia_Datos (SQL {exception.Number}): {exception.Message}";
+            errors.Add($"No se pudo cargar la planta desde dbo.Cia_Datos (SQL {exception.Number}): {exception.Message}");
         }
+
+        try
+        {
+            var machineName = await _companyConfigurationService.GetMachineNameAsync();
+            MachineNameTextBlock.Text = string.IsNullOrWhiteSpace(machineName) ? "Máquina no configurada" : machineName;
+            if (string.IsNullOrWhiteSpace(machineName))
+            {
+                errors.Add("No se encontró un valor para Param = 'Mq' en dbo.ConfigMaq.");
+            }
+        }
+        catch (SqlException exception)
+        {
+            MachineNameTextBlock.Text = "Máquina no disponible";
+            errors.Add($"No se pudo cargar la máquina desde dbo.ConfigMaq (SQL {exception.Number}): {exception.Message}");
+        }
+
+        try
+        {
+            ApplyMachineDashboardOptions(await _machineConfigurationService.GetDashboardOptionsAsync());
+        }
+        catch (SqlException exception)
+        {
+            errors.Add($"No se pudieron cargar las opciones del tablero (SQL {exception.Number}): {exception.Message}");
+        }
+
+        if (errors.Count == 0)
+        {
+            SetSystemStatus("Sesión iniciada • PLC: estado no comprobado", "#FBBF24");
+        }
+        else
+        {
+            SetSystemStatus("Sesión iniciada • configuración incompleta • PLC: estado no comprobado", "#FBBF24");
+            ModuleStatusText.Text = string.Join(Environment.NewLine, errors);
+        }
+    }
+
+    private void SetSystemStatus(string message, string color, string? detail = null)
+    {
+        SystemStatusText.Text = message;
+        SystemStatusText.Foreground = _themeBrushes.GetBrush(color);
+        ToolTipService.SetToolTip(SystemStatusText, detail ?? message);
     }
 
     private void ShowLoginError(string message)

@@ -1006,7 +1006,7 @@ public sealed partial class ConfigurationView : UserControl
         RegisterPlcSelector("DirPLC", AddPlcSelector(
             communication,
             "Dirección PLC",
-            Enumerable.Range(0, 65).Select(value => value.ToString()),
+            Enumerable.Range(0, 128).Select(value => value.ToString()),
             "1"));
 
         var connection = AddSection(communication, "Preferencias de Conexión");

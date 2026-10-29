@@ -30,6 +30,15 @@ adapta sus paneles al tamaño de la ventana, usando desplazamiento cuando el
 ancho disponible no permite mostrar todas las tablas.
 
 Los datos visibles del tablero son de referencia y no están conectados al PLC.
+Después del inicio de sesión, el estado inferior comprueba periódicamente la
+comunicación serial mediante `Master.PlcProbe`, un auxiliar x86 para .NET
+Framework 4.8 que carga el driver Unitronics en su modo XML original. Solo se
+muestra el PLC conectado cuando el auxiliar recibe una lectura real de MI en la
+dirección `AnalogInitial` de `dbo.Comunicacion`; libera el puerto al terminar
+cada comprobación. Los detalles del error están disponibles en la ayuda del
+estado. Esta comprobación es de solo lectura; no implementa ni modifica las
+acciones de producción que dependen del PLC. La compilación de la solución debe
+realizarse para x86 y el equipo debe disponer de .NET Framework 4.8.
 La navegación y las acciones de datos consultan el perfil asignado al usuario
 autenticado en `dbo.Perfiles` y sus permisos en `dbo.PerfilDetalle`, respetando
 la jerarquía `Padre`. `Estatus` controla el acceso al módulo; Alta, Editar,

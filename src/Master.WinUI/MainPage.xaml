@@ -347,7 +347,7 @@
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="CurrentUserText" Text="USUARIO:" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" />
             <TextBlock x:Name="CurrentRoleText" Grid.Column="1" Text="TIPO:" FontSize="10" FontWeight="SemiBold" Margin="24,0,0,0" VerticalAlignment="Center" />
-            <TextBlock x:Name="SystemStatusText" Grid.Column="2" Text="Sin conexión con PLC ni base de datos" Foreground="{ThemeResource PaletteFBBF24}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+            <TextBlock x:Name="SystemStatusText" Grid.Column="2" Text="Esperando inicio de sesión" Foreground="{ThemeResource PaletteFBBF24}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
             <TextBlock x:Name="ClockText" Grid.Column="3" FontSize="10" VerticalAlignment="Center" />
         </Grid>
 
