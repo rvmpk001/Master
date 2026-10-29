@@ -15,7 +15,7 @@ public sealed class AuthenticationService
         await connection.OpenAsync(cancellationToken);
 
         const string query = """
-            SELECT TOP (1) Usuario, Clase
+            SELECT TOP (1) IdUsuario, Usuario, Clase
             FROM dbo.[Password]
             WHERE Usuario = @Username AND [Password] = @Password
             ORDER BY IdUsuario;
@@ -32,9 +32,10 @@ public sealed class AuthenticationService
         }
 
         return new AuthenticatedUser(
-            reader.GetString(0),
-            reader.IsDBNull(1) ? "Usuario" : reader.GetString(1));
+            reader.GetInt32(0),
+            reader.GetString(1),
+            reader.IsDBNull(2) ? "Usuario" : reader.GetString(2));
     }
 }
 
-public sealed record AuthenticatedUser(string Username, string Role);
+public sealed record AuthenticatedUser(int UserId, string Username, string Role);

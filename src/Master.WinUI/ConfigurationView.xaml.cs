@@ -25,6 +25,7 @@ public sealed partial class ConfigurationView : UserControl
     private readonly Dictionary<string, (TextBox Width, TextBox Height)> _imageSizeFields = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, MessageFields> _messageFields = new(StringComparer.OrdinalIgnoreCase);
     private readonly MessageConfigurationService _messageConfigurationService = new();
+    private readonly AccessConfigurationService _accessConfigurationService = new();
     private readonly Dictionary<string, ComboBox> _additionalSelectors = new(StringComparer.OrdinalIgnoreCase);
     private readonly AdditionalConfigurationService _additionalConfigurationService = new();
     private readonly OrderService _orderService = new();
@@ -65,13 +66,46 @@ public sealed partial class ConfigurationView : UserControl
     private bool _databaseOperationInProgress;
     private int _selectedConfigurationTab;
     private int? _remissionSettingsId;
+    private ListView? _accessProfilesList;
+    private TreeView? _accessPermissionsTree;
+    private Grid? _accessLayoutGrid;
+    private FrameworkElement? _accessUsersSection;
+    private FrameworkElement? _accessPermissionsSection;
+    private bool _loadingAccessProfiles;
+    private int _accessProfileLoadVersion;
+    private readonly List<AccessPermissionControl> _accessPermissionControls = new();
+    private StackPanel? _remissionGeneralHost;
+    private StackPanel? _remissionNumberingHost;
+    private StackPanel? _remissionPrintFormatHost;
+    private StackPanel? _databaseBackupsHost;
+    private StackPanel? _orderConfigurationHost;
+    private StackPanel? _orderSchedulesHost;
+    private bool _backupToolsOnly;
 
     public event EventHandler? CloseRequested;
+    public event EventHandler? AccessPermissionsSaved;
+    public Func<int, bool>? CanSaveConfigurationTab { get; set; }
+    public Func<string, bool>? HasProfileModuleAccess { get; set; }
+    public Func<string, string, bool>? HasProfileAction { get; set; }
 
     public ConfigurationView()
     {
         InitializeComponent();
         BuildTabs();
+    }
+
+    public void ShowBackupToolsOnly(bool backupToolsOnly)
+    {
+        _backupToolsOnly = backupToolsOnly;
+        if (_remissionGeneralHost is null
+            || _remissionNumberingHost is null
+            || _remissionPrintFormatHost is null
+            || _databaseBackupsHost is null)
+        {
+            return;
+        }
+
+        RefreshProfilePermissions();
     }
 
     public async Task LoadImageConfigurationAsync(bool isOn)
@@ -109,6 +143,197 @@ public sealed partial class ConfigurationView : UserControl
         {
             ShowStatus($"No se pudieron cargar las imágenes: {exception.Message}", InfoBarSeverity.Error);
         }
+    }
+
+    public async Task LoadAccessProfilesAsync()
+    {
+        if (_accessProfilesList is null)
+        {
+            throw new InvalidOperationException("La lista de perfiles no está inicializada.");
+        }
+
+        try
+        {
+            var profiles = await _accessConfigurationService.GetProfilesAsync();
+            _loadingAccessProfiles = true;
+            try
+            {
+                _accessProfilesList.ItemsSource = profiles;
+                _accessProfilesList.SelectedIndex = profiles.Count > 0 ? 0 : -1;
+            }
+            finally
+            {
+                _loadingAccessProfiles = false;
+            }
+
+            if (_accessProfilesList.SelectedItem is AccessProfile selectedProfile)
+            {
+                await LoadAccessPermissionsAsync(selectedProfile);
+            }
+            else
+            {
+                _accessPermissionsTree?.RootNodes.Clear();
+                _accessPermissionControls.Clear();
+                ShowStatus("No hay perfiles registrados en dbo.Perfiles.", InfoBarSeverity.Warning);
+            }
+        }
+        catch (SqlException exception)
+        {
+            ShowStatus($"No se pudieron cargar los perfiles (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ShowStatus($"No se pudieron cargar los perfiles: {exception.Message}", InfoBarSeverity.Error);
+        }
+    }
+
+    private async void AccessProfilesList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (!_loadingAccessProfiles && _accessProfilesList?.SelectedItem is AccessProfile profile)
+        {
+            _accessPermissionsTree?.RootNodes.Clear();
+            _accessPermissionControls.Clear();
+            await LoadAccessPermissionsAsync(profile);
+        }
+    }
+
+    private async Task LoadAccessPermissionsAsync(AccessProfile profile)
+    {
+        if (_accessPermissionsTree is null)
+        {
+            throw new InvalidOperationException("El árbol de accesos no está inicializado.");
+        }
+
+        var loadVersion = ++_accessProfileLoadVersion;
+        ShowStatus($"Cargando los accesos de {profile.Name}...", InfoBarSeverity.Informational);
+        try
+        {
+            var entries = await _accessConfigurationService.GetPermissionEntriesAsync(profile.Id);
+            if (_accessProfilesList?.SelectedItem is not AccessProfile selectedProfile
+                || selectedProfile.Id != profile.Id
+                || loadVersion != _accessProfileLoadVersion)
+            {
+                return;
+            }
+
+            BuildAccessPermissionTree(entries);
+            ShowStatus(
+                entries.Count == 0
+                    ? $"No hay accesos registrados en dbo.PerfilDetalle para {profile.Name}."
+                    : entries[0].TemplateProfileId is int
+                        ? $"El perfil {profile.Name} no tiene accesos propios; se muestran opciones desmarcadas para asignar."
+                        : $"Accesos de {profile.Name} cargados desde dbo.PerfilDetalle.",
+                entries.Count == 0 || entries[0].TemplateProfileId.HasValue
+                    ? InfoBarSeverity.Warning
+                    : InfoBarSeverity.Success);
+        }
+        catch (SqlException exception)
+        {
+            if (loadVersion != _accessProfileLoadVersion)
+            {
+                return;
+            }
+
+            _accessPermissionsTree.RootNodes.Clear();
+            _accessPermissionControls.Clear();
+            ShowStatus($"No se pudieron cargar los accesos (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
+        }
+        catch (InvalidOperationException exception)
+        {
+            if (loadVersion != _accessProfileLoadVersion)
+            {
+                return;
+            }
+
+            _accessPermissionsTree.RootNodes.Clear();
+            _accessPermissionControls.Clear();
+            ShowStatus($"No se pudieron cargar los accesos: {exception.Message}", InfoBarSeverity.Error);
+        }
+    }
+
+    private void BuildAccessPermissionTree(IReadOnlyList<AccessPermissionEntry> entries)
+    {
+        _accessPermissionsTree!.RootNodes.Clear();
+        _accessPermissionControls.Clear();
+        var sortedEntries = entries
+            .OrderBy(GetAccessPermissionTitle, StringComparer.CurrentCultureIgnoreCase)
+            .ThenBy(entry => entry.DetailId)
+            .ToArray();
+
+        var nodesByOption = new Dictionary<string, TreeViewNode>(StringComparer.OrdinalIgnoreCase);
+        var nodesByDetailId = new Dictionary<int, TreeViewNode>();
+        foreach (var entry in sortedEntries)
+        {
+            var node = new TreeViewNode { IsExpanded = true };
+            node.Content = CreateAccessCheckBox(
+                GetAccessPermissionTitle(entry),
+                entry.DetailId,
+                "Estatus",
+                entry.IsEnabled,
+                entry.TemplateProfileId);
+            if (!string.IsNullOrWhiteSpace(entry.Option))
+            {
+                nodesByOption.TryAdd(entry.Option, node);
+            }
+            nodesByDetailId.Add(entry.DetailId, node);
+
+            foreach (var action in entry.Actions.OrderBy(
+                         action => action.Title,
+                         StringComparer.CurrentCultureIgnoreCase))
+            {
+                var actionNode = new TreeViewNode();
+                actionNode.Content = CreateAccessCheckBox(
+                    action.Title,
+                    entry.DetailId,
+                    action.Column,
+                    action.IsEnabled,
+                    entry.TemplateProfileId);
+                node.Children.Add(actionNode);
+            }
+        }
+
+        foreach (var entry in sortedEntries)
+        {
+            var node = nodesByDetailId[entry.DetailId];
+            if (!string.IsNullOrWhiteSpace(entry.ParentOption)
+                && nodesByOption.TryGetValue(entry.ParentOption, out var parentNode)
+                && !ReferenceEquals(parentNode, node))
+            {
+                parentNode.Children.Add(node);
+            }
+            else
+            {
+                _accessPermissionsTree!.RootNodes.Add(node);
+            }
+        }
+    }
+
+    private static string GetAccessPermissionTitle(AccessPermissionEntry entry)
+    {
+        if (!string.IsNullOrWhiteSpace(entry.Title))
+        {
+            return entry.Title;
+        }
+
+        return string.IsNullOrWhiteSpace(entry.Option)
+            ? $"Detalle {entry.DetailId}"
+            : entry.Option;
+    }
+
+    private CheckBox CreateAccessCheckBox(
+        string title,
+        int detailId,
+        string column,
+        bool isEnabled,
+        int? templateProfileId)
+    {
+        var checkBox = new CheckBox { Content = title, IsChecked = isEnabled };
+        _accessPermissionControls.Add(new AccessPermissionControl(
+            checkBox,
+            detailId,
+            column,
+            templateProfileId));
+        return checkBox;
     }
 
     public async Task LoadRemissionConfigurationAsync()
@@ -384,6 +609,9 @@ public sealed partial class ConfigurationView : UserControl
         }
 
         _selectedConfigurationTab = index;
+        SaveButton.IsEnabled = !_backupToolsOnly && CanSaveConfigurationTab?.Invoke(index) == true;
+        RefreshProfilePermissions();
+        PlcContentHost.Visibility = Visibility.Collapsed;
         CompanyContentHost.Visibility = Visibility.Collapsed;
         RemissionContentHost.Visibility = Visibility.Collapsed;
         ImagesOnContentHost.Visibility = Visibility.Collapsed;
@@ -392,6 +620,7 @@ public sealed partial class ConfigurationView : UserControl
         MessagesContentHost.Visibility = Visibility.Collapsed;
         AdditionalContentHost.Visibility = Visibility.Collapsed;
         OrdersContentHost.Visibility = Visibility.Collapsed;
+        AccessContentHost.Visibility = Visibility.Collapsed;
 
         if (index == 1 && onlySelectedTab)
         {
@@ -459,13 +688,18 @@ public sealed partial class ConfigurationView : UserControl
         if (index == 9 && onlySelectedTab)
         {
             ConfigurationTabs.Visibility = Visibility.Collapsed;
-            PlcContentHost.Visibility = Visibility.Collapsed;
             OrdersContentHost.Visibility = Visibility.Visible;
             return;
         }
 
+        if (index == 10 && onlySelectedTab)
+        {
+            ConfigurationTabs.Visibility = Visibility.Collapsed;
+            AccessContentHost.Visibility = Visibility.Visible;
+            return;
+        }
+
         ConfigurationTabs.Visibility = Visibility.Visible;
-        PlcContentHost.Visibility = Visibility.Collapsed;
 
         for (var tabIndex = 0; tabIndex < ConfigurationTabs.TabItems.Count; tabIndex++)
         {
@@ -663,6 +897,13 @@ public sealed partial class ConfigurationView : UserControl
         {
             ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
             OrdersContentHost.Content = scrollViewer;
+            return;
+        }
+
+        if (index == 10)
+        {
+            ((TabViewItem)ConfigurationTabs.TabItems[index]).Visibility = Visibility.Collapsed;
+            AccessContentHost.Content = scrollViewer;
             return;
         }
 
@@ -1199,6 +1440,7 @@ public sealed partial class ConfigurationView : UserControl
         layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
 
         var generalHost = new StackPanel();
+        _remissionGeneralHost = generalHost;
         var general = AddSection(generalHost, "Opciones generales");
         AddRemissionCheckBox(general, "NomCia", "Colocar nombre de compañía en remisión");
         AddRemissionCheckBox(general, "ImpLineas", "Imprimir líneas y títulos en remisión");
@@ -1210,12 +1452,14 @@ public sealed partial class ConfigurationView : UserControl
         AddRemissionTextField(general, "NumCopias", "Número de copias");
 
         var numberingHost = new StackPanel();
+        _remissionNumberingHost = numberingHost;
         var numbering = AddSection(numberingHost, "Folio y leyendas");
         AddRemissionTextField(numbering, "Leyendas", "Leyenda copia");
         AddRemissionTextField(numbering, "Subfijo", "Sufijo remisión");
         AddRemissionTextField(numbering, "Numremision", "Número remisión");
 
         var printFormatHost = new StackPanel();
+        _remissionPrintFormatHost = printFormatHost;
         var printFormat = AddSection(printFormatHost, "Formato de impresión");
         AddRemissionTextField(printFormat, "Opacidad", "Opacidad");
         AddRemissionTextField(printFormat, "Tamaño", "Tamaño");
@@ -1243,6 +1487,7 @@ public sealed partial class ConfigurationView : UserControl
         layout.Children.Add(printFormatHost);
 
         var backupsHost = new StackPanel { Spacing = 12 };
+        _databaseBackupsHost = backupsHost;
         var reportsSection = AddSection(backupsHost, "Respaldo y carga de reportes");
         reportsSection.Orientation = Orientation.Horizontal;
         reportsSection.Spacing = 12;
@@ -1298,6 +1543,7 @@ public sealed partial class ConfigurationView : UserControl
     {
         await ExportSqlBackupAsync(
             "Respaldo-Reportes",
+            "Respaldar Reportes",
             path => _databaseBackupService.ExportReportsAsync(path),
             "Respaldo de dbo.Reportes guardado en");
     }
@@ -1306,13 +1552,14 @@ public sealed partial class ConfigurationView : UserControl
     {
         await ExportSqlBackupAsync(
             "Respaldo-BlapaciSQL",
+            "Respaldar DB",
             path => _databaseBackupService.ExportDatabaseAsync(path),
             "Respaldo de estructura de tablas y datos guardado en");
     }
 
     private async void RestoreReports_Click(object sender, RoutedEventArgs e)
     {
-        if (!TryBeginDatabaseOperation())
+        if (!TryBeginDatabaseOperation("Respaldar Reportes"))
         {
             return;
         }
@@ -1347,7 +1594,7 @@ public sealed partial class ConfigurationView : UserControl
 
     private async void RestoreDatabase_Click(object sender, RoutedEventArgs e)
     {
-        if (!TryBeginDatabaseOperation())
+        if (!TryBeginDatabaseOperation("Respaldar DB"))
         {
             return;
         }
@@ -1380,9 +1627,13 @@ public sealed partial class ConfigurationView : UserControl
         }
     }
 
-    private async Task ExportSqlBackupAsync(string suggestedName, Func<string, Task> export, string successMessage)
+    private async Task ExportSqlBackupAsync(
+        string suggestedName,
+        string permissionModule,
+        Func<string, Task> export,
+        string successMessage)
     {
-        if (!TryBeginDatabaseOperation())
+        if (!TryBeginDatabaseOperation(permissionModule))
         {
             return;
         }
@@ -1410,14 +1661,81 @@ public sealed partial class ConfigurationView : UserControl
 
     private Button CreateDatabaseActionButton(string text, RoutedEventHandler handler)
     {
-        var button = new Button { Content = text, MinWidth = 180 };
+        var permissionModule = text.Contains("Reporte", StringComparison.OrdinalIgnoreCase)
+            ? "Respaldar Reportes"
+            : "Respaldar DB";
+        var button = new Button { Content = text, MinWidth = 180, Tag = permissionModule };
         button.Click += handler;
         _databaseActionButtons.Add(button);
         return button;
     }
 
-    private bool TryBeginDatabaseOperation()
+    public void RefreshProfilePermissions()
     {
+        foreach (var button in _databaseActionButtons)
+        {
+            button.IsEnabled = !_databaseOperationInProgress
+                && button.Tag is string module
+                && HasProfileModuleAccess?.Invoke(module) == true;
+        }
+
+        var remissionSettingsVisible = !_backupToolsOnly
+            && HasProfileModuleAccess?.Invoke("Datos Remision") == true;
+        var settingsVisibility = remissionSettingsVisible ? Visibility.Visible : Visibility.Collapsed;
+        if (_remissionGeneralHost is not null)
+        {
+            _remissionGeneralHost.Visibility = settingsVisibility;
+        }
+
+        if (_remissionNumberingHost is not null)
+        {
+            _remissionNumberingHost.Visibility = settingsVisibility;
+        }
+
+        if (_remissionPrintFormatHost is not null)
+        {
+            _remissionPrintFormatHost.Visibility = settingsVisibility;
+        }
+
+        if (_databaseBackupsHost is not null)
+        {
+            _databaseBackupsHost.Visibility = Visibility.Visible;
+        }
+
+        if (_orderConfigurationHost is not null)
+        {
+            _orderConfigurationHost.Visibility =
+                HasProfileModuleAccess?.Invoke("Configurar Pedido") == true
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+        }
+
+        if (_orderSchedulesHost is not null)
+        {
+            _orderSchedulesHost.Visibility =
+                HasProfileModuleAccess?.Invoke("Turnos") == true
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
+        }
+
+        SaveButton.Visibility = _backupToolsOnly ? Visibility.Collapsed : Visibility.Visible;
+        SaveButton.IsEnabled = !_backupToolsOnly
+            && CanSaveConfigurationTab?.Invoke(_selectedConfigurationTab) == true;
+    }
+
+    private bool CanSaveProfileModule(string module) =>
+        HasProfileModuleAccess?.Invoke(module) == true
+        && (HasProfileAction?.Invoke(module, "Editar") == true
+            || HasProfileAction?.Invoke(module, "Alta") == true);
+
+    private bool TryBeginDatabaseOperation(string permissionModule)
+    {
+        if (HasProfileModuleAccess?.Invoke(permissionModule) != true)
+        {
+            ShowStatus($"Tu perfil no tiene acceso a {permissionModule}.", InfoBarSeverity.Error);
+            return false;
+        }
+
         if (_databaseOperationInProgress)
         {
             return false;
@@ -1434,10 +1752,7 @@ public sealed partial class ConfigurationView : UserControl
     private void EndDatabaseOperation()
     {
         _databaseOperationInProgress = false;
-        foreach (var button in _databaseActionButtons)
-        {
-            button.IsEnabled = true;
-        }
+        RefreshProfilePermissions();
     }
 
     private async Task<string?> PickSqlFileAsync(bool save, string suggestedName)
@@ -1901,7 +2216,8 @@ public sealed partial class ConfigurationView : UserControl
 
     private void BuildOrders(StackPanel host)
     {
-        host.Spacing = 18;
+        var configurationHost = new StackPanel { Spacing = 18 };
+        _orderConfigurationHost = configurationHost;
 
         var options = new Grid
         {
@@ -1959,7 +2275,7 @@ public sealed partial class ConfigurationView : UserControl
         Grid.SetColumn(flags, 1);
         Grid.SetColumnSpan(flags, 3);
         options.Children.Add(flags);
-        host.Children.Add(options);
+        configurationHost.Children.Add(options);
 
         var fields = new Grid
         {
@@ -1994,8 +2310,11 @@ public sealed partial class ConfigurationView : UserControl
                     : new GridLength(0);
             }
         };
-        host.Children.Add(fields);
+        configurationHost.Children.Add(fields);
+        host.Children.Add(configurationHost);
 
+        var schedulesHost = new StackPanel { Spacing = 8 };
+        _orderSchedulesHost = schedulesHost;
         _orderScheduleRows.Children.Clear();
         _orderScheduleRows.Spacing = 8;
         _orderScheduleRows.HorizontalAlignment = HorizontalAlignment.Stretch;
@@ -2005,7 +2324,7 @@ public sealed partial class ConfigurationView : UserControl
             string.Empty,
             new TimeSpan(13, 20, 0),
             new TimeSpan(13, 20, 0)));
-        host.Children.Add(_orderScheduleRows);
+        schedulesHost.Children.Add(_orderScheduleRows);
 
         _orderConditionsField = new TextBox
         {
@@ -2016,7 +2335,8 @@ public sealed partial class ConfigurationView : UserControl
             HorizontalAlignment = HorizontalAlignment.Stretch,
             VerticalContentAlignment = VerticalAlignment.Top
         };
-        host.Children.Add(_orderConditionsField);
+        schedulesHost.Children.Add(_orderConditionsField);
+        host.Children.Add(schedulesHost);
     }
 
     private ComboBox AddOrderField(
@@ -2185,44 +2505,97 @@ public sealed partial class ConfigurationView : UserControl
 
     private void BuildAccesses(StackPanel host)
     {
-        var users = AddSection(host, "Usuarios registrados");
-        users.Children.Add(new TextBlock
+        _accessLayoutGrid = new Grid
         {
-            Text = "Los usuarios no se cargan aquí porque la aplicación aún no cuenta con un servicio de administración de accesos.",
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 169, 184, 204))
-        });
-        AddCheckBox(users, "Accesos");
-        AddCheckBox(users, "Asignar");
+            ColumnSpacing = 16,
+            MinHeight = 460,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        _accessLayoutGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.32, GridUnitType.Star) });
+        _accessLayoutGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(0.68, GridUnitType.Star) });
+        _accessLayoutGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        _accessLayoutGrid.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        _accessLayoutGrid.SizeChanged += AccessLayoutGrid_SizeChanged;
+        host.Children.Add(_accessLayoutGrid);
 
-        var permissions = AddSection(host, "Permisos");
-        foreach (var section in new[]
+        var usersSection = CreateSection("Usuarios registrados");
+        _accessUsersSection = usersSection.Root;
+        _accessLayoutGrid.Children.Add(usersSection.Root);
+        _accessProfilesList = new ListView
         {
-            "Camiones", "Carga Manual", "Clientes", "Configuración", "Ajuste Remisión",
-            "Datos Remisión y Copias", "Respaldar BD", "Respaldar Reportes", "Adicionales",
-            "General", "Datos Compañía", "Máquina", "Absorción", "Ajuste Absorción",
-            "Ajuste Humedades", "Humedades", "Pedidos", "Configurar Pedido", "Turnos", "PLC", "Puerto"
-        })
+            DisplayMemberPath = nameof(AccessProfile.Name),
+            SelectionMode = ListViewSelectionMode.Single,
+            Height = 440,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        _accessProfilesList.SelectionChanged += AccessProfilesList_SelectionChanged;
+        usersSection.Content.Children.Add(_accessProfilesList);
+
+        var permissionsSection = CreateSection("Accesos");
+        _accessPermissionsSection = permissionsSection.Root;
+        _accessLayoutGrid.Children.Add(permissionsSection.Root);
+        _accessPermissionsTree = new TreeView
         {
-            AddCheckBox(permissions, section);
-        }
+            ItemTemplate = (DataTemplate)Resources["AccessTreeItemTemplate"],
+            Height = 480,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        permissionsSection.Content.Children.Add(_accessPermissionsTree);
+        Grid.SetColumn(usersSection.Root, 0);
+        Grid.SetColumn(permissionsSection.Root, 1);
     }
 
-    private StackPanel AddSection(StackPanel host, string title)
+    private void AccessLayoutGrid_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_accessLayoutGrid is null
+            || _accessUsersSection is null
+            || _accessPermissionsSection is null
+            || _accessProfilesList is null
+            || _accessPermissionsTree is null)
+        {
+            return;
+        }
+
+        var isCompact = e.NewSize.Width < 760;
+        _accessLayoutGrid.ColumnSpacing = isCompact ? 0 : 16;
+        _accessLayoutGrid.ColumnDefinitions[0].Width = new GridLength(
+            isCompact ? 1 : 0.32,
+            GridUnitType.Star);
+        _accessLayoutGrid.ColumnDefinitions[1].Width = new GridLength(
+            isCompact ? 1 : 0.68,
+            GridUnitType.Star);
+
+        Grid.SetRow(_accessUsersSection, 0);
+        Grid.SetColumn(_accessUsersSection, 0);
+        Grid.SetRow(_accessPermissionsSection, isCompact ? 1 : 0);
+        Grid.SetColumn(_accessPermissionsSection, isCompact ? 0 : 1);
+        _accessProfilesList.Height = isCompact ? 150 : 440;
+        _accessPermissionsTree.Height = isCompact ? 420 : 480;
+        _accessLayoutGrid.MinHeight = isCompact ? 520 : 460;
+    }
+
+    private StackPanel AddSection(Panel host, string title)
+    {
+        var section = CreateSection(title);
+        host.Children.Add(section.Root);
+        return section.Content;
+    }
+
+    private static AccessSection CreateSection(string title)
     {
         var content = new StackPanel { Spacing = 10 };
         var section = new StackPanel { Spacing = 8 };
         section.Children.Add(new TextBlock { Text = title, FontSize = 16, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
-        section.Children.Add(new Border
+        var border = new Border
         {
             Padding = new Thickness(12),
             Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 23, 35, 55)),
             BorderBrush = new Microsoft.UI.Xaml.Media.SolidColorBrush(Windows.UI.Color.FromArgb(255, 64, 81, 106)),
             BorderThickness = new Thickness(1),
             Child = content
-        });
-        host.Children.Add(section);
-        return content;
+        };
+        section.Children.Add(border);
+        return new AccessSection(section, content);
     }
 
     private void AddSelectorGroup(StackPanel host, string title, (string Label, string[] Options, string Selected)[] fields)
@@ -2336,6 +2709,12 @@ public sealed partial class ConfigurationView : UserControl
 
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (_backupToolsOnly || CanSaveConfigurationTab?.Invoke(_selectedConfigurationTab) != true)
+        {
+            ShowStatus("Tu perfil no tiene permiso para guardar esta configuración.", InfoBarSeverity.Error);
+            return;
+        }
+
         SaveButton.IsEnabled = false;
         try
         {
@@ -2471,34 +2850,90 @@ public sealed partial class ConfigurationView : UserControl
             }
             else if (_selectedConfigurationTab == 9)
             {
-                if (_orderConfigurationId is not int orderConfigurationId)
+                var canSaveOrderSettings = HasProfileModuleAccess?.Invoke("PedidosC") == true
+                    && CanSaveProfileModule("Configurar Pedido");
+                var canSaveSchedules = HasProfileModuleAccess?.Invoke("PedidosC") == true
+                    && CanSaveProfileModule("Turnos");
+                if (!canSaveOrderSettings && !canSaveSchedules)
                 {
                     throw new InvalidOperationException(
-                        "Carga la configuración desde dbo.AjustePedido antes de guardarla.");
+                        "Tu perfil no tiene permiso para guardar la configuración de pedidos ni los turnos.");
                 }
 
-                var orderSettings = new OrderConfigurationUpdate(
-                    orderConfigurationId,
-                    _orderNumberField!.Text.Trim(),
-                    _orderIncludeCompanyName!.IsChecked == true,
-                    _orderPrintLinesAndTitles!.IsChecked == true,
-                    _orderOccasionalOrders!.IsChecked == true,
-                    _orderTitleFields["Tipo"].Text,
-                    _orderTitleFields["Producto"].Text,
-                    _orderTitleFields["Uso"].Text);
-                var schedules = _orderScheduleFieldControls
-                    .Select((fields, index) => new OrderScheduleRecord(
-                        ParseOrderPosition(fields.Position.Text, index + 1),
-                        _orderConditionsField?.Text.Trim() ?? string.Empty,
-                        fields.StartTime.Time,
-                        fields.EndTime.Time))
-                    .ToArray();
+                var savedSections = new List<string>();
+                if (canSaveOrderSettings)
+                {
+                    if (_orderConfigurationId is not int orderConfigurationId)
+                    {
+                        throw new InvalidOperationException(
+                            "Carga la configuración desde dbo.AjustePedido antes de guardarla.");
+                    }
 
-                await _orderConfigurationService.SaveSettingsAsync(orderSettings);
-                await _orderScheduleConfigurationService.SaveSchedulesAsync(schedules);
-                ShowStatus(
-                    "Número, casillas y títulos guardados en dbo.AjustePedido; turnos y condiciones guardados en dbo.Horarios.",
-                    InfoBarSeverity.Success);
+                    var orderSettings = new OrderConfigurationUpdate(
+                        orderConfigurationId,
+                        _orderNumberField!.Text.Trim(),
+                        _orderIncludeCompanyName!.IsChecked == true,
+                        _orderPrintLinesAndTitles!.IsChecked == true,
+                        _orderOccasionalOrders!.IsChecked == true,
+                        _orderTitleFields["Tipo"].Text,
+                        _orderTitleFields["Producto"].Text,
+                        _orderTitleFields["Uso"].Text);
+                    await _orderConfigurationService.SaveSettingsAsync(orderSettings);
+                    savedSections.Add("configuración de pedidos guardada en dbo.AjustePedido");
+                }
+
+                if (canSaveSchedules)
+                {
+                    var schedules = _orderScheduleFieldControls
+                        .Select((fields, index) => new OrderScheduleRecord(
+                            ParseOrderPosition(fields.Position.Text, index + 1),
+                            _orderConditionsField?.Text.Trim() ?? string.Empty,
+                            fields.StartTime.Time,
+                            fields.EndTime.Time))
+                        .ToArray();
+                    await _orderScheduleConfigurationService.SaveSchedulesAsync(schedules);
+                    savedSections.Add("turnos y condiciones guardados en dbo.Horarios");
+                }
+
+                ShowStatus(string.Join("; ", savedSections), InfoBarSeverity.Success);
+            }
+            else if (_selectedConfigurationTab == 10)
+            {
+                if (_accessProfilesList?.SelectedItem is not AccessProfile profile)
+                {
+                    throw new InvalidOperationException("Selecciona un perfil antes de guardar sus accesos.");
+                }
+
+                var templateProfileIds = _accessPermissionControls
+                    .Select(control => control.TemplateProfileId)
+                    .Where(templateProfileId => templateProfileId.HasValue)
+                    .Select(templateProfileId => templateProfileId!.Value)
+                    .Distinct()
+                    .ToArray();
+                if (templateProfileIds.Length > 1)
+                {
+                    throw new InvalidOperationException("Los accesos mostrados no comparten un perfil de referencia.");
+                }
+
+                if (_accessPermissionControls.Count == 0)
+                {
+                    throw new InvalidOperationException(
+                        "No hay definiciones de accesos para mostrar o guardar en dbo.PerfilDetalle.");
+                }
+
+                var changes = _accessPermissionControls
+                    .Select(control => new AccessPermissionChange(
+                        control.DetailId,
+                        control.Column,
+                        control.CheckBox.IsChecked == true))
+                    .ToArray();
+                await _accessConfigurationService.SavePermissionChangesAsync(
+                    profile.Id,
+                    templateProfileIds.Length == 0 ? null : templateProfileIds[0],
+                    changes);
+                await LoadAccessPermissionsAsync(profile);
+                ShowStatus($"Accesos de {profile.Name} guardados en dbo.PerfilDetalle.", InfoBarSeverity.Success);
+                AccessPermissionsSaved?.Invoke(this, EventArgs.Empty);
             }
             else
             {
@@ -2515,7 +2950,8 @@ public sealed partial class ConfigurationView : UserControl
         }
         finally
         {
-            SaveButton.IsEnabled = true;
+            SaveButton.IsEnabled = !_backupToolsOnly
+                && CanSaveConfigurationTab?.Invoke(_selectedConfigurationTab) == true;
         }
     }
 
@@ -2560,6 +2996,14 @@ public sealed partial class ConfigurationView : UserControl
         TextBox Position,
         TimePicker StartTime,
         TimePicker EndTime);
+
+    private sealed record AccessPermissionControl(
+        CheckBox CheckBox,
+        int DetailId,
+        string Column,
+        int? TemplateProfileId);
+
+    private sealed record AccessSection(StackPanel Root, StackPanel Content);
 
     private async void EditMessageFormat_Click(object sender, RoutedEventArgs e)
     {

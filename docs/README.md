@@ -27,9 +27,18 @@ humedad y absorción. La interfaz utiliza tema oscuro con contraste explícito,
 abre maximizada y adapta sus paneles al tamaño de la ventana, usando
 desplazamiento cuando el ancho disponible no permite mostrar todas las tablas.
 
-Los datos visibles son de referencia y no están conectados al PLC, a la base
-de datos ni al sistema heredado. Las acciones de producción y guardado están
-deshabilitadas hasta contar con una integración y autorización verificables.
-Los demás módulos muestran que su migración está pendiente. La compilación y
-el arranque se verifican en esta etapa; las operaciones reales de planta no se
-han probado.
+Los datos visibles del tablero son de referencia y no están conectados al PLC.
+La navegación y las acciones de datos consultan el perfil asignado al usuario
+autenticado en `dbo.Perfiles` y sus permisos en `dbo.PerfilDetalle`, respetando
+la jerarquía `Padre`. `Estatus` controla el acceso al módulo; Alta, Editar,
+Baja, Visualizar y las demás acciones gobiernan las operaciones cuando la
+opción tiene una acción definida en el perfil. Si no existe una acción definida,
+se aplica el acceso del módulo. La opción (`Opcion`) identifica el permiso;
+`Titulo` solo se usa como alternativa, pues un reporte y su módulo operativo
+pueden compartir el mismo título. Las operaciones de fórmulas, proveedores,
+clientes, camiones, pedidos, inventario, carga manual, seguridad y configuración
+se integran con estas reglas. Las acciones de producción que requieren PLC no
+se modifican. Las cuentas nuevas comienzan sin permisos y requieren asignación
+explícita desde Configuración > Accesos. La conexión a SQL Server debe estar
+configurada para usar estas funciones; no se validó contra una instancia SQL
+real en este entorno.

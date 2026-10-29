@@ -47,6 +47,7 @@ public sealed partial class MachineConfigurationView : UserControl
     public event EventHandler<string>? MachineNameSaved;
     public event Action<MachineDashboardOptions>? DashboardOptionsChanged;
     public Func<string, Task<string?>>? LoadMachineImageToDesignCanvasAsync { get; set; }
+    public Func<string, bool>? HasPermission { get; set; }
 
     public MachineConfigurationView()
     {
@@ -86,6 +87,7 @@ public sealed partial class MachineConfigurationView : UserControl
                         _missingMaterialAssignments.Add(parameter);
                     }
                 }
+
             }
 
             foreach (var (parameter, input) in _humidityInputs)
@@ -125,6 +127,12 @@ public sealed partial class MachineConfigurationView : UserControl
             _isLoading = false;
             SetInputsEnabled(FormContent, _isEditing);
         }
+    }
+
+    public void RefreshPermissions()
+    {
+        EditButton.IsEnabled = HasPermission?.Invoke("Editar") == true;
+        SaveButton.IsEnabled = _isEditing && HasPermission?.Invoke("Editar") == true;
     }
 
     private void BuildForm()
@@ -330,6 +338,12 @@ public sealed partial class MachineConfigurationView : UserControl
 
     private async Task ShowMaterialEditorAsync(string category)
     {
+        if (HasPermission?.Invoke("Alta") != true && HasPermission?.Invoke("Baja") != true)
+        {
+            SetStatus("Tu perfil no tiene permiso para agregar ni borrar materiales.", InfoBarSeverity.Error);
+            return;
+        }
+
         try
         {
             var snapshot = await _service.GetConfigurationAsync();
@@ -362,16 +376,19 @@ public sealed partial class MachineConfigurationView : UserControl
                 XamlRoot = XamlRoot,
                 MinWidth = 320
             };
-            input.TextChanged += (_, _) => dialog.IsPrimaryButtonEnabled = !string.IsNullOrWhiteSpace(input.Text);
+            input.TextChanged += (_, _) => dialog.IsPrimaryButtonEnabled =
+                HasPermission?.Invoke("Alta") == true && !string.IsNullOrWhiteSpace(input.Text);
             dialog.IsPrimaryButtonEnabled = false;
             list.SelectionChanged += (_, _) =>
             {
                 confirmDelete.IsChecked = false;
                 confirmDelete.IsEnabled = list.SelectedItem is string selected
+                    && HasPermission?.Invoke("Baja") == true
                     && !selected.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);
                 dialog.IsSecondaryButtonEnabled = false;
             };
-            confirmDelete.Checked += (_, _) => dialog.IsSecondaryButtonEnabled = list.SelectedItem is not null;
+            confirmDelete.Checked += (_, _) => dialog.IsSecondaryButtonEnabled =
+                HasPermission?.Invoke("Baja") == true && list.SelectedItem is not null;
             confirmDelete.Unchecked += (_, _) => dialog.IsSecondaryButtonEnabled = false;
 
             dialog.PrimaryButtonClick += async (_, args) =>
@@ -380,6 +397,13 @@ public sealed partial class MachineConfigurationView : UserControl
                 var deferral = args.GetDeferral();
                 try
                 {
+                    if (HasPermission?.Invoke("Alta") != true)
+                    {
+                        message.Text = "Tu perfil no tiene permiso para agregar materiales.";
+                        message.Foreground = Brush("#FF8A80");
+                        return;
+                    }
+
                     await _service.AddMaterialAsync(category, input.Text);
                     await RefreshCategoryAsync(category, names);
                     input.Text = string.Empty;
@@ -407,6 +431,13 @@ public sealed partial class MachineConfigurationView : UserControl
                 var deferral = args.GetDeferral();
                 try
                 {
+                    if (HasPermission?.Invoke("Baja") != true)
+                    {
+                        message.Text = "Tu perfil no tiene permiso para borrar materiales.";
+                        message.Foreground = Brush("#FF8A80");
+                        return;
+                    }
+
                     var selected = list.SelectedItem as string;
                     if (selected is null)
                     {
@@ -485,6 +516,12 @@ public sealed partial class MachineConfigurationView : UserControl
 
     private async void Save_Click(object sender, RoutedEventArgs e)
     {
+        if (HasPermission?.Invoke("Editar") != true)
+        {
+            SetStatus("Tu perfil no tiene permiso para editar la configuración de la máquina.", InfoBarSeverity.Error);
+            return;
+        }
+
         if (_missingMaterialAssignments.Count > 0)
         {
             SetStatus("Hay asignaciones de materiales que no existen en sus catálogos. Selecciona una opción válida antes de guardar.", InfoBarSeverity.Warning);
@@ -551,7 +588,7 @@ public sealed partial class MachineConfigurationView : UserControl
         }
         finally
         {
-            SaveButton.IsEnabled = _isEditing;
+            SaveButton.IsEnabled = _isEditing && HasPermission?.Invoke("Editar") == true;
         }
     }
 
@@ -565,6 +602,12 @@ public sealed partial class MachineConfigurationView : UserControl
 
     private void Edit_Click(object sender, RoutedEventArgs e)
     {
+        if (HasPermission?.Invoke("Editar") != true)
+        {
+            SetStatus("Tu perfil no tiene permiso para editar la configuración de la máquina.", InfoBarSeverity.Error);
+            return;
+        }
+
         SetEditMode(true);
         SetStatus("Edición activada. Guarda los cambios cuando termines; cerrar el formulario descarta los cambios no guardados.", InfoBarSeverity.Informational);
     }
@@ -573,8 +616,8 @@ public sealed partial class MachineConfigurationView : UserControl
     {
         _isEditing = isEditing;
         SetInputsEnabled(FormContent, isEditing);
-        SaveButton.IsEnabled = isEditing;
-        EditButton.IsEnabled = !isEditing;
+        SaveButton.IsEnabled = isEditing && HasPermission?.Invoke("Editar") == true;
+        EditButton.IsEnabled = !isEditing && HasPermission?.Invoke("Editar") == true;
     }
 
     private void Close_Click(object sender, RoutedEventArgs e) => CloseRequested?.Invoke(this, EventArgs.Empty);

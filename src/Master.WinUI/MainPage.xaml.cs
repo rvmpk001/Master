@@ -33,6 +33,7 @@ public sealed partial class MainPage : Page
 
     private readonly DispatcherQueueTimer _clockTimer;
     private readonly AuthenticationService _authenticationService = new();
+    private readonly AccessConfigurationService _accessConfigurationService = new();
     private readonly InventoryService _inventoryService = new();
     private readonly FormulaService _formulaService = new();
     private readonly SupplierService _supplierService = new();
@@ -59,7 +60,11 @@ public sealed partial class MainPage : Page
     private bool _isMessagesConfigurationOpen;
     private bool _isAdditionalConfigurationOpen;
     private bool _isOrdersConfigurationOpen;
+    private bool _isAccessConfigurationOpen;
+    private bool _isSecurityFormOpen;
+    private int? _authenticatedUserId;
     private string _authenticatedUsername = string.Empty;
+    private IReadOnlyList<AccessPermissionEntry> _currentUserPermissions = Array.Empty<AccessPermissionEntry>();
     private FormulaRow? _selectedFormula;
     private SupplierRecord? _selectedSupplier;
     private ClientRecord? _selectedClient;
@@ -150,6 +155,10 @@ public sealed partial class MainPage : Page
     public MainPage()
     {
         InitializeComponent();
+        ConfigurationView.CanSaveConfigurationTab = CanSaveConfigurationTab;
+        ConfigurationView.HasProfileModuleAccess = HasModulePermission;
+        ConfigurationView.HasProfileAction = HasActionPermission;
+        MachineConfigurationView.HasPermission = action => HasActionPermission("Maquina", action);
         MachineConfigurationView.CloseRequested += (_, _) => MachineConfigurationOverlay.Visibility = Visibility.Collapsed;
         MachineConfigurationView.LoadMachineImageToDesignCanvasAsync = path => LoadMachineImageToDesignCanvasAsync(path);
         MachineConfigurationView.MachineNameSaved += (_, machineName) =>
@@ -169,8 +178,25 @@ public sealed partial class MainPage : Page
             _isMessagesConfigurationOpen = false;
             _isAdditionalConfigurationOpen = false;
             _isOrdersConfigurationOpen = false;
+            _isAccessConfigurationOpen = false;
             ConfigurationFormBorder.ClearValue(FrameworkElement.WidthProperty);
             ConfigurationFormBorder.ClearValue(FrameworkElement.HeightProperty);
+        };
+        ConfigurationView.AccessPermissionsSaved += async (_, _) =>
+        {
+            if (!await RefreshCurrentUserPermissionsAsync())
+            {
+                return;
+            }
+
+            ModuleStatusText.Text = "Los permisos del usuario se actualizaron desde dbo.PerfilDetalle.";
+        };
+        SecurityView.CloseRequested += (_, _) =>
+        {
+            SecurityFormOverlay.Visibility = Visibility.Collapsed;
+            _isSecurityFormOpen = false;
+            SecurityFormBorder.ClearValue(FrameworkElement.WidthProperty);
+            SecurityFormBorder.ClearValue(FrameworkElement.HeightProperty);
         };
         ReportPresetRadioButton.Checked += ReportPeriodMode_Checked;
         ReportCustomRadioButton.Checked += ReportPeriodMode_Checked;
@@ -241,7 +267,11 @@ public sealed partial class MainPage : Page
 
     private void Page_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        if (_isCompanyConfigurationOpen)
+        if (_isSecurityFormOpen)
+        {
+            SizeSecurityForm(e.NewSize);
+        }
+        else if (_isCompanyConfigurationOpen)
         {
             SizeCompanyConfigurationForm(e.NewSize);
         }
@@ -272,6 +302,10 @@ public sealed partial class MainPage : Page
         else if (_isOrdersConfigurationOpen)
         {
             SizeOrdersConfigurationForm(e.NewSize);
+        }
+        else if (_isAccessConfigurationOpen)
+        {
+            SizeAccessConfigurationForm(e.NewSize);
         }
 
         var isCompact = e.NewSize.Width < 1100;
@@ -423,6 +457,41 @@ public sealed partial class MainPage : Page
             return;
         }
 
+        if (TryGetPermissionModule(module, out var permissionModule))
+        {
+            if (!await RefreshCurrentUserPermissionsAsync())
+            {
+                return;
+            }
+
+            if (!HasNavigationPermission(module, permissionModule))
+            {
+                if (sender is MenuFlyoutItem deniedItem)
+                {
+                    deniedItem.IsEnabled = false;
+                }
+
+                ModuleStatusText.Text = HasModulePermission(permissionModule)
+                    ? $"Tu perfil no tiene permiso de Visualizar en {permissionModule}."
+                    : $"Tu perfil no tiene acceso al módulo {permissionModule}.";
+                return;
+            }
+        }
+
+        if (module == "Seguridad")
+        {
+            if (_authenticatedUserId is not int userId)
+            {
+                return;
+            }
+
+            SizeSecurityForm(new Windows.Foundation.Size(ActualWidth, ActualHeight));
+            await SecurityView.SetAccessAsync(userId, _authenticatedUsername, _currentUserPermissions);
+            _isSecurityFormOpen = true;
+            SecurityFormOverlay.Visibility = Visibility.Visible;
+            return;
+        }
+
         if (module == "Config:Machine")
         {
             MachineConfigurationOverlay.Visibility = Visibility.Visible;
@@ -443,12 +512,15 @@ public sealed partial class MainPage : Page
                 "Config:Messages" => 7,
                 "Config:Additional" => 8,
                 "Config:Orders" => 9,
+                "Config:BackupReports" or "Config:BackupDatabase" => 3,
                 "Config:Access" => 10,
                 _ => -1
             };
 
             if (selectedTab >= 0)
             {
+                var backupToolsOnly = module is "Config:BackupReports" or "Config:BackupDatabase";
+                ConfigurationView.ShowBackupToolsOnly(backupToolsOnly);
                 _isCompanyConfigurationOpen = selectedTab == 2;
                 _isRemissionConfigurationOpen = selectedTab == 3;
                 _isImagesOnConfigurationOpen = selectedTab == 4;
@@ -457,6 +529,7 @@ public sealed partial class MainPage : Page
                 _isMessagesConfigurationOpen = selectedTab == 7;
                 _isAdditionalConfigurationOpen = selectedTab == 8;
                 _isOrdersConfigurationOpen = selectedTab == 9;
+                _isAccessConfigurationOpen = selectedTab == 10;
                 if (_isCompanyConfigurationOpen)
                 {
                     SizeCompanyConfigurationForm(new Windows.Foundation.Size(ActualWidth, ActualHeight));
@@ -489,13 +562,17 @@ public sealed partial class MainPage : Page
                 {
                     SizeOrdersConfigurationForm(new Windows.Foundation.Size(ActualWidth, ActualHeight));
                 }
+                else if (_isAccessConfigurationOpen)
+                {
+                    SizeAccessConfigurationForm(new Windows.Foundation.Size(ActualWidth, ActualHeight));
+                }
                 else
                 {
                     ConfigurationFormBorder.ClearValue(FrameworkElement.WidthProperty);
                     ConfigurationFormBorder.ClearValue(FrameworkElement.HeightProperty);
                 }
 
-                ConfigurationView.ShowTab(selectedTab, onlySelectedTab: selectedTab is 1 or 2 or 3 or 4 or 5 or 6 or 7 or 8 or 9);
+                ConfigurationView.ShowTab(selectedTab, onlySelectedTab: selectedTab is >= 1 and <= 10);
                 ConfigurationFormOverlay.Visibility = Visibility.Visible;
                 if (selectedTab == 1)
                 {
@@ -505,7 +582,7 @@ public sealed partial class MainPage : Page
                 {
                     await ConfigurationView.LoadCompanyConfigurationAsync();
                 }
-                else if (selectedTab == 3)
+                else if (selectedTab == 3 && !backupToolsOnly && HasModulePermission("Datos Remision"))
                 {
                     await ConfigurationView.LoadRemissionConfigurationAsync();
                 }
@@ -531,9 +608,20 @@ public sealed partial class MainPage : Page
                 }
                 else if (selectedTab == 9)
                 {
-                    await ConfigurationView.LoadOrderConfigurationAsync();
-                    await ConfigurationView.LoadOrderOptionsAsync();
-                    await ConfigurationView.LoadOrderSchedulesAsync();
+                    if (HasModulePermission("Configurar Pedido"))
+                    {
+                        await ConfigurationView.LoadOrderConfigurationAsync();
+                        await ConfigurationView.LoadOrderOptionsAsync();
+                    }
+
+                    if (HasModulePermission("Turnos"))
+                    {
+                        await ConfigurationView.LoadOrderSchedulesAsync();
+                    }
+                }
+                else if (selectedTab == 10)
+                {
+                    await ConfigurationView.LoadAccessProfilesAsync();
                 }
 
                 return;
@@ -603,6 +691,10 @@ public sealed partial class MainPage : Page
 
         if (module == "Carga Manual")
         {
+            ManualLoadSaveButton.IsEnabled = AccessPermissionLookup.IsActionEnabled(
+                _currentUserPermissions,
+                "Carga Manual",
+                "Alta");
             ManualLoadOverlay.Visibility = Visibility.Visible;
             await LoadManualLoadRecipesAsync();
             return;
@@ -610,6 +702,7 @@ public sealed partial class MainPage : Page
 
         if (module == "Configuración")
         {
+            ConfigurationView.ShowBackupToolsOnly(false);
             _isCompanyConfigurationOpen = false;
             _isRemissionConfigurationOpen = false;
             _isImagesOnConfigurationOpen = false;
@@ -649,6 +742,18 @@ public sealed partial class MainPage : Page
     {
         ConfigurationFormBorder.Width = Math.Min(1120, Math.Max(0, availableSize.Width - 24));
         ConfigurationFormBorder.Height = Math.Min(760, Math.Max(0, availableSize.Height - 24));
+    }
+
+    private void SizeAccessConfigurationForm(Windows.Foundation.Size availableSize)
+    {
+        ConfigurationFormBorder.Width = Math.Min(1900, Math.Max(0, availableSize.Width - 24));
+        ConfigurationFormBorder.Height = Math.Min(1100, Math.Max(0, availableSize.Height - 24));
+    }
+
+    private void SizeSecurityForm(Windows.Foundation.Size availableSize)
+    {
+        SecurityFormBorder.Width = Math.Min(560, Math.Max(0, availableSize.Width - 24));
+        SecurityFormBorder.Height = Math.Min(440, Math.Max(0, availableSize.Height - 24));
     }
 
     private void CloseManualLoad_Click(object sender, RoutedEventArgs e)
@@ -892,6 +997,20 @@ public sealed partial class MainPage : Page
 
     private async void SaveManualLoad_Click(object sender, RoutedEventArgs e)
     {
+        if (!await RefreshCurrentUserPermissionsAsync())
+        {
+            ManualLoadSaveButton.IsEnabled = false;
+            ManualLoadStatusText.Text = "No se pudieron verificar los permisos. No se guardó la carga.";
+            return;
+        }
+
+        if (!AccessPermissionLookup.IsActionEnabled(_currentUserPermissions, "Carga Manual", "Alta"))
+        {
+            ManualLoadSaveButton.IsEnabled = false;
+            ManualLoadStatusText.Text = "Tu perfil no tiene permiso para guardar cargas manuales.";
+            return;
+        }
+
         var recipeCode = ManualLoadRecipeComboBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(recipeCode))
         {
@@ -1049,7 +1168,10 @@ public sealed partial class MainPage : Page
         }
         finally
         {
-            ManualLoadSaveButton.IsEnabled = true;
+            ManualLoadSaveButton.IsEnabled = AccessPermissionLookup.IsActionEnabled(
+                _currentUserPermissions,
+                "Carga Manual",
+                "Alta");
         }
     }
 
@@ -1217,14 +1339,20 @@ public sealed partial class MainPage : Page
         var hasSelection = _selectedOrder is not null;
         var canChange = _showingActiveOrders &&
             _selectedOrder?.Status.Trim() is "A" or "P";
-        AddOrderButton.IsEnabled = _showingActiveOrders || (_showingCancelledOrders && hasSelection);
-        EditOrderButton.IsEnabled = canChange;
-        CancelOrderButton.IsEnabled = canChange;
-        ViewOrderButton.IsEnabled = hasSelection;
+        AddOrderButton.IsEnabled = (_showingActiveOrders || (_showingCancelledOrders && hasSelection))
+            && HasActionPermission("Pedidos", "Alta");
+        EditOrderButton.IsEnabled = canChange && HasActionPermission("Pedidos", "Editar");
+        CancelOrderButton.IsEnabled = canChange && HasActionPermission("Pedidos", "Baja");
+        ViewOrderButton.IsEnabled = hasSelection && HasActionPermission("Pedidos", "Visualizar");
     }
 
     private void EditOrder_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Pedidos", "Editar"))
+        {
+            return;
+        }
+
         if (_selectedOrder is null || !_showingActiveOrders)
         {
             OrderFormStatusText.Text = "Selecciona un pedido activo para editar.";
@@ -1236,6 +1364,11 @@ public sealed partial class MainPage : Page
 
     private void ViewOrder_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Pedidos", "Visualizar"))
+        {
+            return;
+        }
+
         if (_selectedOrder is null)
         {
             OrderFormStatusText.Text = "Selecciona un pedido para visualizar.";
@@ -1247,6 +1380,11 @@ public sealed partial class MainPage : Page
 
     private async void CancelOrder_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Pedidos", "Baja"))
+        {
+            return;
+        }
+
         if (_selectedOrder is null || !_showingActiveOrders)
         {
             OrderFormStatusText.Text = "Selecciona un pedido activo para cancelar.";
@@ -1292,6 +1430,11 @@ public sealed partial class MainPage : Page
 
     private async void AddOrder_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Pedidos", "Alta"))
+        {
+            return;
+        }
+
         if (_showingCancelledOrders)
         {
             await RestoreSelectedOrderAsync();
@@ -1334,12 +1477,18 @@ public sealed partial class MainPage : Page
         SetOrderEditorReadOnly(false);
         OrderEditorTitleText.Text = "Agregar Pedido";
         OrderEditorSaveButton.Content = "Guardar";
+        OrderEditorSaveButton.IsEnabled = HasActionPermission("Pedidos", "Alta");
         OrderEditorSaveButton.Visibility = Visibility.Visible;
         OrderEditorOverlay.Visibility = Visibility.Visible;
     }
 
     private async Task RestoreSelectedOrderAsync()
     {
+        if (!RequireActionPermission("Pedidos", "Alta"))
+        {
+            return;
+        }
+
         if (_selectedOrder is null || !_showingCancelledOrders)
         {
             OrderFormStatusText.Text = "Selecciona un pedido cancelado para restaurarlo.";
@@ -1375,6 +1524,9 @@ public sealed partial class MainPage : Page
         _editingOrder = !readOnly;
         OrderEditorTitleText.Text = readOnly ? $"Visualizar Pedido {order.Number}" : $"Editar Pedido {order.Number}";
         OrderEditorSaveButton.Content = "Guardar cambios";
+        OrderEditorSaveButton.IsEnabled = !readOnly && HasActionPermission(
+            "Pedidos",
+            _editingOrder ? "Editar" : "Alta");
         OrderEditorSaveButton.Visibility = readOnly ? Visibility.Collapsed : Visibility.Visible;
         OrderDatePicker.Date = new DateTimeOffset(order.DateValue ?? DateTime.Today);
         OrderDeliveryDatePicker.Date = new DateTimeOffset(order.DeliveryDateValue ?? DateTime.Today);
@@ -1433,6 +1585,11 @@ public sealed partial class MainPage : Page
 
     private async void SaveOrder_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Pedidos", _editingOrder ? "Editar" : "Alta"))
+        {
+            return;
+        }
+
         if (OrderClientComboBox.SelectedItem is not ClientRecord client)
         {
             OrderEditorStatusText.Text = "Selecciona un cliente.";
@@ -1592,7 +1749,9 @@ public sealed partial class MainPage : Page
         }
         finally
         {
-            OrderEditorSaveButton.IsEnabled = true;
+            OrderEditorSaveButton.IsEnabled = HasActionPermission(
+                "Pedidos",
+                _editingOrder ? "Editar" : "Alta");
         }
     }
 
@@ -1637,12 +1796,7 @@ public sealed partial class MainPage : Page
             _selectedTruckRow = null;
             _selectedOperator = null;
             _selectedOperatorRow = null;
-            EditTruckButton.IsEnabled = false;
-            DeleteTruckButton.IsEnabled = false;
-            ViewTruckButton.IsEnabled = false;
-            EditOperatorButton.IsEnabled = false;
-            DeleteOperatorButton.IsEnabled = false;
-            ViewOperatorButton.IsEnabled = false;
+            UpdateTruckActionButtons();
             TruckRecords.Clear();
             OperatorRecords.Clear();
             foreach (var truck in trucks.Trucks)
@@ -1675,23 +1829,22 @@ public sealed partial class MainPage : Page
         OperatorTablePanel.Visibility = showTrucks ? Visibility.Collapsed : Visibility.Visible;
         TruckTabButton.Opacity = showTrucks ? 1 : 0.65;
         OperatorTabButton.Opacity = showTrucks ? 0.65 : 1;
-        AddTruckButton.IsEnabled = true;
-        EditTruckButton.IsEnabled = showTrucks && _selectedTruck is not null;
-        DeleteTruckButton.IsEnabled = showTrucks && _selectedTruck is not null;
-        ViewTruckButton.IsEnabled = showTrucks && _selectedTruck is not null;
         EditTruckButton.Visibility = showTrucks ? Visibility.Visible : Visibility.Collapsed;
         DeleteTruckButton.Visibility = showTrucks ? Visibility.Visible : Visibility.Collapsed;
         ViewTruckButton.Visibility = showTrucks ? Visibility.Visible : Visibility.Collapsed;
         EditOperatorButton.Visibility = showTrucks ? Visibility.Collapsed : Visibility.Visible;
         DeleteOperatorButton.Visibility = showTrucks ? Visibility.Collapsed : Visibility.Visible;
         ViewOperatorButton.Visibility = showTrucks ? Visibility.Collapsed : Visibility.Visible;
-        EditOperatorButton.IsEnabled = !showTrucks && _selectedOperator is not null;
-        DeleteOperatorButton.IsEnabled = !showTrucks && _selectedOperator is not null;
-        ViewOperatorButton.IsEnabled = !showTrucks && _selectedOperator is not null;
+        UpdateTruckActionButtons();
     }
 
     private void AddTruck_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Camiones", "Alta"))
+        {
+            return;
+        }
+
         if (OperatorTablePanel.Visibility == Visibility.Visible)
         {
             ShowOperatorEditor(null, readOnly: false);
@@ -1727,13 +1880,16 @@ public sealed partial class MainPage : Page
         _selectedOperatorRow = row;
         _selectedOperatorRow.Opacity = 0.72;
         _selectedOperator = operatorRecord;
-        EditOperatorButton.IsEnabled = true;
-        DeleteOperatorButton.IsEnabled = true;
-        ViewOperatorButton.IsEnabled = true;
+        UpdateTruckActionButtons();
     }
 
     private void EditOperator_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Camiones", "Editar"))
+        {
+            return;
+        }
+
         if (_selectedOperator is null)
         {
             TruckFormStatusText.Text = "Selecciona un operador para editar.";
@@ -1745,6 +1901,11 @@ public sealed partial class MainPage : Page
 
     private void ViewOperator_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Camiones", "Visualizar"))
+        {
+            return;
+        }
+
         if (_selectedOperator is null)
         {
             TruckFormStatusText.Text = "Selecciona un operador para visualizar.";
@@ -1759,6 +1920,9 @@ public sealed partial class MainPage : Page
         _editingOperator = operatorRecord is not null && !readOnly;
         OperatorEditorTitleText.Text = readOnly ? "Visualizar Operador" : _editingOperator ? "Editar Operador" : "Agregar Operador";
         OperatorEditorSaveButton.Content = _editingOperator ? "Guardar cambios" : "Guardar";
+        OperatorEditorSaveButton.IsEnabled = !readOnly && HasActionPermission(
+            "Camiones",
+            _editingOperator ? "Editar" : "Alta");
         OperatorEditorSaveButton.Visibility = readOnly ? Visibility.Collapsed : Visibility.Visible;
         OperatorNameTextBox.Text = operatorRecord?.Name ?? string.Empty;
         OperatorInitialsTextBox.Text = operatorRecord?.Initials ?? string.Empty;
@@ -1774,6 +1938,11 @@ public sealed partial class MainPage : Page
 
     private async void SaveOperator_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Camiones", _editingOperator ? "Editar" : "Alta"))
+        {
+            return;
+        }
+
         var name = OperatorNameTextBox.Text.Trim();
         var initials = OperatorInitialsTextBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(name))
@@ -1819,12 +1988,19 @@ public sealed partial class MainPage : Page
         }
         finally
         {
-            OperatorEditorSaveButton.IsEnabled = true;
+            OperatorEditorSaveButton.IsEnabled = HasActionPermission(
+                "Camiones",
+                _editingOperator ? "Editar" : "Alta");
         }
     }
 
     private async void DeleteOperator_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Camiones", "Baja"))
+        {
+            return;
+        }
+
         if (_selectedOperator is null)
         {
             TruckFormStatusText.Text = "Selecciona un operador para borrar.";
@@ -1863,7 +2039,7 @@ public sealed partial class MainPage : Page
         }
         finally
         {
-            DeleteOperatorButton.IsEnabled = _selectedOperator is not null;
+            UpdateTruckActionButtons();
         }
     }
 
@@ -1882,13 +2058,16 @@ public sealed partial class MainPage : Page
         _selectedTruckRow = row;
         _selectedTruckRow.Opacity = 0.72;
         _selectedTruck = truck;
-        EditTruckButton.IsEnabled = true;
-        DeleteTruckButton.IsEnabled = true;
-        ViewTruckButton.IsEnabled = true;
+        UpdateTruckActionButtons();
     }
 
     private void EditTruck_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Camiones", "Editar"))
+        {
+            return;
+        }
+
         if (_selectedTruck is null)
         {
             TruckFormStatusText.Text = "Selecciona un camión para editar.";
@@ -1900,6 +2079,11 @@ public sealed partial class MainPage : Page
 
     private void ViewTruck_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Camiones", "Visualizar"))
+        {
+            return;
+        }
+
         if (_selectedTruck is null)
         {
             TruckFormStatusText.Text = "Selecciona un camión para visualizar.";
@@ -1913,6 +2097,9 @@ public sealed partial class MainPage : Page
     {
         _editingTruck = truck is not null && !readOnly;
         TruckEditorSaveButton.Content = _editingTruck ? "Guardar cambios" : "Guardar";
+        TruckEditorSaveButton.IsEnabled = !readOnly && HasActionPermission(
+            "Camiones",
+            _editingTruck ? "Editar" : "Alta");
         TruckEditorSaveButton.Visibility = readOnly ? Visibility.Collapsed : Visibility.Visible;
         TruckEditorTitleText.Text = readOnly ? "Visualizar Camión" : _editingTruck ? "Editar Camión" : "Agregar Camión";
         TruckOperatorComboBox.SelectedItem = truck is null
@@ -1951,6 +2138,11 @@ public sealed partial class MainPage : Page
 
     private async void SaveTruck_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Camiones", _editingTruck ? "Editar" : "Alta"))
+        {
+            return;
+        }
+
         var selectedOperator = TruckOperatorComboBox.SelectedItem as OperatorRecord;
         if (selectedOperator is null && (!_editingTruck || _selectedTruck is null))
         {
@@ -2021,12 +2213,19 @@ public sealed partial class MainPage : Page
         }
         finally
         {
-            TruckEditorSaveButton.IsEnabled = true;
+            TruckEditorSaveButton.IsEnabled = HasActionPermission(
+                "Camiones",
+                _editingTruck ? "Editar" : "Alta");
         }
     }
 
     private async void DeleteTruck_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Camiones", "Baja"))
+        {
+            return;
+        }
+
         if (_selectedTruck is null)
         {
             TruckFormStatusText.Text = "Selecciona un camión para borrar.";
@@ -2065,7 +2264,7 @@ public sealed partial class MainPage : Page
         }
         finally
         {
-            DeleteTruckButton.IsEnabled = _selectedTruck is not null;
+            UpdateTruckActionButtons();
         }
     }
 
@@ -2103,18 +2302,26 @@ public sealed partial class MainPage : Page
     private void ClientListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         _selectedClient = ClientListView.SelectedItem as ClientRecord;
-        EditClientButton.IsEnabled = _selectedClient is not null;
-        DeleteClientButton.IsEnabled = _selectedClient is not null;
-        ViewClientButton.IsEnabled = _selectedClient is not null;
+        UpdateClientActionButtons();
     }
 
     private void AddClient_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Clientes", "Alta"))
+        {
+            return;
+        }
+
         ShowClientEditor(null, readOnly: false);
     }
 
     private void EditClient_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Clientes", "Editar"))
+        {
+            return;
+        }
+
         if (_selectedClient is null)
         {
             ClientFormStatusText.Text = "Selecciona un cliente para editar.";
@@ -2126,6 +2333,11 @@ public sealed partial class MainPage : Page
 
     private void ViewClient_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Clientes", "Visualizar"))
+        {
+            return;
+        }
+
         if (_selectedClient is null)
         {
             ClientFormStatusText.Text = "Selecciona un cliente para visualizar.";
@@ -2140,6 +2352,9 @@ public sealed partial class MainPage : Page
         _editingClient = client is not null && !readOnly;
         ClientEditorTitleText.Text = readOnly ? "Visualizar Cliente" : _editingClient ? "Editar Cliente" : "Agregar Cliente";
         ClientEditorSaveButton.Content = _editingClient ? "Guardar cambios" : "Guardar";
+        ClientEditorSaveButton.IsEnabled = !readOnly && HasActionPermission(
+            "Clientes",
+            _editingClient ? "Editar" : "Alta");
         ClientEditorSaveButton.Visibility = readOnly ? Visibility.Collapsed : Visibility.Visible;
         ClientNameTextBox.Text = client?.Client ?? string.Empty;
         ClientRfcTextBox.Text = client?.Rfc ?? string.Empty;
@@ -2182,6 +2397,11 @@ public sealed partial class MainPage : Page
 
     private async void SaveClient_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Clientes", _editingClient ? "Editar" : "Alta"))
+        {
+            return;
+        }
+
         var clientDetails = new ClientDetails(
             ClientNameTextBox.Text,
             ClientRfcTextBox.Text,
@@ -2244,7 +2464,9 @@ public sealed partial class MainPage : Page
         }
         finally
         {
-            ClientEditorSaveButton.IsEnabled = true;
+            ClientEditorSaveButton.IsEnabled = HasActionPermission(
+                "Clientes",
+                _editingClient ? "Editar" : "Alta");
         }
     }
 
@@ -2268,6 +2490,11 @@ public sealed partial class MainPage : Page
 
     private async void DeleteClient_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Clientes", "Baja"))
+        {
+            return;
+        }
+
         if (_selectedClient is null)
         {
             ClientFormStatusText.Text = "Selecciona un cliente para borrar.";
@@ -2306,7 +2533,7 @@ public sealed partial class MainPage : Page
         }
         finally
         {
-            DeleteClientButton.IsEnabled = _selectedClient is not null;
+            UpdateClientActionButtons();
         }
     }
 
@@ -2344,18 +2571,26 @@ public sealed partial class MainPage : Page
     private void SupplierListView_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         _selectedSupplier = SupplierListView.SelectedItem as SupplierRecord;
-        EditSupplierButton.IsEnabled = _selectedSupplier is not null;
-        DeleteSupplierButton.IsEnabled = _selectedSupplier is not null;
-        ViewSupplierButton.IsEnabled = _selectedSupplier is not null;
+        UpdateSupplierActionButtons();
     }
 
     private void AddSupplier_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Proveedores", "Alta"))
+        {
+            return;
+        }
+
         ShowSupplierEditor(null, readOnly: false);
     }
 
     private void EditSupplier_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Proveedores", "Editar"))
+        {
+            return;
+        }
+
         if (_selectedSupplier is null)
         {
             SupplierFormStatusText.Text = "Selecciona un proveedor para editar.";
@@ -2367,6 +2602,11 @@ public sealed partial class MainPage : Page
 
     private void ViewSupplier_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Proveedores", "Visualizar"))
+        {
+            return;
+        }
+
         if (_selectedSupplier is null)
         {
             SupplierFormStatusText.Text = "Selecciona un proveedor para visualizar.";
@@ -2381,6 +2621,9 @@ public sealed partial class MainPage : Page
         _editingSupplier = supplier is not null && !readOnly;
         SupplierEditorTitleText.Text = readOnly ? "Visualizar Proveedor" : _editingSupplier ? "Editar Proveedor" : "Agregar Proveedor";
         SupplierEditorSaveButton.Content = _editingSupplier ? "Guardar cambios" : "Guardar";
+        SupplierEditorSaveButton.IsEnabled = !readOnly && HasActionPermission(
+            "Proveedores",
+            _editingSupplier ? "Editar" : "Alta");
         SupplierEditorSaveButton.Visibility = readOnly ? Visibility.Collapsed : Visibility.Visible;
         SupplierNameTextBox.Text = supplier?.Supplier ?? string.Empty;
         SupplierRfcTextBox.Text = supplier?.Rfc ?? string.Empty;
@@ -2419,6 +2662,11 @@ public sealed partial class MainPage : Page
 
     private async void SaveSupplier_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Proveedores", _editingSupplier ? "Editar" : "Alta"))
+        {
+            return;
+        }
+
         var supplier = new SupplierDetails(
             SupplierNameTextBox.Text,
             SupplierRfcTextBox.Text,
@@ -2472,7 +2720,9 @@ public sealed partial class MainPage : Page
         }
         finally
         {
-            SupplierEditorSaveButton.IsEnabled = true;
+            SupplierEditorSaveButton.IsEnabled = HasActionPermission(
+                "Proveedores",
+                _editingSupplier ? "Editar" : "Alta");
         }
     }
 
@@ -2494,6 +2744,11 @@ public sealed partial class MainPage : Page
 
     private async void DeleteSupplier_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Proveedores", "Baja"))
+        {
+            return;
+        }
+
         if (_selectedSupplier is null)
         {
             SupplierFormStatusText.Text = "Selecciona un proveedor para borrar.";
@@ -2529,6 +2784,10 @@ public sealed partial class MainPage : Page
         catch (InvalidOperationException exception)
         {
             SupplierFormStatusText.Text = exception.Message;
+        }
+        finally
+        {
+            UpdateSupplierActionButtons();
         }
     }
 
@@ -2579,19 +2838,20 @@ public sealed partial class MainPage : Page
             Windows.UI.Color.FromArgb(255, 0, 120, 212));
         FormulaCancelledTabButton.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
             Windows.UI.Color.FromArgb(255, 38, 54, 77));
+        UpdateFormulaActionButtons();
     }
 
     private void ShowCancelledFormulas()
     {
         _showingCancelledFormulas = true;
         FormulaAddRestoreButton.Content = "Restaurar";
-        FormulaAddRestoreButton.IsEnabled = false;
         ClearFormulaSelection();
         ShowFormulaRows(CancelledFormulaRows);
         FormulaActiveTabButton.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
             Windows.UI.Color.FromArgb(255, 38, 54, 77));
         FormulaCancelledTabButton.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
             Windows.UI.Color.FromArgb(255, 0, 120, 212));
+        UpdateFormulaActionButtons();
     }
 
     private void ShowFormulaRows(IEnumerable<FormulaRow> rows)
@@ -2630,13 +2890,7 @@ public sealed partial class MainPage : Page
         _selectedFormulaBorder = border;
         border.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
             Windows.UI.Color.FromArgb(255, 0, 94, 167));
-        FormulaEditButton.IsEnabled = !_showingCancelledFormulas;
-        FormulaDeleteButton.IsEnabled = !_showingCancelledFormulas;
-        if (_showingCancelledFormulas)
-        {
-            FormulaAddRestoreButton.IsEnabled = true;
-        }
-        FormulaViewButton.IsEnabled = true;
+        UpdateFormulaActionButtons();
         FormulaFormStatusText.Text = $"Fórmula seleccionada: {formula.Values.GetValueOrDefault("Cod_Formula", string.Empty)} (ID {formula.Id}).";
         e.Handled = true;
     }
@@ -2651,14 +2905,16 @@ public sealed partial class MainPage : Page
 
         _selectedFormulaBorder = null;
         _selectedFormula = null;
-        FormulaEditButton.IsEnabled = false;
-        FormulaDeleteButton.IsEnabled = false;
-        FormulaAddRestoreButton.IsEnabled = !_showingCancelledFormulas;
-        FormulaViewButton.IsEnabled = false;
+        UpdateFormulaActionButtons();
     }
 
     private async void AddFormula_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Fórmulas", "Alta"))
+        {
+            return;
+        }
+
         if (_showingCancelledFormulas)
         {
             await RestoreSelectedFormulaAsync();
@@ -2689,6 +2945,11 @@ public sealed partial class MainPage : Page
 
     private async Task RestoreSelectedFormulaAsync()
     {
+        if (!RequireActionPermission("Fórmulas", "Alta"))
+        {
+            return;
+        }
+
         if (_selectedFormula is null || !_showingCancelledFormulas)
         {
             FormulaFormStatusText.Text = "Selecciona una fórmula cancelada para restaurarla.";
@@ -2716,12 +2977,17 @@ public sealed partial class MainPage : Page
         }
         finally
         {
-            FormulaAddRestoreButton.IsEnabled = _showingCancelledFormulas && _selectedFormula is not null;
+            UpdateFormulaActionButtons();
         }
     }
 
     private async void EditFormula_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Fórmulas", "Editar"))
+        {
+            return;
+        }
+
         if (_selectedFormula is null || _showingCancelledFormulas)
         {
             FormulaFormStatusText.Text = "Selecciona una fórmula activa para editar.";
@@ -2736,6 +3002,11 @@ public sealed partial class MainPage : Page
 
     private async void ViewFormula_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Fórmulas", "Visualizar"))
+        {
+            return;
+        }
+
         if (_selectedFormula is null)
         {
             FormulaFormStatusText.Text = "Selecciona una fórmula para visualizar.";
@@ -2771,7 +3042,8 @@ public sealed partial class MainPage : Page
 
             FormulaEditorSaveButton.Visibility = _viewingFormula ? Visibility.Collapsed : Visibility.Visible;
             FormulaEditorStatusText.Text = string.Empty;
-            FormulaEditorSaveButton.IsEnabled = !_viewingFormula;
+            FormulaEditorSaveButton.IsEnabled = !_viewingFormula
+                && HasActionPermission("Fórmulas", _editingFormula ? "Editar" : "Alta");
         }
         catch (SqlException exception)
         {
@@ -2988,12 +3260,19 @@ public sealed partial class MainPage : Page
     {
         FormulaEditorOverlay.Visibility = Visibility.Collapsed;
         FormulaEditorSaveButton.Visibility = Visibility.Visible;
-        FormulaEditorSaveButton.IsEnabled = true;
+        FormulaEditorSaveButton.IsEnabled = HasActionPermission(
+            "Fórmulas",
+            _editingFormula ? "Editar" : "Alta");
         _viewingFormula = false;
     }
 
     private async void SaveFormulaEditor_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Fórmulas", _editingFormula ? "Editar" : "Alta"))
+        {
+            return;
+        }
+
         var values = _formulaEditorInputs.ToDictionary(
             pair => pair.Key,
             pair => pair.Value switch
@@ -3055,12 +3334,19 @@ public sealed partial class MainPage : Page
         }
         finally
         {
-            FormulaEditorSaveButton.IsEnabled = true;
+            FormulaEditorSaveButton.IsEnabled = HasActionPermission(
+                "Fórmulas",
+                _editingFormula ? "Editar" : "Alta");
         }
     }
 
     private async void DeleteFormula_Click(object sender, RoutedEventArgs e)
     {
+        if (!RequireActionPermission("Fórmulas", "Baja"))
+        {
+            return;
+        }
+
         if (_selectedFormula is null || _showingCancelledFormulas)
         {
             FormulaFormStatusText.Text = "Selecciona una fórmula activa para borrar.";
@@ -3101,8 +3387,7 @@ public sealed partial class MainPage : Page
         }
         finally
         {
-            FormulaEditButton.IsEnabled = _selectedFormula is not null && !_showingCancelledFormulas;
-            FormulaDeleteButton.IsEnabled = _selectedFormula is not null && !_showingCancelledFormulas;
+            UpdateFormulaActionButtons();
         }
     }
 
@@ -3307,7 +3592,8 @@ public sealed partial class MainPage : Page
             InventoryMovementTitleText.Text = "Salida General";
         }
 
-        InventorySaveButton.IsEnabled = operation is not null;
+        InventorySaveButton.IsEnabled = operation is not null
+            && HasActionPermission(operation, "Alta");
         InventoryFormStatusText.Text = operation is null
             ? "Selecciona Entradas para agregar o Salidas para quitar existencias."
             : $"{operation}: completa los datos y pulsa Guardar para registrar el movimiento.";
@@ -3317,6 +3603,12 @@ public sealed partial class MainPage : Page
     {
         var isEntry = InventoryEntriesCheckBox.IsChecked == true;
         var isExit = InventoryExitsCheckBox.IsChecked == true;
+        var permissionModule = isEntry ? "Entradas" : "Salidas";
+        if (!RequireActionPermission(permissionModule, "Alta"))
+        {
+            return;
+        }
+
         if (isEntry == isExit)
         {
             InventoryFormStatusText.Text = "Selecciona Entradas para agregar o Salidas para quitar existencias.";
@@ -3404,8 +3696,13 @@ public sealed partial class MainPage : Page
         }
         finally
         {
-            InventorySaveButton.IsEnabled =
-                InventoryEntriesCheckBox.IsChecked == true || InventoryExitsCheckBox.IsChecked == true;
+            var selectedModule = InventoryEntriesCheckBox.IsChecked == true
+                ? "Entradas"
+                : InventoryExitsCheckBox.IsChecked == true
+                    ? "Salidas"
+                    : null;
+            InventorySaveButton.IsEnabled = selectedModule is not null
+                && HasActionPermission(selectedModule, "Alta");
         }
     }
 
@@ -3852,7 +4149,9 @@ public sealed partial class MainPage : Page
 
             CurrentUserText.Text = $"USUARIO: {user.Username}";
             CurrentRoleText.Text = $"TIPO: {user.Role}";
+            _authenticatedUserId = user.UserId;
             _authenticatedUsername = user.Username;
+            await RefreshCurrentUserPermissionsAsync();
             LoginShell.Visibility = Visibility.Collapsed;
             DashboardShell.Visibility = Visibility.Visible;
             await LoadPlantNameAsync();
@@ -3902,6 +4201,241 @@ public sealed partial class MainPage : Page
     {
         LoginErrorText.Text = message;
         LoginErrorText.Visibility = Visibility.Visible;
+    }
+
+    private async Task<bool> RefreshCurrentUserPermissionsAsync()
+    {
+        if (_authenticatedUserId is not int userId)
+        {
+            _currentUserPermissions = Array.Empty<AccessPermissionEntry>();
+            ApplyProfilePermissions();
+            return false;
+        }
+
+        try
+        {
+            _currentUserPermissions = await _accessConfigurationService.GetUserPermissionsAsync(userId);
+            ApplyProfilePermissions();
+            return true;
+        }
+        catch (SqlException exception)
+        {
+            _currentUserPermissions = Array.Empty<AccessPermissionEntry>();
+            ApplyProfilePermissions();
+            ModuleStatusText.Text =
+                $"No se pudieron cargar los permisos del usuario (SQL {exception.Number}): {exception.Message}";
+            return false;
+        }
+    }
+
+    private bool HasModulePermission(string module) =>
+        AccessPermissionLookup.IsModuleEnabled(_currentUserPermissions, module);
+
+    private bool HasNavigationPermission(string navigationTag, string permissionModule) =>
+        HasModulePermission(permissionModule)
+        && (!IsReportNavigation(navigationTag)
+            || HasActionPermission(permissionModule, "Visualizar"));
+
+    private static bool IsReportNavigation(string navigationTag) =>
+        navigationTag.StartsWith("Reporte", StringComparison.OrdinalIgnoreCase)
+        || navigationTag is "Remisión anterior" or "Remisión de salida" or "Relación de producción";
+
+    private bool HasActionPermission(string module, string action) =>
+        AccessPermissionLookup.IsActionEnabled(_currentUserPermissions, module, action);
+
+    private bool RequireActionPermission(string module, string action)
+    {
+        if (HasActionPermission(module, action))
+        {
+            return true;
+        }
+
+        ModuleStatusText.Text = $"Tu perfil no tiene permiso de {action} en {module}.";
+        return false;
+    }
+
+    private static bool TryGetPermissionModule(string navigationTag, out string permissionModule)
+    {
+        permissionModule = navigationTag switch
+        {
+            "Reporte de producción general" => "Produccion General",
+            "Reporte de producción real" => "Produccion Real",
+            "Reporte de entradas de material" => "Entradas Material",
+            "Reporte de salidas de material" => "Salidas Material",
+            "Reporte de existencias" => "ExistenciasR",
+            "Reporte general de fórmulas" => "FormulasR",
+            "Reporte general de clientes" => "ClientesR",
+            "Reporte general de proveedor" => "ProveedoresR",
+            "Remisión anterior" => "Remision Anterior",
+            "Remisión de salida" => "Remision Salida",
+            "Reporte de pedidos" => "PedidosR",
+            "Relación de producción" => "Relacion",
+            "Config:Machine" => "Maquina",
+            "Config:PLC" => "PLC",
+            "Config:Company" => "Datos Compañia",
+            "Config:Remission" => "Ajuste Remision",
+            "Config:ImagesOn" or "Config:ImagesOff" or "Config:ImageSize" or "Config:Messages" => "General",
+            "Config:Additional" => "Adicionales",
+            "Config:Orders" => "PedidosC",
+            "Config:BackupReports" => "Respaldar Reportes",
+            "Config:BackupDatabase" => "Respaldar DB",
+            "Config:Access" => "Accesos",
+            _ => navigationTag
+        };
+
+        return navigationTag is "Reporte de producción general"
+            or "Reporte de producción real"
+            or "Reporte de entradas de material"
+            or "Reporte de salidas de material"
+            or "Reporte de existencias"
+            or "Reporte general de fórmulas"
+            or "Reporte general de clientes"
+            or "Reporte general de proveedor"
+            or "Remisión anterior"
+            or "Remisión de salida"
+            or "Reporte de pedidos"
+            or "Relación de producción"
+            or "Config:Machine"
+            or "Config:PLC"
+            or "Config:Company"
+            or "Config:Remission"
+            or "Config:ImagesOn"
+            or "Config:ImagesOff"
+            or "Config:ImageSize"
+            or "Config:Messages"
+            or "Config:Additional"
+            or "Config:Orders"
+            or "Config:BackupReports"
+            or "Config:BackupDatabase"
+            or "Config:Access"
+            or "Seguridad"
+            or "Carga Manual"
+            or "Entradas"
+            or "Salidas"
+            or "Fórmulas"
+            or "Proveedores"
+            or "Clientes"
+            or "Camiones"
+            or "Pedidos";
+    }
+
+    private void ApplyProfilePermissions()
+    {
+        foreach (var menu in MainMenuBar.Items.OfType<MenuBarItem>())
+        {
+            var hasProfileItems = false;
+            var hasEnabledProfileItem = false;
+            foreach (var menuItem in menu.Items.OfType<Control>())
+            {
+                if (menuItem.Tag is not string tag || !TryGetPermissionModule(tag, out var permissionModule))
+                {
+                    continue;
+                }
+
+                var enabled = HasNavigationPermission(tag, permissionModule);
+                menuItem.IsEnabled = enabled;
+                hasProfileItems = true;
+                hasEnabledProfileItem |= enabled;
+            }
+
+            if (hasProfileItems)
+            {
+                menu.IsEnabled = menu.Title == "Reportes"
+                    ? HasModulePermission("Reportes")
+                    : hasEnabledProfileItem;
+            }
+        }
+
+        InventorySaveButton.IsEnabled =
+            (InventoryEntriesCheckBox.IsChecked == true && HasActionPermission("Entradas", "Alta"))
+            || (InventoryExitsCheckBox.IsChecked == true && HasActionPermission("Salidas", "Alta"));
+        UpdateOrderActionButtons();
+        UpdateFormulaActionButtons();
+        UpdateSupplierActionButtons();
+        UpdateClientActionButtons();
+        UpdateTruckActionButtons();
+        ManualLoadMenuItem.IsEnabled = HasModulePermission("Carga Manual");
+        SecurityMenuItem.IsEnabled = HasModulePermission("Seguridad");
+        MachineConfigurationView.RefreshPermissions();
+        ConfigurationView.RefreshProfilePermissions();
+    }
+
+    private bool CanSaveConfigurationTab(int tab) => tab switch
+    {
+        1 => true,
+        2 => HasActionPermission("Datos Compañia", "Editar")
+            || HasActionPermission("Datos Compañia", "Alta"),
+        3 => HasModulePermission("Ajuste Remision")
+            && HasActionPermission("Datos Remision", "Editar")
+            || HasModulePermission("Ajuste Remision")
+            && HasActionPermission("Datos Remision", "Alta"),
+        4 or 5 or 6 or 7 => HasActionPermission("General", "Editar")
+            || HasActionPermission("General", "Alta"),
+        8 => HasActionPermission("Adicionales", "Editar")
+            || HasActionPermission("Adicionales", "Alta"),
+        9 => HasModulePermission("PedidosC")
+            && ((HasModulePermission("Configurar Pedido")
+                    && (HasActionPermission("Configurar Pedido", "Editar")
+                        || HasActionPermission("Configurar Pedido", "Alta")))
+                || (HasModulePermission("Turnos")
+                    && (HasActionPermission("Turnos", "Editar")
+                        || HasActionPermission("Turnos", "Alta")))),
+        10 => HasActionPermission("Accesos", "Alta")
+            || HasActionPermission("Accesos", "Editar"),
+        _ => false
+    };
+
+    private void UpdateFormulaActionButtons()
+    {
+        var hasSelection = _selectedFormula is not null;
+        FormulaAddRestoreButton.IsEnabled = _showingCancelledFormulas
+            ? hasSelection && HasActionPermission("Fórmulas", "Alta")
+            : HasActionPermission("Fórmulas", "Alta");
+        FormulaEditButton.IsEnabled = hasSelection && !_showingCancelledFormulas
+            && HasActionPermission("Fórmulas", "Editar");
+        FormulaDeleteButton.IsEnabled = hasSelection && !_showingCancelledFormulas
+            && HasActionPermission("Fórmulas", "Baja");
+        FormulaViewButton.IsEnabled = hasSelection && HasActionPermission("Fórmulas", "Visualizar");
+    }
+
+    private void UpdateSupplierActionButtons()
+    {
+        AddSupplierButton.IsEnabled = HasActionPermission("Proveedores", "Alta");
+        EditSupplierButton.IsEnabled = _selectedSupplier is not null
+            && HasActionPermission("Proveedores", "Editar");
+        DeleteSupplierButton.IsEnabled = _selectedSupplier is not null
+            && HasActionPermission("Proveedores", "Baja");
+        ViewSupplierButton.IsEnabled = _selectedSupplier is not null
+            && HasActionPermission("Proveedores", "Visualizar");
+    }
+
+    private void UpdateClientActionButtons()
+    {
+        AddClientButton.IsEnabled = HasActionPermission("Clientes", "Alta");
+        EditClientButton.IsEnabled = _selectedClient is not null
+            && HasActionPermission("Clientes", "Editar");
+        DeleteClientButton.IsEnabled = _selectedClient is not null
+            && HasActionPermission("Clientes", "Baja");
+        ViewClientButton.IsEnabled = _selectedClient is not null
+            && HasActionPermission("Clientes", "Visualizar");
+    }
+
+    private void UpdateTruckActionButtons()
+    {
+        var showTrucks = TruckTablePanel.Visibility == Visibility.Visible;
+        AddTruckButton.IsEnabled = HasActionPermission("Camiones", "Alta");
+        EditTruckButton.IsEnabled = showTrucks && _selectedTruck is not null
+            && HasActionPermission("Camiones", "Editar");
+        DeleteTruckButton.IsEnabled = showTrucks && _selectedTruck is not null
+            && HasActionPermission("Camiones", "Baja");
+        ViewTruckButton.IsEnabled = showTrucks && _selectedTruck is not null
+            && HasActionPermission("Camiones", "Visualizar");
+        EditOperatorButton.IsEnabled = !showTrucks && _selectedOperator is not null
+            && HasActionPermission("Camiones", "Editar");
+        DeleteOperatorButton.IsEnabled = !showTrucks && _selectedOperator is not null
+            && HasActionPermission("Camiones", "Baja");
+        ViewOperatorButton.IsEnabled = !showTrucks && _selectedOperator is not null
+            && HasActionPermission("Camiones", "Visualizar");
     }
 
     private void ClockTimer_Tick(DispatcherQueueTimer sender, object args)

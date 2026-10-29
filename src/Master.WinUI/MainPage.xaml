@@ -50,7 +50,7 @@
             <TextBlock x:Name="MachineNameTextBlock" Grid.Column="2" Text="Cargando máquina..." FontSize="16" FontWeight="Bold" Foreground="#E6EDF7" HorizontalAlignment="Right" VerticalAlignment="Center" TextAlignment="Right" TextTrimming="CharacterEllipsis" />
         </Grid>
 
-        <MenuBar Grid.Row="1" Background="#101B2D">
+        <MenuBar x:Name="MainMenuBar" Grid.Row="1" Background="#101B2D">
             <MenuBarItem Title="Reportes">
                 <MenuFlyoutItem Text="Reporte de producción general" Tag="Reporte de producción general" Click="ModuleNavigation_Click" />
                 <MenuFlyoutItem Text="Reporte de producción real" Tag="Reporte de producción real" Click="ModuleNavigation_Click" />
@@ -85,7 +85,7 @@
                 <MenuFlyoutItem Text="Abrir" Tag="Pedidos" Click="ModuleNavigation_Click" />
             </MenuBarItem>
             <MenuBarItem Title="Carga Manual">
-                <MenuFlyoutItem Text="Abrir" Tag="Carga Manual" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem x:Name="ManualLoadMenuItem" Text="Abrir" Tag="Carga Manual" Click="ModuleNavigation_Click" />
             </MenuBarItem>
             <MenuBarItem Title="Configuración">
                 <MenuFlyoutItem Text="Configuración de la máquina" Tag="Config:Machine" Click="ModuleNavigation_Click" />
@@ -98,10 +98,12 @@
                 <MenuFlyoutItem Text="Mensajes" Tag="Config:Messages" Click="ModuleNavigation_Click" />
                 <MenuFlyoutItem Text="Adicionales" Tag="Config:Additional" Click="ModuleNavigation_Click" />
                 <MenuFlyoutItem Text="Pedidos" Tag="Config:Orders" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem Text="Respaldar Reportes" Tag="Config:BackupReports" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem Text="Respaldar BD" Tag="Config:BackupDatabase" Click="ModuleNavigation_Click" />
                 <MenuFlyoutItem Text="Accesos" Tag="Config:Access" Click="ModuleNavigation_Click" />
             </MenuBarItem>
             <MenuBarItem Title="Seguridad">
-                <MenuFlyoutItem Text="Abrir" Tag="Seguridad" Click="ModuleNavigation_Click" />
+                <MenuFlyoutItem x:Name="SecurityMenuItem" Text="Abrir" Tag="Seguridad" Click="ModuleNavigation_Click" />
             </MenuBarItem>
             <MenuBarItem Title="Ver">
                 <ToggleMenuFlyoutItem Text="Lienzo de diseño" Tag="DesignPanel" IsChecked="True" Click="ViewPanel_Toggled" />
@@ -765,7 +767,7 @@
                         <Button Content="×" Click="CloseSupplierForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Proveedores" />
                     </Grid>
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
-                        <Button Content="Agregar" Click="AddSupplier_Click" Style="{StaticResource DefaultButtonStyle}" />
+                        <Button x:Name="AddSupplierButton" Content="Agregar" Click="AddSupplier_Click" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="EditSupplierButton" Content="Editar" Click="EditSupplier_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="DeleteSupplierButton" Content="Borrar" Click="DeleteSupplier_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="ViewSupplierButton" Content="Visualizar" Click="ViewSupplier_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
@@ -899,7 +901,7 @@
                         <Button Content="×" Click="CloseClientForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Clientes" />
                     </Grid>
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
-                        <Button Content="Agregar" Click="AddClient_Click" Style="{StaticResource DefaultButtonStyle}" />
+                        <Button x:Name="AddClientButton" Content="Agregar" Click="AddClient_Click" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="EditClientButton" Content="Editar" Click="EditClient_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="DeleteClientButton" Content="Borrar" Click="DeleteClient_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="ViewClientButton" Content="Visualizar" Click="ViewClient_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" />
@@ -1382,7 +1384,7 @@
                         <Button Content="×" Click="CloseManualLoad_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="White" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar Carga Manual" />
                     </Grid>
                     <StackPanel Grid.Row="1" Orientation="Horizontal" Background="#172337" Padding="8,5" Spacing="8">
-                        <Button x:Name="ManualLoadSaveButton" Content="Guardar" Click="SaveManualLoad_Click" Style="{StaticResource DefaultButtonStyle}" />
+                        <Button x:Name="ManualLoadSaveButton" Content="Guardar" Click="SaveManualLoad_Click" Style="{StaticResource DefaultButtonStyle}" IsEnabled="False" />
                     </StackPanel>
                     <TabView Grid.Row="2" IsAddTabButtonVisible="False" CanReorderTabs="False" Background="#101B2D">
                         <TabViewItem Header="Materiales">
@@ -1527,6 +1529,18 @@
                 HorizontalAlignment="Center"
                 VerticalAlignment="Center">
                 <local:ConfigurationView x:Name="ConfigurationView" />
+            </Border>
+        </Grid>
+        <Grid x:Name="SecurityFormOverlay" Grid.RowSpan="4" Background="#99000000" Visibility="Collapsed">
+            <Border
+                x:Name="SecurityFormBorder"
+                Margin="12"
+                Background="White"
+                BorderBrush="#0078D4"
+                BorderThickness="1"
+                HorizontalAlignment="Center"
+                VerticalAlignment="Center">
+                <local:SecurityView x:Name="SecurityView" />
             </Border>
         </Grid>
         </Grid>
