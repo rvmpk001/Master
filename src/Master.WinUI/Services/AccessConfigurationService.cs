@@ -87,7 +87,7 @@ public sealed class AccessConfigurationService
     {
         var profileId = await GetUserProfileIdAsync(userId, cancellationToken);
         return profileId is int id
-            ? await GetPermissionEntriesForProfileAsync(id, cancellationToken)
+            ? await GetPermissionEntriesAsync(id, cancellationToken)
             : Array.Empty<AccessPermissionEntry>();
     }
 
@@ -111,6 +111,8 @@ public sealed class AccessConfigurationService
             {
                 return templateEntry with
                 {
+                    DetailId = 0,
+                    TemplateDetailId = templateEntry.DetailId,
                     IsEnabled = false,
                     Actions = templateEntry.Actions
                         .Select(action => action with { IsEnabled = false })
@@ -132,7 +134,9 @@ public sealed class AccessConfigurationService
             return templateEntry with
             {
                 DetailId = profileEntry.DetailId,
+                TemplateDetailId = templateEntry.DetailId,
                 IsEnabled = profileEntry.IsEnabled,
+                TemplateProfileId = sourceProfileId,
                 Actions = actions
             };
         }).ToArray();
@@ -234,20 +238,18 @@ public sealed class AccessConfigurationService
             {
                 var valueOrdinal = reader.GetOrdinal(column);
                 var titleOrdinal = reader.GetOrdinal(titleColumn);
-                if (reader.IsDBNull(titleOrdinal))
+                if (reader.IsDBNull(titleOrdinal) && reader.IsDBNull(valueOrdinal))
                 {
                     continue;
                 }
 
-                var title = reader.GetString(titleOrdinal).Trim();
-                if (title.Length == 0)
-                {
-                    continue;
-                }
+                var title = reader.IsDBNull(titleOrdinal)
+                    ? string.Empty
+                    : reader.GetString(titleOrdinal).Trim();
 
                 actions.Add(new AccessPermissionAction(
                     column,
-                    title,
+                    string.IsNullOrWhiteSpace(title) ? column : title,
                     !reader.IsDBNull(valueOrdinal) && Convert.ToInt32(reader.GetValue(valueOrdinal)) != 0));
             }
 
@@ -284,7 +286,6 @@ public sealed class AccessConfigurationService
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
         await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
-        var identityInsertEnabled = false;
         try
         {
             if (templateProfileId is int sourceProfileId)
@@ -294,28 +295,23 @@ public sealed class AccessConfigurationService
                     throw new InvalidOperationException("El perfil de origen no puede ser el perfil seleccionado.");
                 }
 
-                await using (var identityInsertCommand = new SqlCommand(
-                                 "SET IDENTITY_INSERT dbo.PerfilDetalle ON;",
-                                 connection,
-                                 transaction))
-                {
-                    await identityInsertCommand.ExecuteNonQueryAsync(cancellationToken);
-                    identityInsertEnabled = true;
-                }
-
                 var changesByDetail = changes
-                    .GroupBy(change => change.DetailId)
+                    .GroupBy(change => change.TemplateDetailId ?? change.DetailId)
                     .ToDictionary(
                         group => group.Key,
                         group => group.ToDictionary(change => change.Column, StringComparer.OrdinalIgnoreCase));
-                foreach (var (detailId, detailChanges) in changesByDetail)
+                foreach (var (templateDetailId, detailChanges) in changesByDetail)
                 {
                     if (!detailChanges.TryGetValue("Estatus", out var statusChange))
                     {
                         throw new InvalidOperationException(
-                            $"Falta el estado principal del acceso {detailId}.");
+                            $"Falta el estado principal del acceso {templateDetailId}.");
                     }
 
+                    var targetDetailId = detailChanges.Values
+                        .Select(change => change.DetailId)
+                        .Distinct()
+                        .Single();
                     await using var existsCommand = new SqlCommand(
                         """
                         SELECT COUNT(*)
@@ -324,16 +320,17 @@ public sealed class AccessConfigurationService
                         """,
                         connection,
                         transaction);
-                    existsCommand.Parameters.Add("@DetailId", SqlDbType.Int).Value = detailId;
+                    existsCommand.Parameters.Add("@DetailId", SqlDbType.Int).Value = targetDetailId;
                     existsCommand.Parameters.Add("@ProfileId", SqlDbType.Int).Value = profileId;
-                    var exists = Convert.ToInt32(await existsCommand.ExecuteScalarAsync(cancellationToken)) > 0;
+                    var exists = targetDetailId > 0
+                        && Convert.ToInt32(await existsCommand.ExecuteScalarAsync(cancellationToken)) > 0;
                     if (exists)
                     {
                         await UpdatePermissionChangesAsync(
                             connection,
                             transaction,
                             profileId,
-                            detailId,
+                            targetDetailId,
                             detailChanges.Values,
                             cancellationToken);
                     }
@@ -344,19 +341,12 @@ public sealed class AccessConfigurationService
                             transaction,
                             profileId,
                             sourceProfileId,
-                            detailId,
+                            templateDetailId,
                             detailChanges,
                             statusChange.IsEnabled,
                             cancellationToken);
                     }
                 }
-
-                await using var identityInsertOffCommand = new SqlCommand(
-                    "SET IDENTITY_INSERT dbo.PerfilDetalle OFF;",
-                    connection,
-                    transaction);
-                await identityInsertOffCommand.ExecuteNonQueryAsync(cancellationToken);
-                identityInsertEnabled = false;
             }
             else
             {
@@ -379,27 +369,9 @@ public sealed class AccessConfigurationService
 
             await transaction.CommitAsync(cancellationToken);
         }
-        catch (Exception saveException)
+        catch
         {
             await transaction.RollbackAsync(CancellationToken.None);
-            if (identityInsertEnabled)
-            {
-                try
-                {
-                    await using var identityInsertOffCommand = new SqlCommand(
-                        "SET IDENTITY_INSERT dbo.PerfilDetalle OFF;",
-                        connection);
-                    await identityInsertOffCommand.ExecuteNonQueryAsync(CancellationToken.None);
-                }
-                catch (SqlException cleanupException)
-                {
-                    throw new AggregateException(
-                        "No se pudo completar el guardado ni restablecer IDENTITY_INSERT.",
-                        saveException,
-                        cleanupException);
-                }
-            }
-
             throw;
         }
     }
@@ -443,7 +415,7 @@ public sealed class AccessConfigurationService
     {
         var columns = new[]
         {
-            "IdDetalle", "Opcion", "Titulo", "Alta", "TituloAlta", "Editar", "TituloEdicion", "Baja", "TituloBaja",
+            "Opcion", "Titulo", "Alta", "TituloAlta", "Editar", "TituloEdicion", "Baja", "TituloBaja",
             "Visualizar", "TituloVisualizar", "Imprimir", "TituloImprimir", "Exportar", "TituloExportar",
             "Por Vendedor", "TituloVendedor", "Autorizar", "TituloAutorizar", "AutoOPSP", "TituloOPSP",
             "AutoOP", "TituloOP", "Opcion11", "TituloOpcion11", "Opcion12", "TituloOpcion12",
@@ -457,16 +429,10 @@ public sealed class AccessConfigurationService
         var insertColumns = string.Join(", ", new[] { "[IdPerfil]" }.Concat(columns.Select(column => $"[{column}]")));
         var selectValues = new List<string>
         {
-            "@ProfileId",
-            "ISNULL((SELECT MAX([IdDetalle]) FROM dbo.PerfilDetalle WITH (UPDLOCK, HOLDLOCK)), 0) + 1"
+            "@ProfileId"
         };
         foreach (var column in columns)
         {
-            if (column.Equals("IdDetalle", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
             if (column.Equals("Estatus", StringComparison.OrdinalIgnoreCase))
             {
                 selectValues.Add("@Estatus");
@@ -535,11 +501,16 @@ public sealed record AccessPermissionEntry(
     string? ParentOption,
     bool IsEnabled,
     IReadOnlyList<AccessPermissionAction> Actions,
-    int? TemplateProfileId = null);
+    int? TemplateProfileId = null,
+    int? TemplateDetailId = null);
 
 public sealed record AccessPermissionAction(string Column, string Title, bool IsEnabled);
 
-public sealed record AccessPermissionChange(int DetailId, string Column, bool IsEnabled);
+public sealed record AccessPermissionChange(
+    int DetailId,
+    string Column,
+    bool IsEnabled,
+    int? TemplateDetailId = null);
 
 public static class AccessPermissionLookup
 {
@@ -565,8 +536,7 @@ public static class AccessPermissionLookup
 
         var permission = entry.Actions.FirstOrDefault(candidate =>
             string.Equals(candidate.Column, action, StringComparison.OrdinalIgnoreCase));
-        // Actions without a configured title have no separate profile control.
-        return permission?.IsEnabled ?? true;
+        return permission?.IsEnabled == true;
     }
 
     private static bool IsEnabledThroughParents(

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Runtime.InteropServices;
+using System.Text;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.Data.SqlClient;
@@ -11,6 +12,43 @@ namespace Master_WinUI;
 
 public sealed partial class ConfigurationView : UserControl
 {
+    private static readonly HashSet<string> AccessModulesWithoutViewActions = new(StringComparer.Ordinal)
+    {
+        "ADICIONALES",
+        "ABSORCION",
+        "AJUSTEABSORCION",
+        "AJUSTEHUMEDADES",
+        "AJUSTEREMISION",
+        "CAMIONES",
+        "CARGAMANUAL",
+        "CLIENTES",
+        "CONFIGURARPEDIDO",
+        "DATOSCOMPANIA",
+        "ENTRADAS",
+        "ENTRADASMATERIAL",
+        "EXISTENCIASR",
+        "FORMULAS",
+        "GENERAL",
+        "HUMEDADES",
+        "MAQUINA",
+        "PEDIDOS",
+        "PLC",
+        "PRODUCCIONGENERAL",
+        "PRODUCCIONREAL",
+        "PROVEEDORES",
+        "PUERTO",
+        "RESPALDARDB",
+        "REMISIONANTERIOR",
+        "REMISIONSALIDA",
+        "RELACION",
+        "RELACIONDEPRODUCCION",
+        "RESPALDARREPORTES",
+        "REGISTROS",
+        "SALIDAS",
+        "SALIDASMATERIAL",
+        "TURNOS"
+    };
+
     private readonly PlcCommunicationService _plcCommunicationService = new();
     private readonly PlcTagService _plcTagService = new();
     private readonly CompanyConfigurationService _companyConfigurationService = new();
@@ -228,10 +266,10 @@ public sealed partial class ConfigurationView : UserControl
             ShowStatus(
                 entries.Count == 0
                     ? $"No hay accesos registrados en dbo.PerfilDetalle para {profile.Name}."
-                    : entries[0].TemplateProfileId is int
+                    : entries.All(entry => entry.DetailId == 0)
                         ? $"El perfil {profile.Name} no tiene accesos propios; se muestran opciones desmarcadas para asignar."
                         : $"Accesos de {profile.Name} cargados desde dbo.PerfilDetalle.",
-                entries.Count == 0 || entries[0].TemplateProfileId.HasValue
+                entries.Count == 0 || entries.All(entry => entry.DetailId == 0)
                     ? InfoBarSeverity.Warning
                     : InfoBarSeverity.Success);
         }
@@ -269,28 +307,29 @@ public sealed partial class ConfigurationView : UserControl
             .ToArray();
 
         var nodesByOption = new Dictionary<string, TreeViewNode>(StringComparer.OrdinalIgnoreCase);
-        var nodesByDetailId = new Dictionary<int, TreeViewNode>();
+        var nodesByEntryId = new Dictionary<int, TreeViewNode>();
         foreach (var entry in sortedEntries)
         {
+            var entryId = entry.TemplateDetailId ?? entry.DetailId;
             var node = new TreeViewNode { IsExpanded = true };
             node.Content = CreateAccessCheckBox(
                 GetAccessPermissionTitle(entry),
                 entry.DetailId,
                 "Estatus",
                 entry.IsEnabled,
-                entry.TemplateProfileId);
+                entry.TemplateProfileId,
+                entry.TemplateDetailId);
             if (!string.IsNullOrWhiteSpace(entry.Option))
             {
                 nodesByOption.TryAdd(entry.Option, node);
             }
-            nodesByDetailId.Add(entry.DetailId, node);
+            nodesByEntryId.Add(entryId, node);
 
             foreach (var action in entry.Actions.OrderBy(
                          action => action.Title,
                          StringComparer.CurrentCultureIgnoreCase))
             {
-                if (IsTruckModule(entry)
-                    && action.Column is "Exportar" or "Imprimir" or "Visualizar")
+                if (ShouldHideAccessAction(entry, action.Column))
                 {
                     continue;
                 }
@@ -301,14 +340,15 @@ public sealed partial class ConfigurationView : UserControl
                     entry.DetailId,
                     action.Column,
                     action.IsEnabled,
-                    entry.TemplateProfileId);
+                    entry.TemplateProfileId,
+                    entry.TemplateDetailId);
                 node.Children.Add(actionNode);
             }
         }
 
         foreach (var entry in sortedEntries)
         {
-            var node = nodesByDetailId[entry.DetailId];
+            var node = nodesByEntryId[entry.TemplateDetailId ?? entry.DetailId];
             if (!string.IsNullOrWhiteSpace(entry.ParentOption)
                 && nodesByOption.TryGetValue(entry.ParentOption, out var parentNode)
                 && !ReferenceEquals(parentNode, node))
@@ -322,9 +362,37 @@ public sealed partial class ConfigurationView : UserControl
         }
     }
 
-    private static bool IsTruckModule(AccessPermissionEntry entry) =>
-        string.Equals(entry.Option?.Trim(), "Camiones", StringComparison.OrdinalIgnoreCase)
-        || string.Equals(entry.Title?.Trim(), "Camiones", StringComparison.OrdinalIgnoreCase);
+    private static bool ShouldHideAccessAction(AccessPermissionEntry entry, string actionColumn)
+    {
+        if (actionColumn is not ("Exportar" or "Imprimir" or "Visualizar"))
+        {
+            return false;
+        }
+
+        return AccessModulesWithoutViewActions.Contains(NormalizeAccessModule(entry.Option))
+            || AccessModulesWithoutViewActions.Contains(NormalizeAccessModule(entry.Title));
+    }
+
+    private static string NormalizeAccessModule(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return string.Empty;
+        }
+
+        var decomposed = value.Trim().Normalize(NormalizationForm.FormD);
+        var normalized = new StringBuilder(decomposed.Length);
+        foreach (var character in decomposed)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(character) != UnicodeCategory.NonSpacingMark
+                && char.IsLetterOrDigit(character))
+            {
+                normalized.Append(char.ToUpperInvariant(character));
+            }
+        }
+
+        return normalized.ToString();
+    }
 
     private static string GetAccessPermissionTitle(AccessPermissionEntry entry)
     {
@@ -343,14 +411,16 @@ public sealed partial class ConfigurationView : UserControl
         int detailId,
         string column,
         bool isEnabled,
-        int? templateProfileId)
+        int? templateProfileId,
+        int? templateDetailId)
     {
         var checkBox = new CheckBox { Content = title, IsChecked = isEnabled };
         _accessPermissionControls.Add(new AccessPermissionControl(
             checkBox,
             detailId,
             column,
-            templateProfileId));
+            templateProfileId,
+            templateDetailId));
         return checkBox;
     }
 
@@ -2942,7 +3012,8 @@ public sealed partial class ConfigurationView : UserControl
                     .Select(control => new AccessPermissionChange(
                         control.DetailId,
                         control.Column,
-                        control.CheckBox.IsChecked == true))
+                        control.CheckBox.IsChecked == true,
+                        control.TemplateDetailId))
                     .ToArray();
                 await _accessConfigurationService.SavePermissionChangesAsync(
                     profile.Id,
@@ -3018,7 +3089,8 @@ public sealed partial class ConfigurationView : UserControl
         CheckBox CheckBox,
         int DetailId,
         string Column,
-        int? TemplateProfileId);
+        int? TemplateProfileId,
+        int? TemplateDetailId);
 
     private sealed record AccessSection(StackPanel Root, StackPanel Content);
 
