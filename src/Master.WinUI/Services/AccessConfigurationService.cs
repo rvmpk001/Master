@@ -96,41 +96,114 @@ public sealed class AccessConfigurationService
         CancellationToken cancellationToken = default)
     {
         var entries = await GetPermissionEntriesForProfileAsync(profileId, cancellationToken);
-        if (entries.Count > 0)
+        var templateProfileId = await GetTemplateProfileIdAsync(profileId, cancellationToken);
+        if (templateProfileId is not int sourceProfileId)
         {
             return entries;
         }
 
-        const string templateProfileQuery = """
-            SELECT TOP (1) [IdPerfil]
-            FROM dbo.PerfilDetalle
-            WHERE [IdPerfil] IS NOT NULL AND [IdPerfil] <> @ProfileId
-            GROUP BY [IdPerfil]
-            ORDER BY COUNT(*) DESC, [IdPerfil];
+        var templateEntries = await GetPermissionEntriesForProfileAsync(sourceProfileId, cancellationToken);
+        var unmatchedEntries = entries.ToList();
+        return templateEntries.Select(templateEntry =>
+        {
+            var profileEntry = FindMatchingEntry(unmatchedEntries, templateEntry);
+            if (profileEntry is null)
+            {
+                return templateEntry with
+                {
+                    IsEnabled = false,
+                    Actions = templateEntry.Actions
+                        .Select(action => action with { IsEnabled = false })
+                        .ToArray(),
+                    TemplateProfileId = sourceProfileId
+                };
+            }
+
+            unmatchedEntries.Remove(profileEntry);
+            var profileActionsByColumn = profileEntry.Actions.ToDictionary(
+                action => action.Column,
+                StringComparer.OrdinalIgnoreCase);
+            var actions = templateEntry.Actions
+                .Select(action => profileActionsByColumn.TryGetValue(action.Column, out var profileAction)
+                    ? action with { IsEnabled = profileAction.IsEnabled }
+                    : action with { IsEnabled = false })
+                .ToArray();
+
+            return templateEntry with
+            {
+                DetailId = profileEntry.DetailId,
+                IsEnabled = profileEntry.IsEnabled,
+                Actions = actions
+            };
+        }).ToArray();
+    }
+
+    private static AccessPermissionEntry? FindMatchingEntry(
+        IEnumerable<AccessPermissionEntry> entries,
+        AccessPermissionEntry templateEntry)
+    {
+        if (!string.IsNullOrWhiteSpace(templateEntry.Option))
+        {
+            var optionMatch = entries.FirstOrDefault(entry =>
+                string.Equals(
+                    entry.Option?.Trim(),
+                    templateEntry.Option.Trim(),
+                    StringComparison.OrdinalIgnoreCase));
+            if (optionMatch is not null)
+            {
+                return optionMatch;
+            }
+        }
+
+        return entries.FirstOrDefault(entry =>
+            !string.IsNullOrWhiteSpace(templateEntry.Title)
+            && string.Equals(
+                entry.Title?.Trim(),
+                templateEntry.Title.Trim(),
+                StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task<int?> GetTemplateProfileIdAsync(
+        int profileId,
+        CancellationToken cancellationToken)
+    {
+        const string referenceProfileQuery = """
+            SELECT TOP (1) p.IdPerfil
+            FROM dbo.Perfiles AS p
+            WHERE LTRIM(RTRIM(p.Nombre)) = N'1'
+              AND EXISTS (
+                  SELECT 1
+                  FROM dbo.PerfilDetalle AS d
+                  WHERE d.IdPerfil = p.IdPerfil)
+            ORDER BY p.IdPerfil;
             """;
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var command = new SqlCommand(templateProfileQuery, connection);
-        command.Parameters.Add("@ProfileId", SqlDbType.Int).Value = profileId;
-        var result = await command.ExecuteScalarAsync(cancellationToken);
-        if (result is null or DBNull)
+        await using var referenceCommand = new SqlCommand(referenceProfileQuery, connection);
+        var referenceResult = await referenceCommand.ExecuteScalarAsync(cancellationToken);
+        if (referenceResult is not null and not DBNull)
         {
-            return entries;
+            var referenceProfileId = Convert.ToInt32(referenceResult);
+            return referenceProfileId == profileId ? null : referenceProfileId;
         }
 
-        var templateProfileId = Convert.ToInt32(result);
-        var templateEntries = await GetPermissionEntriesForProfileAsync(templateProfileId, cancellationToken);
-        return templateEntries
-            .Select(entry => entry with
-            {
-                IsEnabled = false,
-                Actions = entry.Actions
-                    .Select(action => action with { IsEnabled = false })
-                    .ToArray(),
-                TemplateProfileId = templateProfileId
-            })
-            .ToArray();
+        var actionTitleCount = string.Join(
+            " + ",
+            ActionColumns.Select(action =>
+                $"CASE WHEN NULLIF(LTRIM(RTRIM([{action.TitleColumn}])), N'') IS NOT NULL THEN 1 ELSE 0 END"));
+        var query = $"""
+            SELECT TOP (1) [IdPerfil]
+            FROM dbo.PerfilDetalle
+            WHERE [IdPerfil] IS NOT NULL AND [IdPerfil] <> @ProfileId
+            GROUP BY [IdPerfil]
+            ORDER BY SUM({actionTitleCount}) DESC, COUNT(*) DESC, [IdPerfil];
+            """;
+
+        await using var command = new SqlCommand(query, connection);
+        command.Parameters.Add("@ProfileId", SqlDbType.Int).Value = profileId;
+        var result = await command.ExecuteScalarAsync(cancellationToken);
+        return result is null or DBNull ? null : Convert.ToInt32(result);
     }
 
     private async Task<IReadOnlyList<AccessPermissionEntry>> GetPermissionEntriesForProfileAsync(
@@ -161,7 +234,7 @@ public sealed class AccessConfigurationService
             {
                 var valueOrdinal = reader.GetOrdinal(column);
                 var titleOrdinal = reader.GetOrdinal(titleColumn);
-                if (reader.IsDBNull(valueOrdinal) || reader.IsDBNull(titleOrdinal))
+                if (reader.IsDBNull(titleOrdinal))
                 {
                     continue;
                 }
@@ -175,7 +248,7 @@ public sealed class AccessConfigurationService
                 actions.Add(new AccessPermissionAction(
                     column,
                     title,
-                    Convert.ToInt32(reader.GetValue(valueOrdinal)) != 0));
+                    !reader.IsDBNull(valueOrdinal) && Convert.ToInt32(reader.GetValue(valueOrdinal)) != 0));
             }
 
             entries.Add(new AccessPermissionEntry(
@@ -221,17 +294,6 @@ public sealed class AccessConfigurationService
                     throw new InvalidOperationException("El perfil de origen no puede ser el perfil seleccionado.");
                 }
 
-                await using var countCommand = new SqlCommand(
-                    "SELECT COUNT(*) FROM dbo.PerfilDetalle WITH (UPDLOCK, HOLDLOCK) WHERE [IdPerfil] = @ProfileId;",
-                    connection,
-                    transaction);
-                countCommand.Parameters.Add("@ProfileId", SqlDbType.Int).Value = profileId;
-                if (Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken)) != 0)
-                {
-                    throw new InvalidOperationException(
-                        "El perfil ya tiene accesos. Vuelve a seleccionarlo para cargar sus valores actuales antes de guardar.");
-                }
-
                 await using (var identityInsertCommand = new SqlCommand(
                                  "SET IDENTITY_INSERT dbo.PerfilDetalle ON;",
                                  connection,
@@ -254,15 +316,39 @@ public sealed class AccessConfigurationService
                             $"Falta el estado principal del acceso {detailId}.");
                     }
 
-                    await InsertTemplatePermissionAsync(
+                    await using var existsCommand = new SqlCommand(
+                        """
+                        SELECT COUNT(*)
+                        FROM dbo.PerfilDetalle WITH (UPDLOCK, HOLDLOCK)
+                        WHERE [IdDetalle] = @DetailId AND [IdPerfil] = @ProfileId;
+                        """,
                         connection,
-                        transaction,
-                        profileId,
-                        sourceProfileId,
-                        detailId,
-                        detailChanges,
-                        statusChange.IsEnabled,
-                        cancellationToken);
+                        transaction);
+                    existsCommand.Parameters.Add("@DetailId", SqlDbType.Int).Value = detailId;
+                    existsCommand.Parameters.Add("@ProfileId", SqlDbType.Int).Value = profileId;
+                    var exists = Convert.ToInt32(await existsCommand.ExecuteScalarAsync(cancellationToken)) > 0;
+                    if (exists)
+                    {
+                        await UpdatePermissionChangesAsync(
+                            connection,
+                            transaction,
+                            profileId,
+                            detailId,
+                            detailChanges.Values,
+                            cancellationToken);
+                    }
+                    else
+                    {
+                        await InsertTemplatePermissionAsync(
+                            connection,
+                            transaction,
+                            profileId,
+                            sourceProfileId,
+                            detailId,
+                            detailChanges,
+                            statusChange.IsEnabled,
+                            cancellationToken);
+                    }
                 }
 
                 await using var identityInsertOffCommand = new SqlCommand(
@@ -274,22 +360,20 @@ public sealed class AccessConfigurationService
             }
             else
             {
-                foreach (var change in changes)
+                var changesByDetail = changes
+                    .GroupBy(change => change.DetailId)
+                    .ToDictionary(
+                        group => group.Key,
+                        group => group.ToArray());
+                foreach (var (detailId, detailChanges) in changesByDetail)
                 {
-                    var query = $"""
-                        UPDATE dbo.PerfilDetalle
-                        SET [{change.Column}] = @Value
-                        WHERE [IdDetalle] = @DetailId AND [IdPerfil] = @ProfileId;
-                        """;
-                    await using var command = new SqlCommand(query, connection, transaction);
-                    command.Parameters.Add("@Value", SqlDbType.Int).Value = change.IsEnabled ? 1 : 0;
-                    command.Parameters.Add("@DetailId", SqlDbType.Int).Value = change.DetailId;
-                    command.Parameters.Add("@ProfileId", SqlDbType.Int).Value = profileId;
-                    if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
-                    {
-                        throw new InvalidOperationException(
-                            $"No se encontró el permiso {change.DetailId} para el perfil seleccionado.");
-                    }
+                    await UpdatePermissionChangesAsync(
+                        connection,
+                        transaction,
+                        profileId,
+                        detailId,
+                        detailChanges,
+                        cancellationToken);
                 }
             }
 
@@ -317,6 +401,33 @@ public sealed class AccessConfigurationService
             }
 
             throw;
+        }
+    }
+
+    private static async Task UpdatePermissionChangesAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        int profileId,
+        int detailId,
+        IEnumerable<AccessPermissionChange> changes,
+        CancellationToken cancellationToken)
+    {
+        foreach (var change in changes)
+        {
+            var query = $"""
+                UPDATE dbo.PerfilDetalle
+                SET [{change.Column}] = @Value
+                WHERE [IdDetalle] = @DetailId AND [IdPerfil] = @ProfileId;
+                """;
+            await using var command = new SqlCommand(query, connection, transaction);
+            command.Parameters.Add("@Value", SqlDbType.Int).Value = change.IsEnabled ? 1 : 0;
+            command.Parameters.Add("@DetailId", SqlDbType.Int).Value = detailId;
+            command.Parameters.Add("@ProfileId", SqlDbType.Int).Value = profileId;
+            if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+            {
+                throw new InvalidOperationException(
+                    $"No se encontró el permiso {detailId} para el perfil seleccionado.");
+            }
         }
     }
 

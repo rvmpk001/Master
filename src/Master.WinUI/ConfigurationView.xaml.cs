@@ -85,6 +85,7 @@ public sealed partial class ConfigurationView : UserControl
 
     public event EventHandler? CloseRequested;
     public event EventHandler? AccessPermissionsSaved;
+    public event EventHandler<string>? PlantNameSaved;
     public Func<int, bool>? CanSaveConfigurationTab { get; set; }
     public Func<string, bool>? HasProfileModuleAccess { get; set; }
     public Func<string, string, bool>? HasProfileAction { get; set; }
@@ -288,6 +289,12 @@ public sealed partial class ConfigurationView : UserControl
                          action => action.Title,
                          StringComparer.CurrentCultureIgnoreCase))
             {
+                if (IsTruckModule(entry)
+                    && action.Column is "Exportar" or "Imprimir" or "Visualizar")
+                {
+                    continue;
+                }
+
                 var actionNode = new TreeViewNode();
                 actionNode.Content = CreateAccessCheckBox(
                     action.Title,
@@ -314,6 +321,10 @@ public sealed partial class ConfigurationView : UserControl
             }
         }
     }
+
+    private static bool IsTruckModule(AccessPermissionEntry entry) =>
+        string.Equals(entry.Option?.Trim(), "Camiones", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(entry.Title?.Trim(), "Camiones", StringComparison.OrdinalIgnoreCase);
 
     private static string GetAccessPermissionTitle(AccessPermissionEntry entry)
     {
@@ -2764,6 +2775,7 @@ public sealed partial class ConfigurationView : UserControl
                     GetCompanyText("Edo"));
                 await _companyConfigurationService.SaveCompanyConfigurationAsync(companySettings);
                 ShowStatus("Datos generales de la compañía guardados en dbo.Cia_Datos.", InfoBarSeverity.Success);
+                PlantNameSaved?.Invoke(this, companySettings.PlantName);
             }
             else if (_selectedConfigurationTab == 1)
             {

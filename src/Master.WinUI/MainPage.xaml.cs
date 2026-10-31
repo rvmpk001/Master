@@ -177,6 +177,10 @@ public sealed partial class MainPage : Page
             MachineNameTextBlock.Text = string.IsNullOrWhiteSpace(machineName) ? "Máquina no configurada" : machineName;
         };
         MachineConfigurationView.DashboardOptionsChanged += ApplyMachineDashboardOptions;
+        ConfigurationView.PlantNameSaved += (_, plantName) =>
+        {
+            PlantNameTextBlock.Text = string.IsNullOrWhiteSpace(plantName) ? "Planta no configurada" : plantName;
+        };
         Loaded += MainPage_Loaded;
         Unloaded += MainPage_Unloaded;
         ConfigurationView.CloseRequested += (_, _) =>
@@ -227,6 +231,7 @@ public sealed partial class MainPage : Page
     private async void MainPage_Loaded(object sender, RoutedEventArgs e)
     {
         Loaded -= MainPage_Loaded;
+        UsernameTextBox.Focus(FocusState.Programmatic);
         try
         {
             var savedState = await _designerCanvasStore.LoadAsync();
@@ -4281,6 +4286,29 @@ public sealed partial class MainPage : Page
             LoginButton.IsEnabled = true;
             LoginProgress.IsActive = false;
             LoginProgress.Visibility = Visibility.Collapsed;
+        }
+    }
+
+    private void LoginInput_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key == Windows.System.VirtualKey.Enter && LoginButton.IsEnabled)
+        {
+            e.Handled = true;
+            LoginButton_Click(LoginButton, new RoutedEventArgs());
+        }
+    }
+
+    private void MainPage_KeyDown(object sender, KeyRoutedEventArgs e)
+    {
+        if (e.Key != Windows.System.VirtualKey.Escape)
+        {
+            return;
+        }
+
+        e.Handled = true;
+        if (Application.Current is App { MainWindow: { } window })
+        {
+            window.Close();
         }
     }
 

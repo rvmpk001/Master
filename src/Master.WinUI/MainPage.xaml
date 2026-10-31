@@ -22,7 +22,7 @@
         </Style>
     </Page.Resources>
 
-    <Grid Background="{ThemeResource Palette0B1220}" SizeChanged="Page_SizeChanged">
+    <Grid Background="{ThemeResource Palette0B1220}" SizeChanged="Page_SizeChanged" KeyDown="MainPage_KeyDown">
         <Grid x:Name="DashboardShell" Visibility="Collapsed">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -1558,8 +1558,8 @@
             <Border Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" CornerRadius="12" Padding="28">
                 <StackPanel Spacing="14">
                     <TextBlock Text="SISTEMA BLAPACI" FontSize="26" FontWeight="Bold" Foreground="{ThemeResource PaletteE6EDF7}" />
-                    <TextBox x:Name="UsernameTextBox" Header="Usuario" MaxLength="15" Foreground="{ThemeResource PaletteF1F5F9}" />
-                    <PasswordBox x:Name="PasswordInput" Header="Contraseña" MaxLength="15" Foreground="{ThemeResource PaletteF1F5F9}" />
+                    <TextBox x:Name="UsernameTextBox" Header="Usuario" MaxLength="15" Foreground="{ThemeResource PaletteF1F5F9}" KeyDown="LoginInput_KeyDown" />
+                    <PasswordBox x:Name="PasswordInput" Header="Contraseña" MaxLength="15" Foreground="{ThemeResource PaletteF1F5F9}" KeyDown="LoginInput_KeyDown" />
                     <TextBlock x:Name="LoginErrorText" Visibility="Collapsed" Foreground="{ThemeResource PaletteFF8A80}" TextWrapping="WrapWholeWords" />
                     <ProgressRing x:Name="LoginProgress" IsActive="False" Visibility="Collapsed" Width="28" Height="28" HorizontalAlignment="Center" />
                     <Button x:Name="LoginButton" Content="Ingresar" Click="LoginButton_Click" HorizontalAlignment="Stretch" Padding="12,10" Style="{StaticResource DefaultButtonStyle}" />
