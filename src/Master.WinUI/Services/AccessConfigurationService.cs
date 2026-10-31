@@ -99,12 +99,21 @@ public sealed class AccessConfigurationService
         var templateProfileId = await GetTemplateProfileIdAsync(profileId, cancellationToken);
         if (templateProfileId is not int sourceProfileId)
         {
-            return entries;
+            return EnsureMachineEditAction(entries);
         }
 
         var templateEntries = await GetPermissionEntriesForProfileAsync(sourceProfileId, cancellationToken);
+        return MergeProfileEntries(entries, templateEntries, sourceProfileId);
+    }
+
+    internal static IReadOnlyList<AccessPermissionEntry> MergeProfileEntries(
+        IReadOnlyList<AccessPermissionEntry> entries,
+        IReadOnlyList<AccessPermissionEntry> templateEntries,
+        int sourceProfileId)
+    {
+        var templateEntriesWithMachineEdit = EnsureMachineEditAction(templateEntries);
         var unmatchedEntries = entries.ToList();
-        return templateEntries.Select(templateEntry =>
+        return templateEntriesWithMachineEdit.Select(templateEntry =>
         {
             var profileEntry = FindMatchingEntry(unmatchedEntries, templateEntry);
             if (profileEntry is null)
@@ -141,6 +150,27 @@ public sealed class AccessConfigurationService
             };
         }).ToArray();
     }
+
+    internal static IReadOnlyList<AccessPermissionEntry> EnsureMachineEditAction(
+        IReadOnlyList<AccessPermissionEntry> entries) =>
+        entries.Select(entry =>
+        {
+            var isMachineEntry = AccessPermissionLookup.MatchesModule(entry.Option, "Maquina")
+                || AccessPermissionLookup.MatchesModule(entry.Title, "Maquina");
+            if (!isMachineEntry
+                || entry.Actions.Any(action =>
+                    string.Equals(action.Column, "Editar", StringComparison.OrdinalIgnoreCase)))
+            {
+                return entry;
+            }
+
+            return entry with
+            {
+                Actions = entry.Actions
+                    .Append(new AccessPermissionAction("Editar", "Editar", false))
+                    .ToArray()
+            };
+        }).ToArray();
 
     private static AccessPermissionEntry? FindMatchingEntry(
         IEnumerable<AccessPermissionEntry> entries,
@@ -576,6 +606,9 @@ public static class AccessPermissionLookup
 
         return string.Equals(Normalize(candidate), Normalize(requested), StringComparison.Ordinal);
     }
+
+    internal static bool MatchesModule(string? candidate, string requested) =>
+        Matches(candidate, requested);
 
     private static string Normalize(string value)
     {

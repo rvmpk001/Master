@@ -49,6 +49,32 @@ public sealed partial class ConfigurationView : UserControl
         "TURNOS"
     };
 
+    private static readonly HashSet<string> AccessModulesWithViewAction = new(StringComparer.Ordinal)
+    {
+        "FORMULAS",
+        "PEDIDOS",
+        "PROVEEDORES"
+    };
+
+    private static readonly HashSet<string> AccessModulesWithoutCreateAction = new(StringComparer.Ordinal)
+    {
+        "AJUSTEREMISION",
+        "CONFIGURACION",
+        "EXISTENCIAS",
+        "PLC",
+        "PUERTO",
+        "RESPALDARDB",
+        "RESPALDARREPORTES"
+    };
+
+    private static readonly HashSet<string> AccessModulesHiddenFromTree = new(StringComparer.Ordinal)
+    {
+        "ABSORCION",
+        "AJUSTEABSORCION",
+        "AJUSTEHUMEDADES",
+        "HUMEDADES"
+    };
+
     private readonly PlcCommunicationService _plcCommunicationService = new();
     private readonly PlcTagService _plcTagService = new();
     private readonly CompanyConfigurationService _companyConfigurationService = new();
@@ -112,7 +138,7 @@ public sealed partial class ConfigurationView : UserControl
     private FrameworkElement? _accessPermissionsSection;
     private bool _loadingAccessProfiles;
     private int _accessProfileLoadVersion;
-    private readonly List<AccessPermissionControl> _accessPermissionControls = new();
+    private readonly List<AccessPermissionItem> _accessPermissionItems = new();
     private StackPanel? _remissionGeneralHost;
     private StackPanel? _remissionNumberingHost;
     private StackPanel? _remissionPrintFormatHost;
@@ -219,7 +245,7 @@ public sealed partial class ConfigurationView : UserControl
             else
             {
                 _accessPermissionsTree?.RootNodes.Clear();
-                _accessPermissionControls.Clear();
+                _accessPermissionItems.Clear();
                 ShowStatus("No hay perfiles registrados en dbo.Perfiles.", InfoBarSeverity.Warning);
             }
         }
@@ -238,7 +264,7 @@ public sealed partial class ConfigurationView : UserControl
         if (!_loadingAccessProfiles && _accessProfilesList?.SelectedItem is AccessProfile profile)
         {
             _accessPermissionsTree?.RootNodes.Clear();
-            _accessPermissionControls.Clear();
+            _accessPermissionItems.Clear();
             await LoadAccessPermissionsAsync(profile);
         }
     }
@@ -281,7 +307,7 @@ public sealed partial class ConfigurationView : UserControl
             }
 
             _accessPermissionsTree.RootNodes.Clear();
-            _accessPermissionControls.Clear();
+            _accessPermissionItems.Clear();
             ShowStatus($"No se pudieron cargar los accesos (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
@@ -292,7 +318,7 @@ public sealed partial class ConfigurationView : UserControl
             }
 
             _accessPermissionsTree.RootNodes.Clear();
-            _accessPermissionControls.Clear();
+            _accessPermissionItems.Clear();
             ShowStatus($"No se pudieron cargar los accesos: {exception.Message}", InfoBarSeverity.Error);
         }
     }
@@ -300,19 +326,43 @@ public sealed partial class ConfigurationView : UserControl
     private void BuildAccessPermissionTree(IReadOnlyList<AccessPermissionEntry> entries)
     {
         _accessPermissionsTree!.RootNodes.Clear();
-        _accessPermissionControls.Clear();
+        _accessPermissionItems.Clear();
         var sortedEntries = entries
             .OrderBy(GetAccessPermissionTitle, StringComparer.CurrentCultureIgnoreCase)
             .ThenBy(entry => entry.DetailId)
             .ToArray();
+        var hiddenOptions = new HashSet<string>(AccessModulesHiddenFromTree, StringComparer.Ordinal);
+        bool addedHiddenOption;
+        do
+        {
+            addedHiddenOption = false;
+            foreach (var entry in sortedEntries)
+            {
+                if (string.IsNullOrWhiteSpace(entry.ParentOption)
+                    || !hiddenOptions.Contains(NormalizeAccessModule(entry.ParentOption)))
+                {
+                    continue;
+                }
+
+                addedHiddenOption |= AddHiddenOption(entry.Option, hiddenOptions);
+                addedHiddenOption |= AddHiddenOption(entry.Title, hiddenOptions);
+            }
+        }
+        while (addedHiddenOption);
+
+        var visibleEntries = sortedEntries
+            .Where(entry =>
+                !hiddenOptions.Contains(NormalizeAccessModule(entry.Option))
+                && !hiddenOptions.Contains(NormalizeAccessModule(entry.Title)))
+            .ToArray();
 
         var nodesByOption = new Dictionary<string, TreeViewNode>(StringComparer.OrdinalIgnoreCase);
         var nodesByEntryId = new Dictionary<int, TreeViewNode>();
-        foreach (var entry in sortedEntries)
+        foreach (var entry in visibleEntries)
         {
             var entryId = entry.TemplateDetailId ?? entry.DetailId;
             var node = new TreeViewNode { IsExpanded = true };
-            node.Content = CreateAccessCheckBox(
+            node.Content = CreateAccessPermissionItem(
                 GetAccessPermissionTitle(entry),
                 entry.DetailId,
                 "Estatus",
@@ -325,17 +375,40 @@ public sealed partial class ConfigurationView : UserControl
             }
             nodesByEntryId.Add(entryId, node);
 
-            foreach (var action in entry.Actions.OrderBy(
+            var actions = entry.Actions;
+            if (string.Equals(
+                    NormalizeAccessModule(entry.Option),
+                    "MAQUINA",
+                    StringComparison.Ordinal)
+                && !actions.Any(action =>
+                    string.Equals(action.Column, "Editar", StringComparison.OrdinalIgnoreCase)))
+            {
+                actions = actions.Append(new AccessPermissionAction("Editar", "Editar", false)).ToArray();
+            }
+
+            foreach (var action in actions.OrderBy(
                          action => action.Title,
                          StringComparer.CurrentCultureIgnoreCase))
             {
                 if (ShouldHideAccessAction(entry, action.Column))
                 {
+                    if (IsConfigurationOrdersEntry(entry)
+                        && action.Column is "Alta" or "Visualizar")
+                    {
+                        CreateAccessPermissionItem(
+                            action.Title,
+                            entry.DetailId,
+                            action.Column,
+                            action.IsEnabled,
+                            entry.TemplateProfileId,
+                            entry.TemplateDetailId);
+                    }
+
                     continue;
                 }
 
                 var actionNode = new TreeViewNode();
-                actionNode.Content = CreateAccessCheckBox(
+                actionNode.Content = CreateAccessPermissionItem(
                     action.Title,
                     entry.DetailId,
                     action.Column,
@@ -346,7 +419,7 @@ public sealed partial class ConfigurationView : UserControl
             }
         }
 
-        foreach (var entry in sortedEntries)
+        foreach (var entry in visibleEntries)
         {
             var node = nodesByEntryId[entry.TemplateDetailId ?? entry.DetailId];
             if (!string.IsNullOrWhiteSpace(entry.ParentOption)
@@ -362,14 +435,52 @@ public sealed partial class ConfigurationView : UserControl
         }
     }
 
+    private static bool AddHiddenOption(string? option, HashSet<string> hiddenOptions) =>
+        !string.IsNullOrWhiteSpace(option)
+        && hiddenOptions.Add(NormalizeAccessModule(option));
+
+    private static bool IsConfigurationOrdersEntry(AccessPermissionEntry entry)
+    {
+        var isConfigurationChild = string.Equals(
+            NormalizeAccessModule(entry.ParentOption),
+            "CONFIGURACION",
+            StringComparison.Ordinal);
+        var isOrdersModule = string.Equals(NormalizeAccessModule(entry.Option), "PEDIDOS", StringComparison.Ordinal)
+            || string.Equals(NormalizeAccessModule(entry.Option), "PEDIDOSC", StringComparison.Ordinal)
+            || string.Equals(NormalizeAccessModule(entry.Title), "PEDIDOS", StringComparison.Ordinal);
+
+        return isConfigurationChild && isOrdersModule;
+    }
+
     private static bool ShouldHideAccessAction(AccessPermissionEntry entry, string actionColumn)
     {
+        if (IsConfigurationOrdersEntry(entry)
+            && actionColumn is "Alta" or "Visualizar")
+        {
+            return true;
+        }
+
+        var module = NormalizeAccessModule(entry.Option);
+        if (string.Equals(actionColumn, "Alta", StringComparison.OrdinalIgnoreCase)
+            && (AccessModulesWithoutCreateAction.Contains(module)
+                || AccessModulesWithoutCreateAction.Contains(NormalizeAccessModule(entry.Title))))
+        {
+            return true;
+        }
+
         if (actionColumn is not ("Exportar" or "Imprimir" or "Visualizar"))
         {
             return false;
         }
 
-        return AccessModulesWithoutViewActions.Contains(NormalizeAccessModule(entry.Option))
+        if (string.Equals(actionColumn, "Visualizar", StringComparison.OrdinalIgnoreCase)
+            && (AccessModulesWithViewAction.Contains(module)
+                || AccessModulesWithViewAction.Contains(NormalizeAccessModule(entry.Title))))
+        {
+            return false;
+        }
+
+        return AccessModulesWithoutViewActions.Contains(module)
             || AccessModulesWithoutViewActions.Contains(NormalizeAccessModule(entry.Title));
     }
 
@@ -406,7 +517,7 @@ public sealed partial class ConfigurationView : UserControl
             : entry.Option;
     }
 
-    private CheckBox CreateAccessCheckBox(
+    private AccessPermissionItem CreateAccessPermissionItem(
         string title,
         int detailId,
         string column,
@@ -414,14 +525,15 @@ public sealed partial class ConfigurationView : UserControl
         int? templateProfileId,
         int? templateDetailId)
     {
-        var checkBox = new CheckBox { Content = title, IsChecked = isEnabled };
-        _accessPermissionControls.Add(new AccessPermissionControl(
-            checkBox,
+        var permissionItem = new AccessPermissionItem(
+            title,
+            isEnabled,
             detailId,
             column,
             templateProfileId,
-            templateDetailId));
-        return checkBox;
+            templateDetailId);
+        _accessPermissionItems.Add(permissionItem);
+        return permissionItem;
     }
 
     public async Task LoadRemissionConfigurationAsync()
@@ -2991,7 +3103,7 @@ public sealed partial class ConfigurationView : UserControl
                     throw new InvalidOperationException("Selecciona un perfil antes de guardar sus accesos.");
                 }
 
-                var templateProfileIds = _accessPermissionControls
+                var templateProfileIds = _accessPermissionItems
                     .Select(control => control.TemplateProfileId)
                     .Where(templateProfileId => templateProfileId.HasValue)
                     .Select(templateProfileId => templateProfileId!.Value)
@@ -3002,17 +3114,17 @@ public sealed partial class ConfigurationView : UserControl
                     throw new InvalidOperationException("Los accesos mostrados no comparten un perfil de referencia.");
                 }
 
-                if (_accessPermissionControls.Count == 0)
+                if (_accessPermissionItems.Count == 0)
                 {
                     throw new InvalidOperationException(
                         "No hay definiciones de accesos para mostrar o guardar en dbo.PerfilDetalle.");
                 }
 
-                var changes = _accessPermissionControls
+                var changes = _accessPermissionItems
                     .Select(control => new AccessPermissionChange(
                         control.DetailId,
                         control.Column,
-                        control.CheckBox.IsChecked == true,
+                        control.IsEnabled,
                         control.TemplateDetailId))
                     .ToArray();
                 await _accessConfigurationService.SavePermissionChangesAsync(
@@ -3085,12 +3197,21 @@ public sealed partial class ConfigurationView : UserControl
         TimePicker StartTime,
         TimePicker EndTime);
 
-    private sealed record AccessPermissionControl(
-        CheckBox CheckBox,
-        int DetailId,
-        string Column,
-        int? TemplateProfileId,
-        int? TemplateDetailId);
+    private sealed class AccessPermissionItem(
+        string title,
+        bool isEnabled,
+        int detailId,
+        string column,
+        int? templateProfileId,
+        int? templateDetailId)
+    {
+        public string Title { get; } = title;
+        public bool IsEnabled { get; set; } = isEnabled;
+        public int DetailId { get; } = detailId;
+        public string Column { get; } = column;
+        public int? TemplateProfileId { get; } = templateProfileId;
+        public int? TemplateDetailId { get; } = templateDetailId;
+    }
 
     private sealed record AccessSection(StackPanel Root, StackPanel Content);
 

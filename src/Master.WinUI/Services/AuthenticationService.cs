@@ -17,7 +17,8 @@ public sealed class AuthenticationService
         const string query = """
             SELECT TOP (1) IdUsuario, Usuario, Clase
             FROM dbo.[Password]
-            WHERE Usuario = @Username AND [Password] = @Password
+            WHERE Usuario COLLATE Latin1_General_100_CS_AS = @Username COLLATE Latin1_General_100_CS_AS
+              AND [Password] COLLATE Latin1_General_100_CS_AS = @Password COLLATE Latin1_General_100_CS_AS
             ORDER BY IdUsuario;
             """;
 

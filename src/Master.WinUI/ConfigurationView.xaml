@@ -5,7 +5,9 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
     <UserControl.Resources>
         <DataTemplate x:Key="AccessTreeItemTemplate">
-            <ContentPresenter Content="{Binding Content}" />
+            <CheckBox
+                Content="{Binding Content.Title}"
+                IsChecked="{Binding Content.IsEnabled, Mode=TwoWay}" />
         </DataTemplate>
     </UserControl.Resources>
     <Grid RowSpacing="8" Background="{ThemeResource Palette111C2D}">
