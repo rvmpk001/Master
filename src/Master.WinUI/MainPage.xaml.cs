@@ -4138,9 +4138,7 @@ public sealed partial class MainPage : Page
                     string.Equals(control.ImageControl, image.Control, StringComparison.OrdinalIgnoreCase));
         }
 
-        foreach (var button in PumpImageControlPalette.Children
-                     .OfType<StackPanel>()
-                     .SelectMany(column => column.Children.OfType<Button>()))
+        foreach (var button in PumpImageControlPalette.Children.OfType<Button>())
         {
             button.IsEnabled = !_isCanvasLocked
                 && button.Tag is AdditionalImageConfigurationRecord image
@@ -4378,9 +4376,7 @@ public sealed partial class MainPage : Page
     private async Task RefreshPumpImagePaletteAsync()
     {
         PumpImagePaletteStatusText.Text = "Cargando bombas...";
-        PumpImageControlColumn1.Children.Clear();
-        PumpImageControlColumn2.Children.Clear();
-        PumpImageControlColumn3.Children.Clear();
+        PumpImageControlPalette.Children.Clear();
         try
         {
             if (!await LoadPumpImageConfigurationsAsync())
@@ -4388,12 +4384,6 @@ public sealed partial class MainPage : Page
                 return;
             }
 
-            var columns = new[]
-            {
-                PumpImageControlColumn1,
-                PumpImageControlColumn2,
-                PumpImageControlColumn3
-            };
             for (var index = 0; index < ImageConfigurationService.PumpControls.Count; index++)
             {
                 var name = ImageConfigurationService.PumpControls[index];
@@ -4411,7 +4401,7 @@ public sealed partial class MainPage : Page
                     Style = (Style)Resources["DefaultButtonStyle"]
                 };
                 button.Click += AddConfiguredPumpImage_Click;
-                columns[index % columns.Length].Children.Add(button);
+                PumpImageControlPalette.Children.Add(button);
             }
 
             var missingControls = ImageConfigurationService.PumpControls

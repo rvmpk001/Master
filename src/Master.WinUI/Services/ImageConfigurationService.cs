@@ -7,7 +7,7 @@ namespace Master_WinUI.Services;
 public sealed class ImageConfigurationService
 {
     public static IReadOnlyList<string> PumpControls { get; } =
-        new[] { "B_Ad1", "B_Ad2", "B_Ad3", "B_Agua", "B_Agua2" };
+        new[] { "B_Ad1", "B_Ad2", "B_Ad3", "B_Agua", "B_Agua2", "B_Adic1", "B_Adic2" };
 
     private readonly SqlConnectionFactory _connectionFactory = new();
 
@@ -69,7 +69,10 @@ public sealed class ImageConfigurationService
         const string query = """
             SELECT IdImagen, Control, ImagenOn, ImagenOff, Ancho, Alto
             FROM dbo.Imagenes
-            WHERE Control IN (N'B_Ad1', N'B_Ad2', N'B_Ad3', N'B_Agua', N'B_Agua2');
+            WHERE Control IN (
+                N'B_Ad1', N'B_Ad2', N'B_Ad3', N'B_Agua', N'B_Agua2',
+                N'B_Adic1', N'B_Adic2'
+            );
             """;
 
         await using var connection = _connectionFactory.CreateConnection();
