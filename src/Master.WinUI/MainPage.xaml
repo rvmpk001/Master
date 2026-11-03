@@ -327,13 +327,13 @@
                 <TabViewItem Header="Controles" IsClosable="False">
                     <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
                         <StackPanel Padding="8" Spacing="8" HorizontalAlignment="Stretch">
-                            <Expander Header="Mensajes" IsExpanded="True" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                            <Expander Header="Mensajes" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                 <StackPanel Spacing="8" HorizontalAlignment="Stretch">
                                     <TextBlock x:Name="MessagePaletteStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                                     <StackPanel x:Name="MessageControlPalette" Spacing="6" HorizontalAlignment="Stretch" />
                                 </StackPanel>
                             </Expander>
-                            <Expander Header="Adicionales" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                            <Expander Header="Adicionales" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                 <StackPanel Spacing="8" HorizontalAlignment="Stretch">
                                     <TextBlock x:Name="AdditionalImagePaletteStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                                     <Grid x:Name="AdditionalImageControlPalette" ColumnSpacing="8" HorizontalAlignment="Stretch">
@@ -348,10 +348,23 @@
                                     </Grid>
                                 </StackPanel>
                             </Expander>
-                            <Expander Header="Bombas" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                            <Expander Header="Bombas" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                 <StackPanel Spacing="8" HorizontalAlignment="Stretch">
                                     <TextBlock x:Name="PumpImagePaletteStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
                                     <StackPanel x:Name="PumpImageControlPalette" Spacing="6" HorizontalAlignment="Stretch" />
+                                </StackPanel>
+                            </Expander>
+                            <Expander Header="Válvulas" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <StackPanel Spacing="8" HorizontalAlignment="Stretch">
+                                    <TextBlock x:Name="ValveImagePaletteStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                                    <Grid x:Name="ValveImageControlPalette" ColumnSpacing="8" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel x:Name="ValveImageControlColumn1" Spacing="6" />
+                                        <StackPanel x:Name="ValveImageControlColumn2" Grid.Column="1" Spacing="6" />
+                                    </Grid>
                                 </StackPanel>
                             </Expander>
                         </StackPanel>

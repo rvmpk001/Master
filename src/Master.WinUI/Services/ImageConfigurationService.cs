@@ -8,6 +8,13 @@ public sealed class ImageConfigurationService
 {
     public static IReadOnlyList<string> PumpControls { get; } =
         new[] { "B_Ad1", "B_Ad2", "B_Ad3", "B_Agua", "B_Agua2", "B_Adic1", "B_Adic2" };
+    public static IReadOnlyList<string> ValveControls { get; } =
+        new[]
+        {
+            "V_Ag1", "V_Ag2", "V_Ag3", "V_Ag4", "V_Ag", "V_C1", "V_C2", "V_C3",
+            "V_Agua", "V_Agua2", "V_Adic1", "V_Adic2", "V_Adic3",
+            "Adic1", "Adic2", "Adic3", "Adic4", "Adic5"
+        };
 
     private readonly SqlConnectionFactory _connectionFactory = new();
 
@@ -90,6 +97,56 @@ public sealed class ImageConfigurationService
 
             var control = reader.GetString(1).Trim();
             if (!PumpControls.Contains(control, StringComparer.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var image = new AdditionalImageConfigurationRecord(
+                reader.GetInt32(0),
+                control,
+                reader.IsDBNull(2) ? string.Empty : reader.GetString(2).Trim(),
+                reader.IsDBNull(3) ? string.Empty : reader.GetString(3).Trim(),
+                reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                reader.IsDBNull(5) ? null : reader.GetInt32(5));
+            if (!images.TryAdd(control, image))
+            {
+                throw new InvalidOperationException(
+                    $"dbo.Imagenes contiene más de un registro para el control '{control}'.");
+            }
+        }
+
+        return images;
+    }
+
+    public async Task<IReadOnlyDictionary<string, AdditionalImageConfigurationRecord>> GetValveImageConfigurationsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        const string query = """
+            SELECT IdImagen, Control, ImagenOn, ImagenOff, Ancho, Alto
+            FROM dbo.Imagenes
+            WHERE Control IN (
+                N'V_Ag1', N'V_Ag2', N'V_Ag3', N'V_Ag4', N'V_Ag',
+                N'V_C1', N'V_C2', N'V_C3', N'V_Agua', N'V_Agua2',
+                N'V_Adic1', N'V_Adic2', N'V_Adic3',
+                N'Adic1', N'Adic2', N'Adic3', N'Adic4', N'Adic5'
+            );
+            """;
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(query, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var images = new Dictionary<string, AdditionalImageConfigurationRecord>(StringComparer.OrdinalIgnoreCase);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (reader.IsDBNull(1))
+            {
+                throw new InvalidOperationException("dbo.Imagenes contiene un registro sin valor en Control.");
+            }
+
+            var control = reader.GetString(1).Trim();
+            if (!ValveControls.Contains(control, StringComparer.OrdinalIgnoreCase))
             {
                 continue;
             }

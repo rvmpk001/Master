@@ -57,6 +57,8 @@ public sealed partial class MainPage : Page
         new Dictionary<string, AdditionalImageConfigurationRecord>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, AdditionalImageConfigurationRecord> _pumpImageConfigurations =
         new Dictionary<string, AdditionalImageConfigurationRecord>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, AdditionalImageConfigurationRecord> _valveImageConfigurations =
+        new Dictionary<string, AdditionalImageConfigurationRecord>(StringComparer.OrdinalIgnoreCase);
     private bool _showPlantTools = true;
     private bool _isDashboardResizeActive;
     private double _dashboardResizeStartY;
@@ -315,6 +317,9 @@ public sealed partial class MainPage : Page
             var hasSavedPumpImages = _designerCanvasState.Controls.Any(control =>
                 string.Equals(control.Type, "ImagenBomba", StringComparison.OrdinalIgnoreCase));
             var pumpImagesLoaded = !hasSavedPumpImages || await LoadPumpImageConfigurationsAsync();
+            var hasSavedValveImages = _designerCanvasState.Controls.Any(control =>
+                string.Equals(control.Type, "ImagenValvula", StringComparison.OrdinalIgnoreCase));
+            var valveImagesLoaded = !hasSavedValveImages || await LoadValveImageConfigurationsAsync();
             foreach (var control in _designerCanvasState.Controls)
             {
                 if (string.Equals(control.Type, "ImagenAdicional", StringComparison.OrdinalIgnoreCase)
@@ -325,6 +330,12 @@ public sealed partial class MainPage : Page
 
                 if (string.Equals(control.Type, "ImagenBomba", StringComparison.OrdinalIgnoreCase)
                     && !pumpImagesLoaded)
+                {
+                    continue;
+                }
+
+                if (string.Equals(control.Type, "ImagenValvula", StringComparison.OrdinalIgnoreCase)
+                    && !valveImagesLoaded)
                 {
                     continue;
                 }
@@ -379,7 +390,7 @@ public sealed partial class MainPage : Page
         {
             var additionalImageControls = _designerCanvasState.Controls
                 .Where(control =>
-                    IsCanvasImageControl(control)
+                    IsCanvasPlcImageControl(control)
                     && !string.IsNullOrWhiteSpace(control.ImageControl))
                 .Select(control => control.ImageControl!)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -4138,6 +4149,16 @@ public sealed partial class MainPage : Page
                     string.Equals(control.ImageControl, image.Control, StringComparison.OrdinalIgnoreCase));
         }
 
+        foreach (var button in ValveImageControlPalette.Children
+                     .OfType<StackPanel>()
+                     .SelectMany(column => column.Children.OfType<Button>()))
+        {
+            button.IsEnabled = !_isCanvasLocked
+                && button.Tag is AdditionalImageConfigurationRecord image
+                && !_designerCanvasState.Controls.Any(control =>
+                    string.Equals(control.ImageControl, image.Control, StringComparison.OrdinalIgnoreCase));
+        }
+
         foreach (var button in PumpImageControlPalette.Children.OfType<Button>())
         {
             button.IsEnabled = !_isCanvasLocked
@@ -4173,6 +4194,7 @@ public sealed partial class MainPage : Page
             await RefreshMessagePaletteAsync();
             await RefreshAdditionalImagePaletteAsync();
             await RefreshPumpImagePaletteAsync();
+            await RefreshValveImagePaletteAsync();
         }
     }
 
@@ -4457,6 +4479,94 @@ public sealed partial class MainPage : Page
         }
     }
 
+    private async Task RefreshValveImagePaletteAsync()
+    {
+        ValveImagePaletteStatusText.Text = "Cargando válvulas...";
+        ValveImageControlColumn1.Children.Clear();
+        ValveImageControlColumn2.Children.Clear();
+        try
+        {
+            if (!await LoadValveImageConfigurationsAsync())
+            {
+                return;
+            }
+
+            for (var index = 0; index < ImageConfigurationService.ValveControls.Count; index++)
+            {
+                var name = ImageConfigurationService.ValveControls[index];
+                if (!_valveImageConfigurations.TryGetValue(name, out var image))
+                {
+                    continue;
+                }
+
+                var button = new Button
+                {
+                    Content = name,
+                    Tag = image,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Center,
+                    Style = (Style)Resources["DefaultButtonStyle"]
+                };
+                button.Click += AddConfiguredValveImage_Click;
+                var column = index % 2 == 0
+                    ? ValveImageControlColumn1
+                    : ValveImageControlColumn2;
+                column.Children.Add(button);
+            }
+
+            var missingControls = ImageConfigurationService.ValveControls
+                .Where(control => !_valveImageConfigurations.ContainsKey(control))
+                .ToArray();
+            ValveImagePaletteStatusText.Text = missingControls.Length == 0
+                ? "Selecciona una válvula para agregarla al lienzo."
+                : $"No se encontraron en dbo.Imagenes: {string.Join(", ", missingControls)}.";
+
+            foreach (var control in _designerCanvasState.Controls.Where(control =>
+                         string.Equals(control.Type, "ImagenValvula", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!_valveImageConfigurations.TryGetValue(control.ImageControl ?? string.Empty, out var image))
+                {
+                    continue;
+                }
+
+                control.ImageOnPath = image.ImageOn;
+                control.ImageOffPath = image.ImageOff;
+                var container = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
+                    candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
+                if (container?.Child is Image canvasImage)
+                {
+                    await SetAdditionalImageSourceAsync(canvasImage, control);
+                }
+            }
+        }
+        finally
+        {
+            UpdateCanvasEditMode();
+        }
+    }
+
+    private async Task<bool> LoadValveImageConfigurationsAsync()
+    {
+        try
+        {
+            _valveImageConfigurations = await _imageConfigurationService.GetValveImageConfigurationsAsync();
+            return true;
+        }
+        catch (SqlException exception)
+        {
+            ValveImagePaletteStatusText.Text =
+                $"No se pudieron cargar las válvulas (SQL {exception.Number}): {exception.Message}";
+            ModuleStatusText.Text = ValveImagePaletteStatusText.Text;
+            return false;
+        }
+        catch (InvalidOperationException exception)
+        {
+            ValveImagePaletteStatusText.Text = $"No se pudieron cargar las válvulas: {exception.Message}";
+            ModuleStatusText.Text = ValveImagePaletteStatusText.Text;
+            return false;
+        }
+    }
+
     private async void AddConfiguredAdditionalImage_Click(object sender, RoutedEventArgs e)
     {
         if (_isCanvasLocked || sender is not Button { Tag: AdditionalImageConfigurationRecord image })
@@ -4516,6 +4626,43 @@ public sealed partial class MainPage : Page
         {
             Id = Guid.NewGuid().ToString("N"),
             Type = "ImagenBomba",
+            ImageControl = image.Control,
+            ImageOnPath = image.ImageOn,
+            ImageOffPath = image.ImageOff,
+            IsOn = false,
+            Width = width,
+            Height = height,
+            Left = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualWidth - width)),
+            Top = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualHeight - height))
+        };
+        _designerCanvasState.Controls.Add(control);
+        await AddCanvasControlToSurfaceAsync(control);
+        UpdateCanvasEditMode();
+        await SaveDesignerCanvasStateAsync();
+    }
+
+    private async void AddConfiguredValveImage_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not Button { Tag: AdditionalImageConfigurationRecord image })
+        {
+            return;
+        }
+
+        if (_designerCanvasState.Controls.Any(control =>
+                string.Equals(control.ImageControl, image.Control, StringComparison.OrdinalIgnoreCase)))
+        {
+            ValveImagePaletteStatusText.Text = $"{image.Control} ya está agregado al lienzo.";
+            UpdateCanvasEditMode();
+            return;
+        }
+
+        var index = _designerCanvasState.Controls.Count;
+        var width = image.Width is > 0 ? image.Width.Value : 40;
+        var height = image.Height is > 0 ? image.Height.Value : 40;
+        var control = new DesignerCanvasControlState
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Type = "ImagenValvula",
             ImageControl = image.Control,
             ImageOnPath = image.ImageOn,
             ImageOffPath = image.ImageOff,
@@ -4636,6 +4783,13 @@ public sealed partial class MainPage : Page
     }
 
     private static bool IsCanvasImageControl(DesignerCanvasControlState control)
+    {
+        return string.Equals(control.Type, "ImagenAdicional", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(control.Type, "ImagenBomba", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(control.Type, "ImagenValvula", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsCanvasPlcImageControl(DesignerCanvasControlState control)
     {
         return string.Equals(control.Type, "ImagenAdicional", StringComparison.OrdinalIgnoreCase)
             || string.Equals(control.Type, "ImagenBomba", StringComparison.OrdinalIgnoreCase);
