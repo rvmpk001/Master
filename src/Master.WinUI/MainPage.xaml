@@ -348,6 +348,21 @@
                                     </Grid>
                                 </StackPanel>
                             </Expander>
+                            <Expander Header="Bombas" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <StackPanel Spacing="8" HorizontalAlignment="Stretch">
+                                    <TextBlock x:Name="PumpImagePaletteStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                                    <Grid x:Name="PumpImageControlPalette" ColumnSpacing="8" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel x:Name="PumpImageControlColumn1" Spacing="6" />
+                                        <StackPanel x:Name="PumpImageControlColumn2" Grid.Column="1" Spacing="6" />
+                                        <StackPanel x:Name="PumpImageControlColumn3" Grid.Column="2" Spacing="6" />
+                                    </Grid>
+                                </StackPanel>
+                            </Expander>
                         </StackPanel>
                     </ScrollViewer>
                 </TabViewItem>

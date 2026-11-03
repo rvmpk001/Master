@@ -6,6 +6,9 @@ namespace Master_WinUI.Services;
 
 public sealed class ImageConfigurationService
 {
+    public static IReadOnlyList<string> PumpControls { get; } =
+        new[] { "B_Ad1", "B_Ad2", "B_Ad3", "B_Agua", "B_Agua2" };
+
     private readonly SqlConnectionFactory _connectionFactory = new();
 
     private static bool TryParseAdditionalImageNumber(string control, out int index)
@@ -39,6 +42,51 @@ public sealed class ImageConfigurationService
 
             var control = reader.GetString(1).Trim();
             if (!TryParseAdditionalImageNumber(control, out var index) || index is < 1 or > 25)
+            {
+                continue;
+            }
+
+            var image = new AdditionalImageConfigurationRecord(
+                reader.GetInt32(0),
+                control,
+                reader.IsDBNull(2) ? string.Empty : reader.GetString(2).Trim(),
+                reader.IsDBNull(3) ? string.Empty : reader.GetString(3).Trim(),
+                reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                reader.IsDBNull(5) ? null : reader.GetInt32(5));
+            if (!images.TryAdd(control, image))
+            {
+                throw new InvalidOperationException(
+                    $"dbo.Imagenes contiene más de un registro para el control '{control}'.");
+            }
+        }
+
+        return images;
+    }
+
+    public async Task<IReadOnlyDictionary<string, AdditionalImageConfigurationRecord>> GetPumpImageConfigurationsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        const string query = """
+            SELECT IdImagen, Control, ImagenOn, ImagenOff, Ancho, Alto
+            FROM dbo.Imagenes
+            WHERE Control IN (N'B_Ad1', N'B_Ad2', N'B_Ad3', N'B_Agua', N'B_Agua2');
+            """;
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(query, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var images = new Dictionary<string, AdditionalImageConfigurationRecord>(StringComparer.OrdinalIgnoreCase);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (reader.IsDBNull(1))
+            {
+                throw new InvalidOperationException("dbo.Imagenes contiene un registro sin valor en Control.");
+            }
+
+            var control = reader.GetString(1).Trim();
+            if (!PumpControls.Contains(control, StringComparer.OrdinalIgnoreCase))
             {
                 continue;
             }

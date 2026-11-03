@@ -108,7 +108,7 @@ public sealed class PlcCommunicationService
                 var mappedTags = new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase);
                 foreach (var control in additionalImageControls.Distinct(StringComparer.OrdinalIgnoreCase))
                 {
-                    if (!TryGetAdditionalTagName(control, out var tagName))
+                    if (!TryGetImageTagName(control, out var tagName))
                     {
                         return PlcConnectionStatus.Unavailable(
                             $"El control adicional '{control}' no tiene un mapeo PLC válido.");
@@ -452,15 +452,17 @@ public sealed class PlcCommunicationService
         return true;
     }
 
-    private static bool TryGetAdditionalTagName(string control, out string tagName)
+    private static bool TryGetImageTagName(string control, out string tagName)
     {
         tagName = string.Empty;
+        if (ImageConfigurationService.PumpControls.Contains(control, StringComparer.OrdinalIgnoreCase))
+        {
+            tagName = control;
+            return true;
+        }
+
         if (!control.StartsWith("AdI", StringComparison.OrdinalIgnoreCase)
-            || !int.TryParse(
-                control.AsSpan(3),
-                NumberStyles.None,
-                CultureInfo.InvariantCulture,
-                out var index)
+            || !int.TryParse(control.AsSpan(3), NumberStyles.None, CultureInfo.InvariantCulture, out var index)
             || index is < 1 or > 25)
         {
             return false;

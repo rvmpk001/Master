@@ -55,6 +55,8 @@ public sealed partial class MainPage : Page
     private readonly DesignerCanvasState _designerCanvasState = new();
     private IReadOnlyDictionary<string, AdditionalImageConfigurationRecord> _additionalImageConfigurations =
         new Dictionary<string, AdditionalImageConfigurationRecord>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyDictionary<string, AdditionalImageConfigurationRecord> _pumpImageConfigurations =
+        new Dictionary<string, AdditionalImageConfigurationRecord>(StringComparer.OrdinalIgnoreCase);
     private bool _showPlantTools = true;
     private bool _isDashboardResizeActive;
     private double _dashboardResizeStartY;
@@ -310,10 +312,19 @@ public sealed partial class MainPage : Page
             var hasSavedAdditionalImages = _designerCanvasState.Controls.Any(control =>
                 string.Equals(control.Type, "ImagenAdicional", StringComparison.OrdinalIgnoreCase));
             var additionalImagesLoaded = !hasSavedAdditionalImages || await LoadAdditionalImageConfigurationsAsync();
+            var hasSavedPumpImages = _designerCanvasState.Controls.Any(control =>
+                string.Equals(control.Type, "ImagenBomba", StringComparison.OrdinalIgnoreCase));
+            var pumpImagesLoaded = !hasSavedPumpImages || await LoadPumpImageConfigurationsAsync();
             foreach (var control in _designerCanvasState.Controls)
             {
                 if (string.Equals(control.Type, "ImagenAdicional", StringComparison.OrdinalIgnoreCase)
                     && !additionalImagesLoaded)
+                {
+                    continue;
+                }
+
+                if (string.Equals(control.Type, "ImagenBomba", StringComparison.OrdinalIgnoreCase)
+                    && !pumpImagesLoaded)
                 {
                     continue;
                 }
@@ -368,7 +379,7 @@ public sealed partial class MainPage : Page
         {
             var additionalImageControls = _designerCanvasState.Controls
                 .Where(control =>
-                    string.Equals(control.Type, "ImagenAdicional", StringComparison.OrdinalIgnoreCase)
+                    IsCanvasImageControl(control)
                     && !string.IsNullOrWhiteSpace(control.ImageControl))
                 .Select(control => control.ImageControl!)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -379,7 +390,7 @@ public sealed partial class MainPage : Page
                 && status.AdditionalImageValues is { } additionalImageValues)
             {
                 foreach (var control in _designerCanvasState.Controls.Where(control =>
-                             string.Equals(control.Type, "ImagenAdicional", StringComparison.OrdinalIgnoreCase)))
+                             IsCanvasImageControl(control)))
                 {
                     if (control.ImageControl is null
                         || !additionalImageValues.TryGetValue(control.ImageControl, out var value))
@@ -4127,6 +4138,16 @@ public sealed partial class MainPage : Page
                     string.Equals(control.ImageControl, image.Control, StringComparison.OrdinalIgnoreCase));
         }
 
+        foreach (var button in PumpImageControlPalette.Children
+                     .OfType<StackPanel>()
+                     .SelectMany(column => column.Children.OfType<Button>()))
+        {
+            button.IsEnabled = !_isCanvasLocked
+                && button.Tag is AdditionalImageConfigurationRecord image
+                && !_designerCanvasState.Controls.Any(control =>
+                    string.Equals(control.ImageControl, image.Control, StringComparison.OrdinalIgnoreCase));
+        }
+
         foreach (var control in DesignCanvas.Children.OfType<Border>())
         {
             control.IsHitTestVisible = !_isCanvasLocked;
@@ -4153,6 +4174,7 @@ public sealed partial class MainPage : Page
         {
             await RefreshMessagePaletteAsync();
             await RefreshAdditionalImagePaletteAsync();
+            await RefreshPumpImagePaletteAsync();
         }
     }
 
@@ -4353,6 +4375,98 @@ public sealed partial class MainPage : Page
         }
     }
 
+    private async Task RefreshPumpImagePaletteAsync()
+    {
+        PumpImagePaletteStatusText.Text = "Cargando bombas...";
+        PumpImageControlColumn1.Children.Clear();
+        PumpImageControlColumn2.Children.Clear();
+        PumpImageControlColumn3.Children.Clear();
+        try
+        {
+            if (!await LoadPumpImageConfigurationsAsync())
+            {
+                return;
+            }
+
+            var columns = new[]
+            {
+                PumpImageControlColumn1,
+                PumpImageControlColumn2,
+                PumpImageControlColumn3
+            };
+            for (var index = 0; index < ImageConfigurationService.PumpControls.Count; index++)
+            {
+                var name = ImageConfigurationService.PumpControls[index];
+                if (!_pumpImageConfigurations.TryGetValue(name, out var image))
+                {
+                    continue;
+                }
+
+                var button = new Button
+                {
+                    Content = name,
+                    Tag = image,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Center,
+                    Style = (Style)Resources["DefaultButtonStyle"]
+                };
+                button.Click += AddConfiguredPumpImage_Click;
+                columns[index % columns.Length].Children.Add(button);
+            }
+
+            var missingControls = ImageConfigurationService.PumpControls
+                .Where(control => !_pumpImageConfigurations.ContainsKey(control))
+                .ToArray();
+            PumpImagePaletteStatusText.Text = missingControls.Length == 0
+                ? "Selecciona una bomba para agregarla al lienzo."
+                : $"No se encontraron en dbo.Imagenes: {string.Join(", ", missingControls)}.";
+
+            foreach (var control in _designerCanvasState.Controls.Where(control =>
+                         string.Equals(control.Type, "ImagenBomba", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!_pumpImageConfigurations.TryGetValue(control.ImageControl ?? string.Empty, out var image))
+                {
+                    continue;
+                }
+
+                control.ImageOnPath = image.ImageOn;
+                control.ImageOffPath = image.ImageOff;
+                var container = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
+                    candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
+                if (container?.Child is Image canvasImage)
+                {
+                    await SetAdditionalImageSourceAsync(canvasImage, control);
+                }
+            }
+        }
+        finally
+        {
+            UpdateCanvasEditMode();
+        }
+    }
+
+    private async Task<bool> LoadPumpImageConfigurationsAsync()
+    {
+        try
+        {
+            _pumpImageConfigurations = await _imageConfigurationService.GetPumpImageConfigurationsAsync();
+            return true;
+        }
+        catch (SqlException exception)
+        {
+            PumpImagePaletteStatusText.Text =
+                $"No se pudieron cargar las bombas (SQL {exception.Number}): {exception.Message}";
+            ModuleStatusText.Text = PumpImagePaletteStatusText.Text;
+            return false;
+        }
+        catch (InvalidOperationException exception)
+        {
+            PumpImagePaletteStatusText.Text = $"No se pudieron cargar las bombas: {exception.Message}";
+            ModuleStatusText.Text = PumpImagePaletteStatusText.Text;
+            return false;
+        }
+    }
+
     private async void AddConfiguredAdditionalImage_Click(object sender, RoutedEventArgs e)
     {
         if (_isCanvasLocked || sender is not Button { Tag: AdditionalImageConfigurationRecord image })
@@ -4375,6 +4489,43 @@ public sealed partial class MainPage : Page
         {
             Id = Guid.NewGuid().ToString("N"),
             Type = "ImagenAdicional",
+            ImageControl = image.Control,
+            ImageOnPath = image.ImageOn,
+            ImageOffPath = image.ImageOff,
+            IsOn = false,
+            Width = width,
+            Height = height,
+            Left = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualWidth - width)),
+            Top = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualHeight - height))
+        };
+        _designerCanvasState.Controls.Add(control);
+        await AddCanvasControlToSurfaceAsync(control);
+        UpdateCanvasEditMode();
+        await SaveDesignerCanvasStateAsync();
+    }
+
+    private async void AddConfiguredPumpImage_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not Button { Tag: AdditionalImageConfigurationRecord image })
+        {
+            return;
+        }
+
+        if (_designerCanvasState.Controls.Any(control =>
+                string.Equals(control.ImageControl, image.Control, StringComparison.OrdinalIgnoreCase)))
+        {
+            PumpImagePaletteStatusText.Text = $"{image.Control} ya está agregado al lienzo.";
+            UpdateCanvasEditMode();
+            return;
+        }
+
+        var index = _designerCanvasState.Controls.Count;
+        var width = image.Width is > 0 ? image.Width.Value : 40;
+        var height = image.Height is > 0 ? image.Height.Value : 40;
+        var control = new DesignerCanvasControlState
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Type = "ImagenBomba",
             ImageControl = image.Control,
             ImageOnPath = image.ImageOn,
             ImageOffPath = image.ImageOff,
@@ -4415,7 +4566,7 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        if (string.Equals(control.Type, "ImagenAdicional", StringComparison.OrdinalIgnoreCase))
+        if (IsCanvasImageControl(control))
         {
             await AddCanvasAdditionalImageToSurfaceAsync(control);
             return;
@@ -4492,6 +4643,12 @@ public sealed partial class MainPage : Page
         Canvas.SetTop(container, control.Top);
         DesignCanvas.Children.Add(container);
         container.IsHitTestVisible = !_isCanvasLocked;
+    }
+
+    private static bool IsCanvasImageControl(DesignerCanvasControlState control)
+    {
+        return string.Equals(control.Type, "ImagenAdicional", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(control.Type, "ImagenBomba", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task AddCanvasAdditionalImageToSurfaceAsync(DesignerCanvasControlState control)
