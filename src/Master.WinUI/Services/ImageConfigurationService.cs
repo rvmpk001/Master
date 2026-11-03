@@ -1,4 +1,5 @@
 using System.Data;
+using System.Globalization;
 using Microsoft.Data.SqlClient;
 
 namespace Master_WinUI.Services;
@@ -6,6 +7,58 @@ namespace Master_WinUI.Services;
 public sealed class ImageConfigurationService
 {
     private readonly SqlConnectionFactory _connectionFactory = new();
+
+    private static bool TryParseAdditionalImageNumber(string control, out int index)
+    {
+        index = 0;
+        return control.StartsWith("AdI", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(control.AsSpan(3), NumberStyles.None, CultureInfo.InvariantCulture, out index);
+    }
+
+    public async Task<IReadOnlyDictionary<string, AdditionalImageConfigurationRecord>> GetAdditionalImageConfigurationsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        const string query = """
+            SELECT IdImagen, Control, ImagenOn, ImagenOff, Ancho, Alto
+            FROM dbo.Imagenes
+            WHERE Control LIKE N'AdI[0-9]%';
+            """;
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(query, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+
+        var images = new Dictionary<string, AdditionalImageConfigurationRecord>(StringComparer.OrdinalIgnoreCase);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            if (reader.IsDBNull(1))
+            {
+                throw new InvalidOperationException("dbo.Imagenes contiene un registro sin valor en Control.");
+            }
+
+            var control = reader.GetString(1).Trim();
+            if (!TryParseAdditionalImageNumber(control, out var index) || index is < 1 or > 25)
+            {
+                continue;
+            }
+
+            var image = new AdditionalImageConfigurationRecord(
+                reader.GetInt32(0),
+                control,
+                reader.IsDBNull(2) ? string.Empty : reader.GetString(2).Trim(),
+                reader.IsDBNull(3) ? string.Empty : reader.GetString(3).Trim(),
+                reader.IsDBNull(4) ? null : reader.GetInt32(4),
+                reader.IsDBNull(5) ? null : reader.GetInt32(5));
+            if (!images.TryAdd(control, image))
+            {
+                throw new InvalidOperationException(
+                    $"dbo.Imagenes contiene más de un registro para el control '{control}'.");
+            }
+        }
+
+        return images;
+    }
 
     public async Task<IReadOnlyDictionary<string, ImagePathRecord>> GetImagePathsAsync(
         CancellationToken cancellationToken = default)
@@ -187,3 +240,11 @@ public sealed record ImagePathUpdate(int IdImagen, string Control, string Path);
 public sealed record ImageSizeRecord(int IdImagen, string Control, int? Width, int? Height);
 
 public sealed record ImageSizeUpdate(int IdImagen, string Control, int Width, int Height);
+
+public sealed record AdditionalImageConfigurationRecord(
+    int IdImagen,
+    string Control,
+    string ImageOn,
+    string ImageOff,
+    int? Width,
+    int? Height);

@@ -9,9 +9,9 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
-        if (args.Length != 9)
+        if (args.Length is not (9 or 10))
         {
-            Console.Error.WriteLine("ERROR|InvalidArguments|Se esperaban nueve parámetros de comunicación PLC.");
+            Console.Error.WriteLine("ERROR|InvalidArguments|Se esperaban nueve parámetros PLC y, opcionalmente, direcciones MI.");
             return 1;
         }
 
@@ -21,10 +21,17 @@ internal static class Program
             return 1;
         }
 
+        if (!TryParseAdditionalMiAddresses(args, out var additionalMiAddresses, out validationError))
+        {
+            Console.Error.WriteLine($"ERROR|InvalidSettings|{validationError}");
+            return 1;
+        }
+
         Serial? serial = null;
         PLC? plc = null;
         var exitCode = 1;
         var errorMessage = string.Empty;
+        var connectionOutput = "CONNECTED";
 
         try
         {
@@ -46,10 +53,13 @@ internal static class Program
             }
             else
             {
-                var requests = new ReadWriteRequest[]
+                var requests = new ReadWriteRequest[additionalMiAddresses.Length + 1];
+                requests[0] = new ReadOperands(1, OperandTypes.MI, settings.AnalogInitial);
+                for (var index = 0; index < additionalMiAddresses.Length; index++)
                 {
-                    new ReadOperands(1, OperandTypes.MI, settings.AnalogInitial)
-                };
+                    requests[index + 1] = new ReadOperands(1, OperandTypes.MI, additionalMiAddresses[index]);
+                }
+
                 plc.ReadWrite(ref requests);
 
                 if (requests[0].ResponseValues is not Array { Length: > 0 })
@@ -58,7 +68,36 @@ internal static class Program
                 }
                 else
                 {
-                    exitCode = 0;
+                    var values = new List<string>(additionalMiAddresses.Length);
+                    for (var index = 0; index < additionalMiAddresses.Length; index++)
+                    {
+                        if (requests[index + 1].ResponseValues is not Array { Length: > 0 } response)
+                        {
+                            errorMessage =
+                                $"ERROR|NoResponse|El PLC no devolvió una lectura de MI{additionalMiAddresses[index]}.";
+                            break;
+                        }
+
+                        var rawValue = response.GetValue(0);
+                        if (rawValue is null)
+                        {
+                            errorMessage =
+                                $"ERROR|NoResponse|El PLC devolvió un valor vacío para MI{additionalMiAddresses[index]}.";
+                            break;
+                        }
+
+                        var value = Convert.ToDouble(rawValue, CultureInfo.InvariantCulture);
+                        values.Add(
+                            $"MI{additionalMiAddresses[index]}={value.ToString("R", CultureInfo.InvariantCulture)}");
+                    }
+
+                    if (string.IsNullOrEmpty(errorMessage))
+                    {
+                        connectionOutput = values.Count == 0
+                            ? "CONNECTED"
+                            : $"CONNECTED|{string.Join("|", values)}";
+                        exitCode = 0;
+                    }
                 }
             }
         }
@@ -94,7 +133,7 @@ internal static class Program
 
         if (exitCode == 0)
         {
-            Console.Out.WriteLine("CONNECTED");
+            Console.Out.WriteLine(connectionOutput);
         }
         else
         {
@@ -102,6 +141,43 @@ internal static class Program
         }
 
         return exitCode;
+    }
+
+    private static bool TryParseAdditionalMiAddresses(
+        IReadOnlyList<string> args,
+        out ushort[] addresses,
+        out string error)
+    {
+        addresses = Array.Empty<ushort>();
+        error = string.Empty;
+        if (args.Count == 9)
+        {
+            return true;
+        }
+
+        var parsedAddresses = new List<ushort>();
+        foreach (var addressText in args[9].Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+        {
+            if (!ushort.TryParse(addressText, NumberStyles.None, CultureInfo.InvariantCulture, out var address))
+            {
+                error = $"La dirección adicional '{addressText}' no es una dirección MI válida.";
+                return false;
+            }
+
+            if (!parsedAddresses.Contains(address))
+            {
+                parsedAddresses.Add(address);
+            }
+        }
+
+        if (parsedAddresses.Count == 0)
+        {
+            error = "Debe indicarse al menos una dirección MI adicional.";
+            return false;
+        }
+
+        addresses = parsedAddresses.ToArray();
+        return true;
     }
 
     private static bool TryParseSettings(

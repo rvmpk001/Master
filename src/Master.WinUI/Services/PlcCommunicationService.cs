@@ -17,6 +17,7 @@ public sealed class PlcCommunicationService
 
     private readonly SqlConnectionFactory _connectionFactory = new();
     private readonly SemaphoreSlim _plcOperationLock = new(1, 1);
+    private readonly PlcTagService _plcTagService = new();
 
     public async Task<PlcCommunicationSettings> GetSettingsAsync(CancellationToken cancellationToken = default)
     {
@@ -70,6 +71,13 @@ public sealed class PlcCommunicationService
 
     public async Task<PlcConnectionStatus> CheckConnectionAsync(CancellationToken cancellationToken = default)
     {
+        return await CheckConnectionAsync(Array.Empty<string>(), cancellationToken);
+    }
+
+    public async Task<PlcConnectionStatus> CheckConnectionAsync(
+        IReadOnlyCollection<string> additionalImageControls,
+        CancellationToken cancellationToken = default)
+    {
         PlcCommunicationSettings settings;
         try
         {
@@ -90,10 +98,50 @@ public sealed class PlcCommunicationService
             return PlcConnectionStatus.Unavailable(validationError);
         }
 
+        IReadOnlyDictionary<string, ushort> additionalTagAddresses =
+            new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase);
+        if (additionalImageControls.Count > 0)
+        {
+            try
+            {
+                var tags = await _plcTagService.GetTagsAsync(cancellationToken);
+                var mappedTags = new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase);
+                foreach (var control in additionalImageControls.Distinct(StringComparer.OrdinalIgnoreCase))
+                {
+                    if (!TryGetAdditionalTagName(control, out var tagName))
+                    {
+                        return PlcConnectionStatus.Unavailable(
+                            $"El control adicional '{control}' no tiene un mapeo PLC válido.");
+                    }
+
+                    var tag = tags.SingleOrDefault(candidate =>
+                        candidate.Name.Equals(tagName, StringComparison.OrdinalIgnoreCase));
+                    if (tag is null || !tag.IsEnabled || tag.AddressType != 2 || tag.PlcAddress is not >= 0)
+                    {
+                        return PlcConnectionStatus.Unavailable(
+                            $"No hay una dirección MI habilitada y válida para el tag '{tagName}' de {control}.");
+                    }
+
+                    mappedTags.Add(control, (ushort)tag.PlcAddress.Value);
+                }
+
+                additionalTagAddresses = mappedTags;
+            }
+            catch (SqlException exception)
+            {
+                return PlcConnectionStatus.Unavailable(
+                    $"No se pudieron leer los tags PLC desde dbo.Tags (SQL {exception.Number}): {exception.Message}");
+            }
+            catch (InvalidOperationException exception)
+            {
+                return PlcConnectionStatus.Unavailable($"La configuración de tags PLC no es válida: {exception.Message}");
+            }
+        }
+
         await _plcOperationLock.WaitAsync(cancellationToken);
         try
         {
-            return await CheckConnectionAsync(options, cancellationToken);
+            return await CheckConnectionAsync(options, cancellationToken, additionalTagAddresses);
         }
         finally
         {
@@ -144,7 +192,8 @@ public sealed class PlcCommunicationService
 
     private static async Task<PlcConnectionStatus> CheckConnectionAsync(
         PlcProbeOptions options,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        IReadOnlyDictionary<string, ushort>? additionalTagAddresses = null)
     {
         var executablePath = Path.Combine(
             AppContext.BaseDirectory,
@@ -177,6 +226,12 @@ public sealed class PlcCommunicationService
         process.StartInfo.ArgumentList.Add(options.Timeout.ToString(CultureInfo.InvariantCulture));
         process.StartInfo.ArgumentList.Add(options.Retry.ToString(CultureInfo.InvariantCulture));
         process.StartInfo.ArgumentList.Add(options.AnalogInitial.ToString(CultureInfo.InvariantCulture));
+        if (additionalTagAddresses is { Count: > 0 })
+        {
+            process.StartInfo.ArgumentList.Add(string.Join(
+                ",",
+                additionalTagAddresses.Values.Distinct().Order()));
+        }
 
         try
         {
@@ -220,9 +275,52 @@ public sealed class PlcCommunicationService
 
             var standardOutput = await outputTask;
             var standardError = await errorTask;
-            if (process.ExitCode == 0 && standardOutput.Trim().Equals("CONNECTED", StringComparison.Ordinal))
+            var outputParts = standardOutput.Trim().Split('|');
+            if (process.ExitCode == 0 && outputParts[0].Equals("CONNECTED", StringComparison.Ordinal))
             {
-                return PlcConnectionStatus.Connected(options.Port, options.AnalogInitial);
+                var valuesByAddress = new Dictionary<ushort, double>();
+                foreach (var valuePart in outputParts.Skip(1))
+                {
+                    var separator = valuePart.IndexOf('=');
+                    if (separator <= 2
+                        || !valuePart.StartsWith("MI", StringComparison.Ordinal)
+                        || !ushort.TryParse(
+                            valuePart.AsSpan(2, separator - 2),
+                            NumberStyles.None,
+                            CultureInfo.InvariantCulture,
+                            out var address)
+                        || !double.TryParse(
+                            valuePart.AsSpan(separator + 1),
+                            NumberStyles.Float,
+                            CultureInfo.InvariantCulture,
+                            out var value))
+                    {
+                        return PlcConnectionStatus.Unavailable(
+                            $"El auxiliar PLC devolvió un valor de imagen adicional no válido: '{valuePart}'.");
+                    }
+
+                    valuesByAddress.Add(address, value);
+                }
+
+                var additionalImageValues = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
+                if (additionalTagAddresses is not null)
+                {
+                    foreach (var (control, address) in additionalTagAddresses)
+                    {
+                        if (!valuesByAddress.TryGetValue(address, out var value))
+                        {
+                            return PlcConnectionStatus.Unavailable(
+                                $"El auxiliar PLC no devolvió lectura para MI{address}, requerido por {control}.");
+                        }
+
+                        additionalImageValues.Add(control, value);
+                    }
+                }
+
+                return PlcConnectionStatus.Connected(
+                    options.Port,
+                    options.AnalogInitial,
+                    additionalImageValues);
             }
 
             var detail = standardError.Trim();
@@ -354,6 +452,24 @@ public sealed class PlcCommunicationService
         return true;
     }
 
+    private static bool TryGetAdditionalTagName(string control, out string tagName)
+    {
+        tagName = string.Empty;
+        if (!control.StartsWith("AdI", StringComparison.OrdinalIgnoreCase)
+            || !int.TryParse(
+                control.AsSpan(3),
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var index)
+            || index is < 1 or > 25)
+        {
+            return false;
+        }
+
+        tagName = $"Ad{index}";
+        return true;
+    }
+
     private readonly record struct PlcProbeOptions(
         int PlcAddress,
         string Port,
@@ -410,10 +526,19 @@ public sealed record PlcConnectionStatus(
         PlcConnectionState State,
         string Port,
         ushort? RegisterAddress,
-        string Detail)
+        string Detail,
+        IReadOnlyDictionary<string, double>? AdditionalImageValues = null)
 {
-        public static PlcConnectionStatus Connected(string port, ushort address) =>
-            new(PlcConnectionState.Connected, port, address, $"Lectura confirmada de MI{address}.");
+        public static PlcConnectionStatus Connected(
+            string port,
+            ushort address,
+            IReadOnlyDictionary<string, double>? additionalImageValues = null) =>
+            new(
+                PlcConnectionState.Connected,
+                port,
+                address,
+                $"Lectura confirmada de MI{address}.",
+                additionalImageValues);
 
         public static PlcConnectionStatus Unavailable(string detail) =>
             new(PlcConnectionState.Unavailable, string.Empty, null, detail);

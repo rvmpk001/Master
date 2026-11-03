@@ -316,21 +316,36 @@
 
             <TabView x:Name="PlantToolsPanel" Grid.Column="2" IsAddTabButtonVisible="False" CanReorderTabs="False" Background="{ThemeResource Palette101B2D}" SelectionChanged="PlantToolsPanel_SelectionChanged">
                 <TabViewItem Header="Acciones" IsClosable="False">
-                    <StackPanel Padding="8" Spacing="8">
-                        <Button Content="PROGRAMAR" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
-                        <Button Content="CARGAR" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
-                        <Button x:Name="DownloadActionButton" Content="DESCARGAR" Visibility="Collapsed" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
-                        <Button Content="PAUSAR" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
-                        <Button Content="CANCELAR" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
+                    <StackPanel Padding="8" Spacing="8" HorizontalAlignment="Stretch">
+                        <Button Content="PROGRAMAR" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
+                        <Button Content="CARGAR" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
+                        <Button x:Name="DownloadActionButton" Content="DESCARGAR" HorizontalAlignment="Stretch" Visibility="Collapsed" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
+                        <Button Content="PAUSAR" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
+                        <Button Content="CANCELAR" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
                     </StackPanel>
                 </TabViewItem>
                 <TabViewItem Header="Controles" IsClosable="False">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel Padding="8" Spacing="8">
-                            <Expander Header="Mensajes" IsExpanded="True">
-                                <StackPanel Spacing="8">
+                    <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                        <StackPanel Padding="8" Spacing="8" HorizontalAlignment="Stretch">
+                            <Expander Header="Mensajes" IsExpanded="True" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <StackPanel Spacing="8" HorizontalAlignment="Stretch">
                                     <TextBlock x:Name="MessagePaletteStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
-                                    <StackPanel x:Name="MessageControlPalette" Spacing="6" />
+                                    <StackPanel x:Name="MessageControlPalette" Spacing="6" HorizontalAlignment="Stretch" />
+                                </StackPanel>
+                            </Expander>
+                            <Expander Header="Adicionales" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <StackPanel Spacing="8" HorizontalAlignment="Stretch">
+                                    <TextBlock x:Name="AdditionalImagePaletteStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                                    <Grid x:Name="AdditionalImageControlPalette" ColumnSpacing="8" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel x:Name="AdditionalImageControlColumn1" Spacing="6" />
+                                        <StackPanel x:Name="AdditionalImageControlColumn2" Grid.Column="1" Spacing="6" />
+                                        <StackPanel x:Name="AdditionalImageControlColumn3" Grid.Column="2" Spacing="6" />
+                                    </Grid>
                                 </StackPanel>
                             </Expander>
                         </StackPanel>
