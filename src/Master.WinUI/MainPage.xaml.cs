@@ -50,6 +50,7 @@ public sealed partial class MainPage : Page
     private readonly CompanyConfigurationService _companyConfigurationService = new();
     private readonly MachineConfigurationService _machineConfigurationService = new();
     private readonly MessageConfigurationService _messageConfigurationService = new();
+    private readonly AdditionalConfigurationService _additionalConfigurationService = new();
     private readonly ImageConfigurationService _imageConfigurationService = new();
     private readonly DesignerCanvasStore _designerCanvasStore = new();
     private readonly DesignerCanvasState _designerCanvasState = new();
@@ -117,6 +118,8 @@ public sealed partial class MainPage : Page
     private double _canvasControlResizeStartHeight;
     private bool _isMessagePaletteLoading;
     private bool _isAdditionalImagePaletteLoading;
+    private bool _isConfiguredAdditionalPaletteLoading;
+    private bool _configuredAdditionalPaletteRefreshPending;
     private bool _isCanvasLocked;
     private bool _isPlcStatusCheckRunning;
     private PlcConnectionState? _lastPlcConnectionState;
@@ -187,9 +190,11 @@ public sealed partial class MainPage : Page
         AddCanvasDeleteAccelerator(Windows.System.VirtualKey.Back);
         ApplyTheme(LoadSavedTheme(), persist: false);
         ConfigurationView.CanSaveConfigurationTab = CanSaveConfigurationTab;
+        ConfigurationView.CanEditDesignerCanvas = () => !_isCanvasLocked;
         ConfigurationView.HasProfileModuleAccess = HasModulePermission;
         ConfigurationView.HasProfileAction = HasActionPermission;
         MachineConfigurationView.HasPermission = action => HasActionPermission("Maquina", action);
+        MachineConfigurationView.IsDesignerCanvasLocked = () => _isCanvasLocked;
         MachineConfigurationView.CloseRequested += (_, _) => MachineConfigurationOverlay.Visibility = Visibility.Collapsed;
         MachineConfigurationView.LoadMachineImageToDesignCanvasAsync = path => LoadMachineImageToDesignCanvasAsync(path);
         MachineConfigurationView.MachineNameSaved += (_, machineName) =>
@@ -201,6 +206,8 @@ public sealed partial class MainPage : Page
         {
             PlantNameTextBlock.Text = string.IsNullOrWhiteSpace(plantName) ? "Planta no configurada" : plantName;
         };
+        ConfigurationView.AdditionalConfigurationSaved += async (_, _) =>
+            await RefreshConfiguredAdditionalPaletteAsync();
         Loaded += MainPage_Loaded;
         Unloaded += MainPage_Unloaded;
         ConfigurationView.CloseRequested += (_, _) =>
@@ -395,7 +402,16 @@ public sealed partial class MainPage : Page
                 .Select(control => control.ImageControl!)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
-            var status = await _plcCommunicationService.CheckConnectionAsync(additionalImageControls);
+            var additionalValueControls = _designerCanvasState.Controls
+                .Where(control =>
+                    string.Equals(control.Type, "CtlAdicional", StringComparison.OrdinalIgnoreCase)
+                    && !string.IsNullOrWhiteSpace(control.AdditionalControl))
+                .Select(control => control.AdditionalControl!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            var status = await _plcCommunicationService.CheckConnectionAsync(
+                additionalImageControls,
+                additionalValueControls);
             var imageStatesChanged = false;
             if (status.State == PlcConnectionState.Connected
                 && status.AdditionalImageValues is { } additionalImageValues)
@@ -429,6 +445,24 @@ public sealed partial class MainPage : Page
             if (imageStatesChanged)
             {
                 await SaveDesignerCanvasStateAsync();
+            }
+
+            var additionalTextValues = status.State == PlcConnectionState.Connected
+                ? status.AdditionalTextValues
+                : null;
+            foreach (var control in _designerCanvasState.Controls.Where(control =>
+                         string.Equals(control.Type, "CtlAdicional", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (control.AdditionalControl is not null
+                    && additionalTextValues is not null
+                    && additionalTextValues.TryGetValue(control.AdditionalControl, out var value))
+                {
+                    SetCanvasAdditionalValue(control, value.ToString("0.##", CultureInfo.CurrentCulture));
+                }
+                else
+                {
+                    SetCanvasAdditionalValue(control, "????");
+                }
             }
 
             var message = status.State switch
@@ -4139,6 +4173,16 @@ public sealed partial class MainPage : Page
                     string.Equals(control.MessageControl, message.Control, StringComparison.OrdinalIgnoreCase));
         }
 
+        foreach (var button in ConfiguredAdditionalControlPalette.Children
+                     .OfType<StackPanel>()
+                     .SelectMany(column => column.Children.OfType<Button>()))
+        {
+            button.IsEnabled = !_isCanvasLocked
+                && button.Tag is AdditionalConfigurationPaletteItem item
+                && !_designerCanvasState.Controls.Any(control =>
+                    string.Equals(control.AdditionalControl, item.Control, StringComparison.OrdinalIgnoreCase));
+        }
+
         foreach (var button in AdditionalImageControlPalette.Children
                      .OfType<StackPanel>()
                      .SelectMany(column => column.Children.OfType<Button>()))
@@ -4193,6 +4237,7 @@ public sealed partial class MainPage : Page
         {
             await RefreshMessagePaletteAsync();
             await RefreshAdditionalImagePaletteAsync();
+            await RefreshConfiguredAdditionalPaletteAsync();
             await RefreshPumpImagePaletteAsync();
             await RefreshValveImagePaletteAsync();
         }
@@ -4369,6 +4414,130 @@ public sealed partial class MainPage : Page
             _isAdditionalImagePaletteLoading = false;
             UpdateCanvasEditMode();
         }
+    }
+
+    private async Task RefreshConfiguredAdditionalPaletteAsync()
+    {
+        if (_isConfiguredAdditionalPaletteLoading)
+        {
+            _configuredAdditionalPaletteRefreshPending = true;
+            return;
+        }
+
+        _isConfiguredAdditionalPaletteLoading = true;
+        ConfiguredAdditionalPaletteStatusText.Text = "Cargando controles adicionales...";
+        ConfiguredAdditionalControlColumn1.Children.Clear();
+        ConfiguredAdditionalControlColumn2.Children.Clear();
+        try
+        {
+            var configuration = await _additionalConfigurationService.GetConfigurationAsync();
+            var itemsByControl = new Dictionary<string, AdditionalConfigurationPaletteItem>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var index in Enumerable.Range(1, 16))
+            {
+                var parameter = $"I{index}";
+                if (!configuration.Selections.TryGetValue(parameter, out var value))
+                {
+                    continue;
+                }
+
+                var item = new AdditionalConfigurationPaletteItem(
+                    $"ctlAdicionale{index}",
+                    value);
+                itemsByControl.Add(item.Control, item);
+                var button = new Button
+                {
+                    Content = $"CtlAd{index}",
+                    Tag = item,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Center,
+                    Style = (Style)Resources["DefaultButtonStyle"]
+                };
+                ToolTipService.SetToolTip(button, $"{item.Control} - {item.Text}");
+                button.Click += AddConfiguredAdditionalControl_Click;
+                var column = index % 2 == 1
+                    ? ConfiguredAdditionalControlColumn1
+                    : ConfiguredAdditionalControlColumn2;
+                column.Children.Add(button);
+            }
+
+            var canvasChanged = false;
+            foreach (var control in _designerCanvasState.Controls.Where(control =>
+                         string.Equals(control.Type, "CtlAdicional", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!itemsByControl.TryGetValue(control.AdditionalControl ?? string.Empty, out var item)
+                    || string.Equals(control.Text, item.Text, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                control.Text = item.Text;
+                SetCanvasAdditionalCaption(control, item.Text);
+
+                canvasChanged = true;
+            }
+
+            if (canvasChanged)
+            {
+                await SaveDesignerCanvasStateAsync();
+            }
+
+            ConfiguredAdditionalPaletteStatusText.Text =
+                "Selecciona un control para agregarlo al lienzo.";
+        }
+        catch (SqlException exception)
+        {
+            ConfiguredAdditionalPaletteStatusText.Text =
+                $"No se pudieron cargar los controles adicionales (SQL {exception.Number}): {exception.Message}";
+        }
+        catch (InvalidOperationException exception)
+        {
+            ConfiguredAdditionalPaletteStatusText.Text =
+                $"No se pudieron cargar los controles adicionales: {exception.Message}";
+        }
+        finally
+        {
+            _isConfiguredAdditionalPaletteLoading = false;
+            UpdateCanvasEditMode();
+            if (_configuredAdditionalPaletteRefreshPending)
+            {
+                _configuredAdditionalPaletteRefreshPending = false;
+                await RefreshConfiguredAdditionalPaletteAsync();
+            }
+        }
+    }
+
+    private async void AddConfiguredAdditionalControl_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not Button { Tag: AdditionalConfigurationPaletteItem item })
+        {
+            return;
+        }
+
+        if (_designerCanvasState.Controls.Any(control =>
+                string.Equals(control.AdditionalControl, item.Control, StringComparison.OrdinalIgnoreCase)))
+        {
+            ConfiguredAdditionalPaletteStatusText.Text = $"{item.Control} ya está agregado al lienzo.";
+            UpdateCanvasEditMode();
+            return;
+        }
+
+        var index = _designerCanvasState.Controls.Count;
+        var control = new DesignerCanvasControlState
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Type = "CtlAdicional",
+            AdditionalControl = item.Control,
+            Text = item.Text,
+            Width = 180,
+            Height = 54,
+            Left = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualWidth - 180)),
+            Top = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualHeight - 54))
+        };
+        _designerCanvasState.Controls.Add(control);
+        await AddCanvasControlToSurfaceAsync(control);
+        UpdateCanvasEditMode();
+        await SaveDesignerCanvasStateAsync();
     }
 
     private async Task<bool> LoadAdditionalImageConfigurationsAsync()
@@ -4697,9 +4866,15 @@ public sealed partial class MainPage : Page
 
     private async Task AddCanvasControlToSurfaceAsync(DesignerCanvasControlState control)
     {
-        if (control.Type == "Mensaje")
+        if (string.Equals(control.Type, "Mensaje", StringComparison.OrdinalIgnoreCase))
         {
             AddCanvasMessageToSurface(control);
+            return;
+        }
+
+        if (string.Equals(control.Type, "CtlAdicional", StringComparison.OrdinalIgnoreCase))
+        {
+            AddCanvasConfiguredAdditionalControlToSurface(control);
             return;
         }
 
@@ -4780,6 +4955,92 @@ public sealed partial class MainPage : Page
         Canvas.SetTop(container, control.Top);
         DesignCanvas.Children.Add(container);
         container.IsHitTestVisible = !_isCanvasLocked;
+    }
+
+    private void AddCanvasConfiguredAdditionalControlToSurface(DesignerCanvasControlState control)
+    {
+        var width = control.Width ?? 180;
+        var height = control.Height ?? 54;
+        var caption = new TextBlock
+        {
+            Text = control.Text,
+            Width = width,
+            TextAlignment = TextAlignment.Center,
+            TextWrapping = TextWrapping.Wrap,
+            FontSize = 12,
+            Foreground = _themeBrushes.GetBrush("#F1F5F9")
+        };
+        var valueText = new TextBlock
+        {
+            Text = "????",
+            TextAlignment = TextAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            FontSize = 16,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = _themeBrushes.GetBrush("#00FF00")
+        };
+        var valueBox = new Border
+        {
+            Width = Math.Min(80, width),
+            MinHeight = 22,
+            Padding = new Thickness(4, 0, 4, 0),
+            Background = _themeBrushes.GetBrush("#000000"),
+            BorderBrush = _themeBrushes.GetBrush("#E6EDF7"),
+            BorderThickness = new Thickness(1),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Child = valueText
+        };
+        var layout = new StackPanel
+        {
+            Width = width,
+            Height = height,
+            Spacing = 2,
+            Children = { caption, valueBox }
+        };
+        var container = new Border
+        {
+            Width = width,
+            Height = height,
+            Padding = new Thickness(0),
+            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            Tag = control,
+            Child = layout
+        };
+        var contextMenu = new MenuFlyout();
+        var removeItem = new MenuFlyoutItem { Text = "Quitar del lienzo", Tag = container };
+        removeItem.Click += RemoveCanvasControl_Click;
+        contextMenu.Items.Add(removeItem);
+        container.ContextFlyout = contextMenu;
+        container.PointerPressed += CanvasMessage_PointerPressed;
+        container.PointerMoved += CanvasMessage_PointerMoved;
+        container.PointerReleased += CanvasMessage_PointerReleased;
+        container.PointerCaptureLost += CanvasMessage_PointerCaptureLost;
+        Canvas.SetLeft(container, control.Left);
+        Canvas.SetTop(container, control.Top);
+        DesignCanvas.Children.Add(container);
+        container.IsHitTestVisible = !_isCanvasLocked;
+    }
+
+    private void SetCanvasAdditionalCaption(DesignerCanvasControlState control, string text)
+    {
+        var container = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
+            candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
+        if (container?.Child is StackPanel layout
+            && layout.Children.OfType<TextBlock>().FirstOrDefault() is { } caption)
+        {
+            caption.Text = text;
+        }
+    }
+
+    private void SetCanvasAdditionalValue(DesignerCanvasControlState control, string value)
+    {
+        var container = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
+            candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
+        if (container?.Child is StackPanel layout
+            && layout.Children.OfType<Border>().FirstOrDefault()?.Child is TextBlock valueText)
+        {
+            valueText.Text = value;
+        }
     }
 
     private static bool IsCanvasImageControl(DesignerCanvasControlState control)
@@ -4918,7 +5179,10 @@ public sealed partial class MainPage : Page
         container.PointerMoved += CanvasMessage_PointerMoved;
         container.PointerReleased += CanvasMessage_PointerReleased;
         container.PointerCaptureLost += CanvasMessage_PointerCaptureLost;
-        container.DoubleTapped += CanvasMessage_DoubleTapped;
+        if (!string.IsNullOrWhiteSpace(control.MessageControl))
+        {
+            container.DoubleTapped += CanvasMessage_DoubleTapped;
+        }
         Canvas.SetLeft(container, control.Left);
         Canvas.SetTop(container, control.Top);
         DesignCanvas.Children.Add(container);
@@ -5207,8 +5471,12 @@ public sealed partial class MainPage : Page
             height += deltaY;
         }
 
-        const double minimumWidth = 40;
-        const double minimumHeight = 24;
+        var isConfiguredAdditional = message.Tag is DesignerCanvasControlState
+        {
+            Type: "CtlAdicional"
+        };
+        var minimumWidth = isConfiguredAdditional ? 80 : 40;
+        var minimumHeight = isConfiguredAdditional ? 48 : 24;
         if (width < minimumWidth)
         {
             if (resizeInfo.Edges.HasFlag(CanvasResizeEdges.Left))
@@ -5250,6 +5518,16 @@ public sealed partial class MainPage : Page
         {
             controlImage.Width = width;
             controlImage.Height = height;
+        }
+        else if (message.Child is StackPanel layout
+                 && message.Tag is DesignerCanvasControlState { Type: "CtlAdicional" })
+        {
+            layout.Width = width;
+            layout.Height = height;
+            if (layout.Children.OfType<TextBlock>().FirstOrDefault() is { } caption)
+            {
+                caption.Width = width;
+            }
         }
 
         UpdateCanvasTransformHandles(message);
@@ -5551,6 +5829,7 @@ public sealed partial class MainPage : Page
     }
 
     private sealed record CanvasResizeHandleInfo(Border Container, CanvasResizeEdges Edges);
+    private sealed record AdditionalConfigurationPaletteItem(string Control, string Text);
 
     private static Microsoft.UI.Xaml.Media.FontFamily? GetMessageFontFamily(string format)
     {

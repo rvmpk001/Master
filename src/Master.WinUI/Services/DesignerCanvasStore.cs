@@ -46,6 +46,7 @@ public sealed class DesignerCanvasStore
                 Top = control.Top,
                 IsOn = control.IsOn,
                 MessageControl = control.MessageControl,
+                AdditionalControl = control.AdditionalControl,
                 ImageControl = control.ImageControl,
                 ImageOnPath = control.ImageOnPath,
                 ImageOffPath = control.ImageOffPath,
@@ -142,6 +143,7 @@ public sealed class DesignerCanvasControlState
     public double Top { get; set; }
     public bool IsOn { get; set; }
     public string? MessageControl { get; set; }
+    public string? AdditionalControl { get; set; }
     public string? ImageControl { get; set; }
     public string? ImageOnPath { get; set; }
     public string? ImageOffPath { get; set; }

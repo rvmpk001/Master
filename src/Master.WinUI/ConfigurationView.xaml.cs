@@ -149,8 +149,10 @@ public sealed partial class ConfigurationView : UserControl
 
     public event EventHandler? CloseRequested;
     public event EventHandler? AccessPermissionsSaved;
+    public event EventHandler? AdditionalConfigurationSaved;
     public event EventHandler<string>? PlantNameSaved;
     public Func<int, bool>? CanSaveConfigurationTab { get; set; }
+    public Func<bool>? CanEditDesignerCanvas { get; set; }
     public Func<string, bool>? HasProfileModuleAccess { get; set; }
     public Func<string, string, bool>? HasProfileAction { get; set; }
 
@@ -2924,6 +2926,15 @@ public sealed partial class ConfigurationView : UserControl
             return;
         }
 
+        if (_selectedConfigurationTab is >= 4 and <= 8
+            && CanEditDesignerCanvas?.Invoke() != true)
+        {
+            ShowStatus(
+                "El lienzo está bloqueado. Desbloquéalo con el candado antes de guardar cambios que afectan a sus elementos.",
+                InfoBarSeverity.Warning);
+            return;
+        }
+
         SaveButton.IsEnabled = false;
         try
         {
@@ -3057,6 +3068,7 @@ public sealed partial class ConfigurationView : UserControl
 
                 await _additionalConfigurationService.SaveConfigurationAsync(selections);
                 ShowStatus("Adicionales guardados en dbo.ConfigMaq.", InfoBarSeverity.Success);
+                AdditionalConfigurationSaved?.Invoke(this, EventArgs.Empty);
             }
             else if (_selectedConfigurationTab == 9)
             {

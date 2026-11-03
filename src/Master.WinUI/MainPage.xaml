@@ -348,6 +348,19 @@
                                     </Grid>
                                 </StackPanel>
                             </Expander>
+                            <Expander Header="CTL Adicionales" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <StackPanel Spacing="8" HorizontalAlignment="Stretch">
+                                    <TextBlock x:Name="ConfiguredAdditionalPaletteStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                                    <Grid x:Name="ConfiguredAdditionalControlPalette" ColumnSpacing="8" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel x:Name="ConfiguredAdditionalControlColumn1" Spacing="6" />
+                                        <StackPanel x:Name="ConfiguredAdditionalControlColumn2" Grid.Column="1" Spacing="6" />
+                                    </Grid>
+                                </StackPanel>
+                            </Expander>
                             <Expander Header="Bombas" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
                                 <StackPanel Spacing="8" HorizontalAlignment="Stretch">
                                     <TextBlock x:Name="PumpImagePaletteStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />

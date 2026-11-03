@@ -58,11 +58,13 @@ public sealed partial class MachineConfigurationView : UserControl
     private bool _isLoading;
     private bool _isEditing;
     private ElementTheme _theme = ElementTheme.Dark;
+    private string _loadedMachineImagePath = string.Empty;
 
     public event EventHandler? CloseRequested;
     public event EventHandler<string>? MachineNameSaved;
     public event Action<MachineDashboardOptions>? DashboardOptionsChanged;
     public Func<string, Task<string?>>? LoadMachineImageToDesignCanvasAsync { get; set; }
+    public Func<bool>? IsDesignerCanvasLocked { get; set; }
     public Func<string, bool>? HasPermission { get; set; }
 
     public MachineConfigurationView()
@@ -130,6 +132,7 @@ public sealed partial class MachineConfigurationView : UserControl
             {
                 input.Text = snapshot.Values.GetValueOrDefault(parameter, string.Empty);
             }
+            _loadedMachineImagePath = _textInputs["IM"].Text.Trim();
 
             foreach (var (parameter, input) in _checkInputs)
             {
@@ -554,6 +557,16 @@ public sealed partial class MachineConfigurationView : UserControl
             return;
         }
 
+        var imagePath = _textInputs["IM"].Text.Trim();
+        if (IsDesignerCanvasLocked?.Invoke() == true
+            && !string.Equals(imagePath, _loadedMachineImagePath, StringComparison.OrdinalIgnoreCase))
+        {
+            SetStatus(
+                "El lienzo está bloqueado. Desbloquéalo con el candado antes de cambiar la imagen de la máquina.",
+                InfoBarSeverity.Warning);
+            return;
+        }
+
         SaveButton.IsEnabled = false;
         try
         {
@@ -586,10 +599,12 @@ public sealed partial class MachineConfigurationView : UserControl
 
             await _service.SaveConfigurationAsync(values);
             SetEditMode(false);
-            var imagePath = _textInputs["IM"].Text.Trim();
+            _loadedMachineImagePath = imagePath;
             MachineNameSaved?.Invoke(this, _textInputs["Mq"].Text.Trim());
             PublishDashboardOptions();
-            if (!string.IsNullOrWhiteSpace(imagePath) && LoadMachineImageToDesignCanvasAsync is not null)
+            if (!string.IsNullOrWhiteSpace(imagePath)
+                && LoadMachineImageToDesignCanvasAsync is not null
+                && IsDesignerCanvasLocked?.Invoke() != true)
             {
                 var imageLoadError = await LoadMachineImageToDesignCanvasAsync(imagePath);
                 if (imageLoadError is not null)

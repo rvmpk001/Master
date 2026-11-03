@@ -1,0 +1,4511 @@
+{
+    "Application":  "SISTEMA BLAPACI VER 3.2.0.0",
+    "ProcessId":  13664,
+    "InspectedAt":  "2026-11-03T10:26:19.2765845-06:00",
+    "InspectionMethod":  "Windows UI Automation, lectura solamente",
+    "MaxDepth":  4,
+    "MaxNodes":  250,
+    "InputValuesExcluded":  true,
+    "Nodes":  [
+                  {
+                      "Index":  0,
+                      "Parent":  -1,
+                      "Depth":  0,
+                      "Name":  "SISTEMA BLAPACI  VER 3.2.0.0",
+                      "ControlType":  "ControlType.Window",
+                      "AutomationId":  "",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  -8,
+                                     "Width":  1936,
+                                     "Height":  1096,
+                                     "X":  -8
+                                 }
+                  },
+                  {
+                      "Index":  1,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "Ajuste de Absorción",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "724808",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  776,
+                                     "Width":  279,
+                                     "Height":  255,
+                                     "X":  1175
+                                 }
+                  },
+                  {
+                      "Index":  2,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1117228",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  1056,
+                                     "Width":  227,
+                                     "Height":  21,
+                                     "X":  1693
+                                 }
+                  },
+                  {
+                      "Index":  3,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "PLANTA B-40 SAN JUAN DE LOS LAGOS TEST",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462730",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  22,
+                                     "Width":  1262,
+                                     "Height":  76,
+                                     "X":  405
+                                 }
+                  },
+                  {
+                      "Index":  4,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "Ajuste de Humedad",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "397108",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  776,
+                                     "Width":  279,
+                                     "Height":  255,
+                                     "X":  881
+                                 }
+                  },
+                  {
+                      "Index":  5,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "986708",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  1030,
+                                     "Width":  379,
+                                     "Height":  47,
+                                     "X":  400
+                                 }
+                  },
+                  {
+                      "Index":  6,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462766",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  766,
+                                     "Width":  391,
+                                     "Height":  249,
+                                     "X":  1475
+                                 }
+                  },
+                  {
+                      "Index":  7,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "986334",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  22,
+                                     "Width":  98,
+                                     "Height":  76,
+                                     "X":  0
+                                 }
+                  },
+                  {
+                      "Index":  8,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462612",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  104,
+                                     "Width":  103,
+                                     "Height":  539,
+                                     "X":  1817
+                                 }
+                  },
+                  {
+                      "Index":  9,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "986718",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  104,
+                                     "Width":  128,
+                                     "Height":  489,
+                                     "X":  0
+                                 }
+                  },
+                  {
+                      "Index":  10,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "PLANTA B-TEST R",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462476",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  22,
+                                     "Width":  256,
+                                     "Height":  76,
+                                     "X":  1664
+                                 }
+                  },
+                  {
+                      "Index":  11,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "CRETTA",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "3083660",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  22,
+                                     "Width":  304,
+                                     "Height":  76,
+                                     "X":  97
+                                 }
+                  },
+                  {
+                      "Index":  12,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1904468",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  104,
+                                     "Width":  1684,
+                                     "Height":  638,
+                                     "X":  130
+                                 }
+                  },
+                  {
+                      "Index":  13,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787834",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  764,
+                                     "Width":  872,
+                                     "Height":  267,
+                                     "X":  3
+                                 }
+                  },
+                  {
+                      "Index":  14,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "StatusStrip",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787820",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  1056,
+                                     "Width":  757,
+                                     "Height":  24,
+                                     "X":  0
+                                 }
+                  },
+                  {
+                      "Index":  15,
+                      "Parent":  0,
+                      "Depth":  1,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787822",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  591,
+                                     "Width":  128,
+                                     "Height":  151,
+                                     "X":  0
+                                 }
+                  },
+                  {
+                      "Index":  16,
+                      "Parent":  1,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "397114",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  795,
+                                     "Width":  267,
+                                     "Height":  201,
+                                     "X":  1181
+                                 }
+                  },
+                  {
+                      "Index":  17,
+                      "Parent":  1,
+                      "Depth":  2,
+                      "Name":  "Guardar",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "528176",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  1002,
+                                     "Width":  75,
+                                     "Height":  23,
+                                     "X":  1279
+                                 }
+                  },
+                  {
+                      "Index":  18,
+                      "Parent":  2,
+                      "Depth":  2,
+                      "Name":  "03/11/2026 10:26:18 a. m.",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1117016",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  1056,
+                                     "Width":  227,
+                                     "Height":  21,
+                                     "X":  1693
+                                 }
+                  },
+                  {
+                      "Index":  19,
+                      "Parent":  4,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "331596",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  795,
+                                     "Width":  267,
+                                     "Height":  201,
+                                     "X":  887
+                                 }
+                  },
+                  {
+                      "Index":  20,
+                      "Parent":  4,
+                      "Depth":  2,
+                      "Name":  "Guardar",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "724582",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  1002,
+                                     "Width":  75,
+                                     "Height":  23,
+                                     "X":  985
+                                 }
+                  },
+                  {
+                      "Index":  21,
+                      "Parent":  5,
+                      "Depth":  2,
+                      "Name":  "Sistema iniciado",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "659402",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  1054,
+                                     "Width":  328,
+                                     "Height":  23,
+                                     "X":  408
+                                 }
+                  },
+                  {
+                      "Index":  22,
+                      "Parent":  5,
+                      "Depth":  2,
+                      "Name":  "Estado del sistema:",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "593784",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  1038,
+                                     "Width":  103,
+                                     "Height":  17,
+                                     "X":  416
+                                 }
+                  },
+                  {
+                      "Index":  23,
+                      "Parent":  5,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "593734",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  1054,
+                                     "Width":  328,
+                                     "Height":  23,
+                                     "X":  408
+                                 }
+                  },
+                  {
+                      "Index":  24,
+                      "Parent":  8,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1642358",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  107,
+                                     "Width":  100,
+                                     "Height":  515,
+                                     "X":  1820
+                                 }
+                  },
+                  {
+                      "Index":  25,
+                      "Parent":  9,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "789718",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  114,
+                                     "Width":  122,
+                                     "Height":  65,
+                                     "X":  3
+                                 }
+                  },
+                  {
+                      "Index":  26,
+                      "Parent":  9,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1313332",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  178,
+                                     "Width":  125,
+                                     "Height":  355,
+                                     "X":  3
+                                 }
+                  },
+                  {
+                      "Index":  27,
+                      "Parent":  9,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "2162708",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  526,
+                                     "Width":  122,
+                                     "Height":  67,
+                                     "X":  3
+                                 }
+                  },
+                  {
+                      "Index":  28,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "2953144",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  66,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  29,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "593562",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  92,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  30,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1835560",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  92,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  31,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1049882",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  92,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  32,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "2821896",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  92,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  33,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "2296996",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  92,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  34,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "593132",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  92,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  35,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "855444",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  92,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  36,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "593174",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  86,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  37,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "593134",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  571,
+                                     "Width":  53,
+                                     "Height":  43,
+                                     "X":  494
+                                 }
+                  },
+                  {
+                      "Index":  38,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "593120",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  629,
+                                     "Width":  53,
+                                     "Height":  43,
+                                     "X":  575
+                                 }
+                  },
+                  {
+                      "Index":  39,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462244",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  648,
+                                     "Width":  53,
+                                     "Height":  43,
+                                     "X":  496
+                                 }
+                  },
+                  {
+                      "Index":  40,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462256",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  643,
+                                     "Width":  23,
+                                     "Height":  23,
+                                     "X":  677
+                                 }
+                  },
+                  {
+                      "Index":  41,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462246",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  667,
+                                     "Width":  23,
+                                     "Height":  23,
+                                     "X":  702
+                                 }
+                  },
+                  {
+                      "Index":  42,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462260",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  647,
+                                     "Width":  23,
+                                     "Height":  23,
+                                     "X":  756
+                                 }
+                  },
+                  {
+                      "Index":  43,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462258",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  23,
+                                     "Height":  18,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  44,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462276",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  23,
+                                     "Height":  18,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  45,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462262",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  457,
+                                     "Width":  23,
+                                     "Height":  18,
+                                     "X":  838
+                                 }
+                  },
+                  {
+                      "Index":  46,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462280",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  23,
+                                     "Height":  18,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  47,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462266",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  23,
+                                     "Height":  18,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  48,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "593186",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  23,
+                                     "Height":  18,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  49,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462278",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  23,
+                                     "Height":  18,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  50,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "658662",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  371,
+                                     "Width":  28,
+                                     "Height":  28,
+                                     "X":  1091
+                                 }
+                  },
+                  {
+                      "Index":  51,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462286",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  28,
+                                     "Height":  28,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  52,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "853634",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  28,
+                                     "Height":  28,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  53,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "658648",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  28,
+                                     "Height":  28,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  54,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1902646",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  28,
+                                     "Height":  28,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  55,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "984736",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  28,
+                                     "Height":  28,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  56,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1049450",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  28,
+                                     "Height":  28,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  57,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1573722",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  28,
+                                     "Height":  28,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  58,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "855046",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  28,
+                                     "Height":  28,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  59,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788080",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  28,
+                                     "Height":  28,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  60,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1180552",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  28,
+                                     "Height":  28,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  61,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788096",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  597,
+                                     "Width":  53,
+                                     "Height":  43,
+                                     "X":  378
+                                 }
+                  },
+                  {
+                      "Index":  62,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788070",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  655,
+                                     "Width":  134,
+                                     "Height":  26,
+                                     "X":  806
+                                 }
+                  },
+                  {
+                      "Index":  63,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787676",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  628,
+                                     "Width":  397,
+                                     "Height":  26,
+                                     "X":  603
+                                 }
+                  },
+                  {
+                      "Index":  64,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788088",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  625,
+                                     "Width":  288,
+                                     "Height":  26,
+                                     "X":  655
+                                 }
+                  },
+                  {
+                      "Index":  65,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788102",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  616,
+                                     "Width":  215,
+                                     "Height":  26,
+                                     "X":  686
+                                 }
+                  },
+                  {
+                      "Index":  66,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788090",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  627,
+                                     "Width":  190,
+                                     "Height":  26,
+                                     "X":  758
+                                 }
+                  },
+                  {
+                      "Index":  67,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788066",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  83,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  68,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788074",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  83,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  69,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788032",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  83,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  70,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788024",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  83,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  71,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788016",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  83,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  72,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788008",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  231,
+                                     "Width":  120,
+                                     "Height":  48,
+                                     "X":  285
+                                 }
+                  },
+                  {
+                      "Index":  73,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788000",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  83,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  74,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787992",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  83,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  75,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "853646",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  627,
+                                     "Width":  161,
+                                     "Height":  26,
+                                     "X":  691
+                                 }
+                  },
+                  {
+                      "Index":  76,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788012",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  631,
+                                     "Width":  153,
+                                     "Height":  26,
+                                     "X":  635
+                                 }
+                  },
+                  {
+                      "Index":  77,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787986",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  610,
+                                     "Width":  236,
+                                     "Height":  26,
+                                     "X":  384
+                                 }
+                  },
+                  {
+                      "Index":  78,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787988",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  665,
+                                     "Width":  336,
+                                     "Height":  26,
+                                     "X":  446
+                                 }
+                  },
+                  {
+                      "Index":  79,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788004",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  650,
+                                     "Width":  360,
+                                     "Height":  26,
+                                     "X":  366
+                                 }
+                  },
+                  {
+                      "Index":  80,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787978",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  594,
+                                     "Width":  23,
+                                     "Height":  23,
+                                     "X":  470
+                                 }
+                  },
+                  {
+                      "Index":  81,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787974",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  600,
+                                     "Width":  23,
+                                     "Height":  23,
+                                     "X":  436
+                                 }
+                  },
+                  {
+                      "Index":  82,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787968",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  556,
+                                     "Width":  23,
+                                     "Height":  23,
+                                     "X":  454
+                                 }
+                  },
+                  {
+                      "Index":  83,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787976",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  514,
+                                     "Width":  23,
+                                     "Height":  23,
+                                     "X":  454
+                                 }
+                  },
+                  {
+                      "Index":  84,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787960",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  466,
+                                     "Width":  23,
+                                     "Height":  23,
+                                     "X":  454
+                                 }
+                  },
+                  {
+                      "Index":  85,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787970",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  53,
+                                     "Height":  43,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  86,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787952",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  33,
+                                     "Height":  18,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  87,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787962",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  435,
+                                     "Width":  63,
+                                     "Height":  33,
+                                     "X":  438
+                                 }
+                  },
+                  {
+                      "Index":  88,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "Reset",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787814",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  707,
+                                     "Width":  54,
+                                     "Height":  25,
+                                     "X":  1741
+                                 }
+                  },
+                  {
+                      "Index":  89,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787944",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  461,
+                                     "Width":  63,
+                                     "Height":  33,
+                                     "X":  610
+                                 }
+                  },
+                  {
+                      "Index":  90,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787954",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  174,
+                                     "Width":  53,
+                                     "Height":  43,
+                                     "X":  1695
+                                 }
+                  },
+                  {
+                      "Index":  91,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787928",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  379,
+                                     "Width":  43,
+                                     "Height":  33,
+                                     "X":  1841
+                                 }
+                  },
+                  {
+                      "Index":  92,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787946",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  43,
+                                     "Height":  33,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  93,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787924",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  125,
+                                     "Width":  43,
+                                     "Height":  33,
+                                     "X":  743
+                                 }
+                  },
+                  {
+                      "Index":  94,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787938",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  446,
+                                     "Width":  28,
+                                     "Height":  23,
+                                     "X":  641
+                                 }
+                  },
+                  {
+                      "Index":  95,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787916",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  762,
+                                     "Width":  28,
+                                     "Height":  23,
+                                     "X":  1086
+                                 }
+                  },
+                  {
+                      "Index":  96,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787932",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  28,
+                                     "Height":  23,
+                                     "X":  880
+                                 }
+                  },
+                  {
+                      "Index":  97,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787920",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  416,
+                                     "Width":  53,
+                                     "Height":  38,
+                                     "X":  157
+                                 }
+                  },
+                  {
+                      "Index":  98,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787918",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  53,
+                                     "Height":  18,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  99,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787912",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  391,
+                                     "Width":  28,
+                                     "Height":  28,
+                                     "X":  1270
+                                 }
+                  },
+                  {
+                      "Index":  100,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787910",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  843,
+                                     "Width":  53,
+                                     "Height":  18,
+                                     "X":  862
+                                 }
+                  },
+                  {
+                      "Index":  101,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787904",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  167,
+                                     "Width":  123,
+                                     "Height":  78,
+                                     "X":  523
+                                 }
+                  },
+                  {
+                      "Index":  102,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787902",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  176,
+                                     "Width":  53,
+                                     "Height":  53,
+                                     "X":  213
+                                 }
+                  },
+                  {
+                      "Index":  103,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787896",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  28,
+                                     "Height":  28,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  104,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787894",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  744,
+                                     "Width":  28,
+                                     "Height":  23,
+                                     "X":  1030
+                                 }
+                  },
+                  {
+                      "Index":  105,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787888",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  13,
+                                     "Height":  53,
+                                     "X":  230
+                                 }
+                  },
+                  {
+                      "Index":  106,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787886",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  166,
+                                     "Width":  63,
+                                     "Height":  48,
+                                     "X":  1600
+                                 }
+                  },
+                  {
+                      "Index":  107,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787868",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  237,
+                                     "Width":  70,
+                                     "Height":  48,
+                                     "X":  1591
+                                 }
+                  },
+                  {
+                      "Index":  108,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "983900",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  300,
+                                     "Width":  71,
+                                     "Height":  48,
+                                     "X":  1259
+                                 }
+                  },
+                  {
+                      "Index":  109,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787862",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  66,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  110,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787860",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  66,
+                                     "Height":  48,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  111,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787846",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  378,
+                                     "Width":  92,
+                                     "Height":  48,
+                                     "X":  617
+                                 }
+                  },
+                  {
+                      "Index":  112,
+                      "Parent":  12,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787838",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  104,
+                                     "Width":  1684,
+                                     "Height":  638,
+                                     "X":  130
+                                 }
+                  },
+                  {
+                      "Index":  113,
+                      "Parent":  13,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787824",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  751,
+                                     "Width":  875,
+                                     "Height":  280,
+                                     "X":  3
+                                 }
+                  },
+                  {
+                      "Index":  114,
+                      "Parent":  15,
+                      "Depth":  2,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787818",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  589,
+                                     "Width":  122,
+                                     "Height":  122,
+                                     "X":  2
+                                 }
+                  },
+                  {
+                      "Index":  115,
+                      "Parent":  24,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462760",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  108,
+                                     "Width":  102,
+                                     "Height":  538,
+                                     "X":  1821
+                                 }
+                  },
+                  {
+                      "Index":  116,
+                      "Parent":  25,
+                      "Depth":  3,
+                      "Name":  "Reportes",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1117206",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  116,
+                                     "Width":  106,
+                                     "Height":  56,
+                                     "X":  11
+                                 }
+                  },
+                  {
+                      "Index":  117,
+                      "Parent":  26,
+                      "Depth":  3,
+                      "Name":  "Pedidos",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "527456",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  474,
+                                     "Width":  106,
+                                     "Height":  56,
+                                     "X":  11
+                                 }
+                  },
+                  {
+                      "Index":  118,
+                      "Parent":  26,
+                      "Depth":  3,
+                      "Name":  "Existencias",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1704604",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  179,
+                                     "Width":  106,
+                                     "Height":  56,
+                                     "X":  11
+                                 }
+                  },
+                  {
+                      "Index":  119,
+                      "Parent":  26,
+                      "Depth":  3,
+                      "Name":  "Formulas",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1312780",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  238,
+                                     "Width":  106,
+                                     "Height":  56,
+                                     "X":  11
+                                 }
+                  },
+                  {
+                      "Index":  120,
+                      "Parent":  26,
+                      "Depth":  3,
+                      "Name":  "Proveedores",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462406",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  297,
+                                     "Width":  106,
+                                     "Height":  56,
+                                     "X":  11
+                                 }
+                  },
+                  {
+                      "Index":  121,
+                      "Parent":  26,
+                      "Depth":  3,
+                      "Name":  "Camiones",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "2427354",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  415,
+                                     "Width":  106,
+                                     "Height":  56,
+                                     "X":  11
+                                 }
+                  },
+                  {
+                      "Index":  122,
+                      "Parent":  26,
+                      "Depth":  3,
+                      "Name":  "Clientes",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "920346",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  356,
+                                     "Width":  106,
+                                     "Height":  56,
+                                     "X":  11
+                                 }
+                  },
+                  {
+                      "Index":  123,
+                      "Parent":  27,
+                      "Depth":  3,
+                      "Name":  "Carga Manual",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "986128",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  false,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  534,
+                                     "Width":  106,
+                                     "Height":  56,
+                                     "X":  11
+                                 }
+                  },
+                  {
+                      "Index":  124,
+                      "Parent":  28,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1642354",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  61,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  125,
+                      "Parent":  29,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1707842",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  87,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  126,
+                      "Parent":  30,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1180936",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  87,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  127,
+                      "Parent":  31,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1115218",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  87,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  128,
+                      "Parent":  32,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "986980",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  87,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  129,
+                      "Parent":  33,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "2166266",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  87,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  130,
+                      "Parent":  34,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1050372",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  87,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  131,
+                      "Parent":  35,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "920910",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  87,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  132,
+                      "Parent":  36,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462240",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  81,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  133,
+                      "Parent":  37,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "986518",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  571,
+                                     "Width":  50,
+                                     "Height":  40,
+                                     "X":  494
+                                 }
+                  },
+                  {
+                      "Index":  134,
+                      "Parent":  38,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462250",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  629,
+                                     "Width":  50,
+                                     "Height":  40,
+                                     "X":  575
+                                 }
+                  },
+                  {
+                      "Index":  135,
+                      "Parent":  39,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462248",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  648,
+                                     "Width":  50,
+                                     "Height":  40,
+                                     "X":  496
+                                 }
+                  },
+                  {
+                      "Index":  136,
+                      "Parent":  40,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462254",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  643,
+                                     "Width":  20,
+                                     "Height":  20,
+                                     "X":  677
+                                 }
+                  },
+                  {
+                      "Index":  137,
+                      "Parent":  41,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462264",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  667,
+                                     "Width":  20,
+                                     "Height":  20,
+                                     "X":  702
+                                 }
+                  },
+                  {
+                      "Index":  138,
+                      "Parent":  42,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462270",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  647,
+                                     "Width":  20,
+                                     "Height":  20,
+                                     "X":  756
+                                 }
+                  },
+                  {
+                      "Index":  139,
+                      "Parent":  43,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462268",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  20,
+                                     "Height":  15,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  140,
+                      "Parent":  44,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462274",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  20,
+                                     "Height":  15,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  141,
+                      "Parent":  45,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462272",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  457,
+                                     "Width":  20,
+                                     "Height":  15,
+                                     "X":  838
+                                 }
+                  },
+                  {
+                      "Index":  142,
+                      "Parent":  46,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462282",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  20,
+                                     "Height":  15,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  143,
+                      "Parent":  47,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462284",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  20,
+                                     "Height":  15,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  144,
+                      "Parent":  48,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "724058",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  20,
+                                     "Height":  15,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  145,
+                      "Parent":  49,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "592980",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  20,
+                                     "Height":  15,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  146,
+                      "Parent":  50,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "592982",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  371,
+                                     "Width":  25,
+                                     "Height":  25,
+                                     "X":  1091
+                                 }
+                  },
+                  {
+                      "Index":  147,
+                      "Parent":  51,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1050262",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  25,
+                                     "Height":  25,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  148,
+                      "Parent":  52,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1050268",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  25,
+                                     "Height":  25,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  149,
+                      "Parent":  53,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1507812",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  25,
+                                     "Height":  25,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  150,
+                      "Parent":  54,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "4327370",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  25,
+                                     "Height":  25,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  151,
+                      "Parent":  55,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1050260",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  25,
+                                     "Height":  25,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  152,
+                      "Parent":  56,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787684",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  25,
+                                     "Height":  25,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  153,
+                      "Parent":  57,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788100",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  25,
+                                     "Height":  25,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  154,
+                      "Parent":  58,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788094",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  25,
+                                     "Height":  25,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  155,
+                      "Parent":  59,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788078",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  25,
+                                     "Height":  25,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  156,
+                      "Parent":  60,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788092",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  25,
+                                     "Height":  25,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  157,
+                      "Parent":  61,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788082",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  597,
+                                     "Width":  50,
+                                     "Height":  40,
+                                     "X":  378
+                                 }
+                  },
+                  {
+                      "Index":  158,
+                      "Parent":  62,
+                      "Depth":  3,
+                      "Name":  "MENSAJE 10",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788076",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  654,
+                                     "Width":  129,
+                                     "Height":  27,
+                                     "X":  808
+                                 }
+                  },
+                  {
+                      "Index":  159,
+                      "Parent":  63,
+                      "Depth":  3,
+                      "Name":  "COMPUERTA DE AGREGADOS ABIERTA",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788062",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  627,
+                                     "Width":  392,
+                                     "Height":  27,
+                                     "X":  605
+                                 }
+                  },
+                  {
+                      "Index":  160,
+                      "Parent":  64,
+                      "Depth":  3,
+                      "Name":  "BOMBA DE AGUA ACTIVADA",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788060",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  624,
+                                     "Width":  283,
+                                     "Height":  27,
+                                     "X":  657
+                                 }
+                  },
+                  {
+                      "Index":  161,
+                      "Parent":  65,
+                      "Depth":  3,
+                      "Name":  "BANDA ARRANCADA",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788054",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  615,
+                                     "Width":  210,
+                                     "Height":  27,
+                                     "X":  688
+                                 }
+                  },
+                  {
+                      "Index":  162,
+                      "Parent":  66,
+                      "Depth":  3,
+                      "Name":  "GUSANO ACTIVAD",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788072",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  626,
+                                     "Width":  185,
+                                     "Height":  27,
+                                     "X":  760
+                                 }
+                  },
+                  {
+                      "Index":  163,
+                      "Parent":  67,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788068",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  78,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  164,
+                      "Parent":  68,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788056",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  78,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  165,
+                      "Parent":  69,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788030",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  78,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  166,
+                      "Parent":  70,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788022",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  78,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  167,
+                      "Parent":  71,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788014",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  78,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  168,
+                      "Parent":  72,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788006",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  231,
+                                     "Width":  115,
+                                     "Height":  45,
+                                     "X":  287
+                                 }
+                  },
+                  {
+                      "Index":  169,
+                      "Parent":  73,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787998",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  78,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  170,
+                      "Parent":  74,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787990",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  78,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  171,
+                      "Parent":  75,
+                      "Depth":  3,
+                      "Name":  "FIN DESCARGA",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "853658",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  626,
+                                     "Width":  156,
+                                     "Height":  27,
+                                     "X":  693
+                                 }
+                  },
+                  {
+                      "Index":  172,
+                      "Parent":  76,
+                      "Depth":  3,
+                      "Name":  "FIN DE CARGA",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "853622",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  630,
+                                     "Width":  148,
+                                     "Height":  27,
+                                     "X":  637
+                                 }
+                  },
+                  {
+                      "Index":  173,
+                      "Parent":  77,
+                      "Depth":  3,
+                      "Name":  "CHICHARRA SONANDO",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787982",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  609,
+                                     "Width":  231,
+                                     "Height":  27,
+                                     "X":  386
+                                 }
+                  },
+                  {
+                      "Index":  174,
+                      "Parent":  78,
+                      "Depth":  3,
+                      "Name":  "CARGANDO GRAVA (FOCO AZUL)",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787996",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  664,
+                                     "Width":  331,
+                                     "Height":  27,
+                                     "X":  448
+                                 }
+                  },
+                  {
+                      "Index":  175,
+                      "Parent":  79,
+                      "Depth":  3,
+                      "Name":  "CARGANDO ARENA FOCO BLANCO)",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787984",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  649,
+                                     "Width":  355,
+                                     "Height":  27,
+                                     "X":  368
+                                 }
+                  },
+                  {
+                      "Index":  176,
+                      "Parent":  80,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787980",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  594,
+                                     "Width":  20,
+                                     "Height":  20,
+                                     "X":  470
+                                 }
+                  },
+                  {
+                      "Index":  177,
+                      "Parent":  81,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787972",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  600,
+                                     "Width":  20,
+                                     "Height":  20,
+                                     "X":  436
+                                 }
+                  },
+                  {
+                      "Index":  178,
+                      "Parent":  82,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787966",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  556,
+                                     "Width":  20,
+                                     "Height":  20,
+                                     "X":  454
+                                 }
+                  },
+                  {
+                      "Index":  179,
+                      "Parent":  83,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787964",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  514,
+                                     "Width":  20,
+                                     "Height":  20,
+                                     "X":  454
+                                 }
+                  },
+                  {
+                      "Index":  180,
+                      "Parent":  84,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787958",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  466,
+                                     "Width":  20,
+                                     "Height":  20,
+                                     "X":  454
+                                 }
+                  },
+                  {
+                      "Index":  181,
+                      "Parent":  85,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787956",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  50,
+                                     "Height":  40,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  182,
+                      "Parent":  86,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787950",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  30,
+                                     "Height":  15,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  183,
+                      "Parent":  87,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787948",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  435,
+                                     "Width":  60,
+                                     "Height":  30,
+                                     "X":  438
+                                 }
+                  },
+                  {
+                      "Index":  184,
+                      "Parent":  89,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787942",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  461,
+                                     "Width":  60,
+                                     "Height":  30,
+                                     "X":  610
+                                 }
+                  },
+                  {
+                      "Index":  185,
+                      "Parent":  90,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787940",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  174,
+                                     "Width":  50,
+                                     "Height":  40,
+                                     "X":  1695
+                                 }
+                  },
+                  {
+                      "Index":  186,
+                      "Parent":  91,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787934",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  379,
+                                     "Width":  40,
+                                     "Height":  30,
+                                     "X":  1841
+                                 }
+                  },
+                  {
+                      "Index":  187,
+                      "Parent":  92,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787936",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  40,
+                                     "Height":  30,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  188,
+                      "Parent":  93,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787926",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  125,
+                                     "Width":  40,
+                                     "Height":  30,
+                                     "X":  743
+                                 }
+                  },
+                  {
+                      "Index":  189,
+                      "Parent":  94,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787930",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  446,
+                                     "Width":  25,
+                                     "Height":  20,
+                                     "X":  641
+                                 }
+                  },
+                  {
+                      "Index":  190,
+                      "Parent":  95,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787922",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  762,
+                                     "Width":  25,
+                                     "Height":  20,
+                                     "X":  1086
+                                 }
+                  },
+                  {
+                      "Index":  191,
+                      "Parent":  96,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787908",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  25,
+                                     "Height":  20,
+                                     "X":  880
+                                 }
+                  },
+                  {
+                      "Index":  192,
+                      "Parent":  97,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787914",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  416,
+                                     "Width":  50,
+                                     "Height":  35,
+                                     "X":  157
+                                 }
+                  },
+                  {
+                      "Index":  193,
+                      "Parent":  98,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787900",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  50,
+                                     "Height":  15,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  194,
+                      "Parent":  99,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787906",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  391,
+                                     "Width":  25,
+                                     "Height":  25,
+                                     "X":  1270
+                                 }
+                  },
+                  {
+                      "Index":  195,
+                      "Parent":  100,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787892",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  843,
+                                     "Width":  50,
+                                     "Height":  15,
+                                     "X":  862
+                                 }
+                  },
+                  {
+                      "Index":  196,
+                      "Parent":  101,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787898",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  167,
+                                     "Width":  120,
+                                     "Height":  75,
+                                     "X":  523
+                                 }
+                  },
+                  {
+                      "Index":  197,
+                      "Parent":  102,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787884",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  176,
+                                     "Width":  50,
+                                     "Height":  50,
+                                     "X":  213
+                                 }
+                  },
+                  {
+                      "Index":  198,
+                      "Parent":  103,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787890",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  25,
+                                     "Height":  25,
+                                     "X":  30
+                                 }
+                  },
+                  {
+                      "Index":  199,
+                      "Parent":  104,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787876",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  744,
+                                     "Width":  25,
+                                     "Height":  20,
+                                     "X":  1030
+                                 }
+                  },
+                  {
+                      "Index":  200,
+                      "Parent":  105,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787882",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  10,
+                                     "Height":  50,
+                                     "X":  230
+                                 }
+                  },
+                  {
+                      "Index":  201,
+                      "Parent":  106,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787872",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  166,
+                                     "Width":  58,
+                                     "Height":  45,
+                                     "X":  1602
+                                 }
+                  },
+                  {
+                      "Index":  202,
+                      "Parent":  107,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787866",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  237,
+                                     "Width":  65,
+                                     "Height":  45,
+                                     "X":  1593
+                                 }
+                  },
+                  {
+                      "Index":  203,
+                      "Parent":  108,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787864",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  300,
+                                     "Width":  66,
+                                     "Height":  45,
+                                     "X":  1261
+                                 }
+                  },
+                  {
+                      "Index":  204,
+                      "Parent":  109,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787852",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  61,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  205,
+                      "Parent":  110,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787850",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  61,
+                                     "Height":  45,
+                                     "X":  32
+                                 }
+                  },
+                  {
+                      "Index":  206,
+                      "Parent":  111,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787842",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  378,
+                                     "Width":  87,
+                                     "Height":  45,
+                                     "X":  619
+                                 }
+                  },
+                  {
+                      "Index":  207,
+                      "Parent":  113,
+                      "Depth":  3,
+                      "Name":  "Materiales",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787828",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  757,
+                                     "Width":  404,
+                                     "Height":  23,
+                                     "X":  7
+                                 }
+                  },
+                  {
+                      "Index":  208,
+                      "Parent":  113,
+                      "Depth":  3,
+                      "Name":  "Datos de Remisión",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787830",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  757,
+                                     "Width":  426,
+                                     "Height":  23,
+                                     "X":  449
+                                 }
+                  },
+                  {
+                      "Index":  209,
+                      "Parent":  113,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787826",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  782,
+                                     "Width":  408,
+                                     "Height":  246,
+                                     "X":  3
+                                 }
+                  },
+                  {
+                      "Index":  210,
+                      "Parent":  113,
+                      "Depth":  3,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787816",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  783,
+                                     "Width":  423,
+                                     "Height":  246,
+                                     "X":  452
+                                 }
+                  },
+                  {
+                      "Index":  211,
+                      "Parent":  114,
+                      "Depth":  3,
+                      "Name":  "Seguridad",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787808",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  652,
+                                     "Width":  106,
+                                     "Height":  56,
+                                     "X":  10
+                                 }
+                  },
+                  {
+                      "Index":  212,
+                      "Parent":  114,
+                      "Depth":  3,
+                      "Name":  "Configuración",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787812",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  593,
+                                     "Width":  106,
+                                     "Height":  56,
+                                     "X":  10
+                                 }
+                  },
+                  {
+                      "Index":  213,
+                      "Parent":  115,
+                      "Depth":  4,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "266058",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  118,
+                                     "Width":  84,
+                                     "Height":  74,
+                                     "X":  1831
+                                 }
+                  },
+                  {
+                      "Index":  214,
+                      "Parent":  115,
+                      "Depth":  4,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "985690",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  false,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  189,
+                                     "Width":  84,
+                                     "Height":  74,
+                                     "X":  1831
+                                 }
+                  },
+                  {
+                      "Index":  215,
+                      "Parent":  115,
+                      "Depth":  4,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "266062",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  474,
+                                     "Width":  95,
+                                     "Height":  154,
+                                     "X":  1827
+                                 }
+                  },
+                  {
+                      "Index":  216,
+                      "Parent":  115,
+                      "Depth":  4,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "528272",
+                      "ClassName":  "WindowsForms10.Window.8.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  330,
+                                     "Width":  95,
+                                     "Height":  150,
+                                     "X":  1827
+                                 }
+                  },
+                  {
+                      "Index":  217,
+                      "Parent":  115,
+                      "Depth":  4,
+                      "Name":  "",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "986920",
+                      "ClassName":  "WindowsForms10.BUTTON.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  false,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  257,
+                                     "Width":  84,
+                                     "Height":  74,
+                                     "X":  1831
+                                 }
+                  },
+                  {
+                      "Index":  218,
+                      "Parent":  124,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "2035494",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  219,
+                      "Parent":  125,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "855020",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  220,
+                      "Parent":  125,
+                      "Depth":  4,
+                      "Name":  "ADICIONAL 10",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "658458",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  83,
+                                     "Height":  17,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  221,
+                      "Parent":  126,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "789694",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  222,
+                      "Parent":  126,
+                      "Depth":  4,
+                      "Name":  "ADICIONAL 11",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1312012",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  83,
+                                     "Height":  17,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  223,
+                      "Parent":  127,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1246454",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  224,
+                      "Parent":  127,
+                      "Depth":  4,
+                      "Name":  "ADICIONAL 12",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "2035614",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  83,
+                                     "Height":  17,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  225,
+                      "Parent":  128,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1707668",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  226,
+                      "Parent":  128,
+                      "Depth":  4,
+                      "Name":  "ADICIONAL 13",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1574148",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  83,
+                                     "Height":  17,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  227,
+                      "Parent":  129,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "2819322",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  228,
+                      "Parent":  129,
+                      "Depth":  4,
+                      "Name":  "ADICIONAL 14",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "4131354",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  83,
+                                     "Height":  17,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  229,
+                      "Parent":  130,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "593130",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  230,
+                      "Parent":  130,
+                      "Depth":  4,
+                      "Name":  "ADICIONAL 15",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "527440",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  83,
+                                     "Height":  17,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  231,
+                      "Parent":  131,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "593178",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  232,
+                      "Parent":  131,
+                      "Depth":  4,
+                      "Name":  "ADICIONAL 16",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "1181540",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  83,
+                                     "Height":  17,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  233,
+                      "Parent":  132,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "462242",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  234,
+                      "Parent":  132,
+                      "Depth":  4,
+                      "Name":  "ADICIONAL 9",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "658834",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  77,
+                                     "Height":  17,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  235,
+                      "Parent":  163,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788064",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  236,
+                      "Parent":  163,
+                      "Depth":  4,
+                      "Name":  "ADICIONAL8",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788084",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  74,
+                                     "Height":  17,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  237,
+                      "Parent":  164,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788058",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  238,
+                      "Parent":  164,
+                      "Depth":  4,
+                      "Name":  "ADICIONAL7",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788046",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  74,
+                                     "Height":  17,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  239,
+                      "Parent":  165,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788034",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  240,
+                      "Parent":  165,
+                      "Depth":  4,
+                      "Name":  "ADICIONAL6",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788040",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  74,
+                                     "Height":  17,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  241,
+                      "Parent":  166,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788026",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  242,
+                      "Parent":  166,
+                      "Depth":  4,
+                      "Name":  "ADICIONAL5",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788052",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  74,
+                                     "Height":  17,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  243,
+                      "Parent":  167,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788018",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  244,
+                      "Parent":  167,
+                      "Depth":  4,
+                      "Name":  "ADICIONAL4",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788044",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  74,
+                                     "Height":  17,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  245,
+                      "Parent":  168,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788010",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  246,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  314
+                                 }
+                  },
+                  {
+                      "Index":  246,
+                      "Parent":  168,
+                      "Depth":  4,
+                      "Name":  "EN SILO CEMENTO",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788036",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  231,
+                                     "Width":  111,
+                                     "Height":  17,
+                                     "X":  288
+                                 }
+                  },
+                  {
+                      "Index":  247,
+                      "Parent":  169,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788002",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  248,
+                      "Parent":  169,
+                      "Depth":  4,
+                      "Name":  "ADICIONAL3",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "788028",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  4,
+                                     "Width":  74,
+                                     "Height":  17,
+                                     "X":  33
+                                 }
+                  },
+                  {
+                      "Index":  249,
+                      "Parent":  170,
+                      "Depth":  4,
+                      "Name":  "????",
+                      "ControlType":  "ControlType.Pane",
+                      "AutomationId":  "787994",
+                      "ClassName":  "WindowsForms10.STATIC.app.0.39490e2_r7_ad1",
+                      "IsEnabled":  true,
+                      "IsOffscreen":  false,
+                      "IsPassword":  false,
+                      "Bounds":  {
+                                     "Y":  19,
+                                     "Width":  57,
+                                     "Height":  30,
+                                     "X":  33
+                                 }
+                  }
+              ]
+}
