@@ -652,6 +652,17 @@ public sealed partial class ConfigurationView : UserControl
         }
     }
 
+    public void ReflectMessageText(string control, string text)
+    {
+        if (!_messageFields.TryGetValue(control, out var fields))
+        {
+            return;
+        }
+
+        fields.Message.Text = text;
+        ShowStatus($"{control} actualizado desde el lienzo.", InfoBarSeverity.Success);
+    }
+
     public async Task LoadAdditionalConfigurationAsync()
     {
         try

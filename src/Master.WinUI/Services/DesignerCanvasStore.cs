@@ -34,6 +34,9 @@ public sealed class DesignerCanvasStore
         {
             IsLocked = state.IsLocked,
             ImagePath = state.ImagePath,
+            MessageTextOverrides = new Dictionary<string, string>(
+                state.MessageTextOverrides,
+                StringComparer.OrdinalIgnoreCase),
             Controls = state.Controls.Select(control => new DesignerCanvasControlState
             {
                 Id = control.Id,
@@ -41,7 +44,11 @@ public sealed class DesignerCanvasStore
                 Text = control.Text,
                 Left = control.Left,
                 Top = control.Top,
-                IsOn = control.IsOn
+                IsOn = control.IsOn,
+                MessageControl = control.MessageControl,
+                Format = control.Format,
+                Width = control.Width,
+                Height = control.Height
             }).ToList()
         };
         var directory = Path.GetDirectoryName(_filePath)
@@ -119,6 +126,7 @@ public sealed class DesignerCanvasState
 {
     public bool IsLocked { get; set; }
     public string? ImagePath { get; set; }
+    public Dictionary<string, string> MessageTextOverrides { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public List<DesignerCanvasControlState> Controls { get; set; } = new();
 }
 
@@ -130,4 +138,8 @@ public sealed class DesignerCanvasControlState
     public double Left { get; set; }
     public double Top { get; set; }
     public bool IsOn { get; set; }
+    public string? MessageControl { get; set; }
+    public string Format { get; set; } = string.Empty;
+    public double? Width { get; set; }
+    public double? Height { get; set; }
 }

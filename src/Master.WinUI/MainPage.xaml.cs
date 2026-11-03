@@ -49,6 +49,7 @@ public sealed partial class MainPage : Page
     private readonly OrderService _orderService = new();
     private readonly CompanyConfigurationService _companyConfigurationService = new();
     private readonly MachineConfigurationService _machineConfigurationService = new();
+    private readonly MessageConfigurationService _messageConfigurationService = new();
     private readonly DesignerCanvasStore _designerCanvasStore = new();
     private readonly DesignerCanvasState _designerCanvasState = new();
     private bool _showPlantTools = true;
@@ -99,6 +100,15 @@ public sealed partial class MainPage : Page
     private readonly Dictionary<string, TextBlock> _formulaMaterialStates = new(StringComparer.Ordinal);
     private Border? _movingCanvasControl;
     private Windows.Foundation.Point _canvasControlPointerOffset;
+    private Border? _resizingCanvasControl;
+    private Border? _selectedCanvasMessage;
+    private readonly List<Border> _canvasTransformHandles = new();
+    private CanvasResizeHandleInfo? _activeCanvasResizeHandle;
+    private Windows.Foundation.Point _canvasControlResizeStart;
+    private Windows.Foundation.Point _canvasControlResizeStartPosition;
+    private double _canvasControlResizeStartWidth;
+    private double _canvasControlResizeStartHeight;
+    private bool _isMessagePaletteLoading;
     private bool _isCanvasLocked;
     private bool _isPlcStatusCheckRunning;
     private PlcConnectionState? _lastPlcConnectionState;
@@ -165,6 +175,8 @@ public sealed partial class MainPage : Page
     public MainPage()
     {
         InitializeComponent();
+        AddCanvasDeleteAccelerator(Windows.System.VirtualKey.Delete);
+        AddCanvasDeleteAccelerator(Windows.System.VirtualKey.Back);
         ApplyTheme(LoadSavedTheme(), persist: false);
         ConfigurationView.CanSaveConfigurationTab = CanSaveConfigurationTab;
         ConfigurationView.HasProfileModuleAccess = HasModulePermission;
@@ -228,6 +240,28 @@ public sealed partial class MainPage : Page
         _plcStatusTimer.Tick += PlcStatusTimer_Tick;
     }
 
+    private void AddCanvasDeleteAccelerator(Windows.System.VirtualKey key)
+    {
+        var accelerator = new KeyboardAccelerator { Key = key };
+        accelerator.Invoked += CanvasDeleteAccelerator_Invoked;
+        MainPageRoot.KeyboardAccelerators.Add(accelerator);
+    }
+
+    private async void CanvasDeleteAccelerator_Invoked(
+        KeyboardAccelerator sender,
+        KeyboardAcceleratorInvokedEventArgs args)
+    {
+        if (_isCanvasLocked
+            || _selectedCanvasMessage is null
+            || IsTextInputSource(Microsoft.UI.Xaml.Input.FocusManager.GetFocusedElement(XamlRoot)))
+        {
+            return;
+        }
+
+        args.Handled = true;
+        await RemoveSelectedCanvasMessageAsync();
+    }
+
     private async void MainPage_Loaded(object sender, RoutedEventArgs e)
     {
         Loaded -= MainPage_Loaded;
@@ -237,6 +271,9 @@ public sealed partial class MainPage : Page
             var savedState = await _designerCanvasStore.LoadAsync();
             _designerCanvasState.IsLocked = savedState.IsLocked;
             _designerCanvasState.ImagePath = savedState.ImagePath;
+            _designerCanvasState.MessageTextOverrides = new Dictionary<string, string>(
+                savedState.MessageTextOverrides ?? new Dictionary<string, string>(),
+                StringComparer.OrdinalIgnoreCase);
             _designerCanvasState.Controls = (savedState.Controls ?? new List<DesignerCanvasControlState>())
                 .Where(control => control is not null
                     && !string.IsNullOrWhiteSpace(control.Id)
@@ -245,6 +282,17 @@ public sealed partial class MainPage : Page
                     && double.IsFinite(control.Left)
                     && double.IsFinite(control.Top))
                 .ToList();
+            foreach (var control in _designerCanvasState.Controls.Where(control =>
+                         string.Equals(control.Type, "Mensaje", StringComparison.OrdinalIgnoreCase)
+                         && string.IsNullOrWhiteSpace(control.Text)))
+            {
+                control.Text = GetDefaultMessageText(control.MessageControl);
+            }
+            foreach (var control in _designerCanvasState.Controls.Where(control =>
+                         !string.IsNullOrWhiteSpace(control.MessageControl)))
+            {
+                _designerCanvasState.MessageTextOverrides.TryAdd(control.MessageControl!, control.Text);
+            }
 
             if (!string.IsNullOrWhiteSpace(savedState.ImagePath))
             {
@@ -4006,11 +4054,22 @@ public sealed partial class MainPage : Page
         var tooltip = _isCanvasLocked ? "Desbloquear lienzo" : "Bloquear lienzo";
         ToolTipService.SetToolTip(CanvasLockButton, tooltip);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CanvasLockButton, tooltip);
-        CanvasControlPalette.IsHitTestVisible = !_isCanvasLocked;
-        CanvasControlPalette.Opacity = _isCanvasLocked ? 0.55 : 1;
-        foreach (var control in CanvasControlPalette.Children.OfType<Control>())
+        foreach (var button in MessageControlPalette.Children.OfType<Button>())
         {
-            control.IsEnabled = !_isCanvasLocked;
+            button.IsEnabled = !_isCanvasLocked
+                && button.Tag is MessageConfigurationRecord message
+                && !_designerCanvasState.Controls.Any(control =>
+                    string.Equals(control.MessageControl, message.Control, StringComparison.OrdinalIgnoreCase));
+        }
+
+        foreach (var control in DesignCanvas.Children.OfType<Border>())
+        {
+            control.IsHitTestVisible = !_isCanvasLocked;
+        }
+
+        foreach (var handle in _canvasTransformHandles)
+        {
+            handle.Visibility = _isCanvasLocked ? Visibility.Collapsed : Visibility.Visible;
         }
 
         DesignCanvas.IsHitTestVisible = !_isCanvasLocked;
@@ -4021,17 +4080,87 @@ public sealed partial class MainPage : Page
             EmptyCanvasPrompt.Opacity = _isCanvasLocked ? 0.55 : 1;
         }
 
-        CanvasEditStatusText.Text = _isCanvasLocked
-            ? "Lienzo bloqueado. Desbloquéalo para cambiar la imagen o editar controles."
-            : "Lienzo desbloqueado. Puedes cambiar la imagen y editar controles.";
-        CanvasEditStatusText.Foreground = _themeBrushes.GetBrush(
-            _isCanvasLocked ? "#FFBE5A" : "#72D49A");
     }
 
-    private async void AddCanvasControl_Click(object sender, RoutedEventArgs e)
+    private async void PlantToolsPanel_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (_isCanvasLocked || sender is not FrameworkElement { Tag: string controlType })
+        if (PlantToolsPanel.SelectedItem is TabViewItem { Header: "Controles" })
         {
+            await RefreshMessagePaletteAsync();
+        }
+    }
+
+    private async Task RefreshMessagePaletteAsync()
+    {
+        if (_isMessagePaletteLoading)
+        {
+            return;
+        }
+
+        _isMessagePaletteLoading = true;
+        MessagePaletteStatusText.Text = "Cargando mensajes desde la configuración...";
+        MessageControlPalette.Children.Clear();
+        try
+        {
+            var configuredMessages = await _messageConfigurationService.GetMessagesAsync();
+            foreach (var index in Enumerable.Range(1, 10))
+            {
+                var control = $"Mensaje{index}";
+                if (!configuredMessages.TryGetValue(control, out var message))
+                {
+                    continue;
+                }
+
+                var button = new Button
+                {
+                    Content = new TextBlock
+                    {
+                        Text = $"Mensaje {index}",
+                        TextWrapping = TextWrapping.Wrap
+                    },
+                    Tag = message,
+                    HorizontalContentAlignment = HorizontalAlignment.Stretch,
+                    Style = (Style)Resources["DefaultButtonStyle"]
+                };
+                button.Click += AddConfiguredMessage_Click;
+                MessageControlPalette.Children.Add(button);
+            }
+
+            var missingControls = Enumerable.Range(1, 10)
+                .Select(index => $"Mensaje{index}")
+                .Where(control => !configuredMessages.ContainsKey(control))
+                .ToArray();
+            MessagePaletteStatusText.Text = missingControls.Length == 0
+                ? "Selecciona un mensaje para agregarlo al lienzo."
+                : $"No se encontraron en dbo.Mensajes: {string.Join(", ", missingControls)}.";
+        }
+        catch (SqlException exception)
+        {
+            MessagePaletteStatusText.Text = $"No se pudieron cargar los mensajes (SQL {exception.Number}): {exception.Message}";
+        }
+        catch (InvalidOperationException exception)
+        {
+            MessagePaletteStatusText.Text = $"No se pudieron cargar los mensajes: {exception.Message}";
+        }
+        finally
+        {
+            _isMessagePaletteLoading = false;
+            UpdateCanvasEditMode();
+        }
+    }
+
+    private async void AddConfiguredMessage_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not Button { Tag: MessageConfigurationRecord message })
+        {
+            return;
+        }
+
+        if (_designerCanvasState.Controls.Any(control =>
+                string.Equals(control.MessageControl, message.Control, StringComparison.OrdinalIgnoreCase)))
+        {
+            MessagePaletteStatusText.Text = $"{message.Control} ya está agregado al lienzo.";
+            UpdateCanvasEditMode();
             return;
         }
 
@@ -4039,27 +4168,50 @@ public sealed partial class MainPage : Page
         var control = new DesignerCanvasControlState
         {
             Id = Guid.NewGuid().ToString("N"),
-            Type = controlType,
-            Text = controlType switch
-            {
-                "Etiqueta" => "Nueva etiqueta",
-                "Botón" => "Nuevo botón",
-                "Interruptor" => "Interruptor",
-                _ => throw new InvalidOperationException($"Tipo de control no reconocido: {controlType}.")
-            },
-            Left = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualWidth - 200)),
-            Top = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualHeight - 80))
+            Type = "Mensaje",
+            MessageControl = message.Control,
+            Text = GetMessageText(message),
+            Format = message.Format,
+            Width = 260,
+            Height = 56,
+            Left = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualWidth - 260)),
+            Top = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualHeight - 56))
         };
         _designerCanvasState.Controls.Add(control);
         AddCanvasControlToSurface(control);
+        UpdateCanvasEditMode();
         await SaveDesignerCanvasStateAsync();
+    }
+
+    private string GetMessageText(MessageConfigurationRecord message)
+    {
+        if (_designerCanvasState.MessageTextOverrides.TryGetValue(message.Control, out var savedText))
+        {
+            return savedText;
+        }
+
+        return string.IsNullOrWhiteSpace(message.Text)
+            ? GetDefaultMessageText(message.Control)
+            : message.Text;
+    }
+
+    private static string GetDefaultMessageText(string? control)
+    {
+        return string.IsNullOrWhiteSpace(control) ? "Mensaje" : control.Trim();
     }
 
     private void AddCanvasControlToSurface(DesignerCanvasControlState control)
     {
+        if (control.Type == "Mensaje")
+        {
+            AddCanvasMessageToSurface(control);
+            return;
+        }
+
         var container = new Border
         {
-            Width = 190,
+            Width = control.Width ?? 190,
+            Height = control.Height ?? double.NaN,
             Padding = new Thickness(6),
             Background = _themeBrushes.GetBrush("#E6111C2D"),
             BorderBrush = _themeBrushes.GetBrush("#0078D4"),
@@ -4070,6 +4222,7 @@ public sealed partial class MainPage : Page
         var layout = new Grid { ColumnSpacing = 4, RowSpacing = 4 };
         layout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        layout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         layout.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         layout.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
@@ -4102,7 +4255,8 @@ public sealed partial class MainPage : Page
         removeButton.Click += RemoveCanvasControl_Click;
         Grid.SetColumn(removeButton, 2);
 
-        FrameworkElement visual = control.Type switch
+        FrameworkElement visual;
+        visual = control.Type switch
         {
             "Botón" => new Button { Content = control.Text, HorizontalAlignment = HorizontalAlignment.Stretch },
             "Interruptor" => CreateCanvasToggle(control),
@@ -4113,8 +4267,9 @@ public sealed partial class MainPage : Page
                 Foreground = _themeBrushes.GetBrush("#F1F5F9")
             }
         };
+
         Grid.SetRow(visual, 1);
-        Grid.SetColumnSpan(visual, 3);
+        Grid.SetColumnSpan(visual, 4);
         layout.Children.Add(moveHandle);
         layout.Children.Add(typeLabel);
         layout.Children.Add(removeButton);
@@ -4124,6 +4279,475 @@ public sealed partial class MainPage : Page
         Canvas.SetTop(container, control.Top);
         DesignCanvas.Children.Add(container);
         container.IsHitTestVisible = !_isCanvasLocked;
+    }
+
+    private void AddCanvasMessageToSurface(DesignerCanvasControlState control)
+    {
+        var messageLabel = new TextBlock
+        {
+            Text = control.Text,
+            Width = control.Width ?? 260,
+            Height = control.Height ?? 56,
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = GetMessageForeground(control.Format),
+            IsHitTestVisible = false,
+            VerticalAlignment = VerticalAlignment.Stretch
+        };
+        messageLabel.FontSize = GetResponsiveMessageFontSize(
+            control,
+            messageLabel.Width,
+            messageLabel.Height);
+
+        var fontFamily = GetMessageFontFamily(control.Format);
+        if (fontFamily is not null)
+        {
+            messageLabel.FontFamily = fontFamily;
+        }
+
+        var container = new Border
+        {
+            Width = messageLabel.Width,
+            Height = messageLabel.Height,
+            Padding = new Thickness(0),
+            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            Tag = control,
+            Child = messageLabel
+        };
+        var contextMenu = new MenuFlyout();
+        var removeItem = new MenuFlyoutItem { Text = "Quitar del lienzo", Tag = container };
+        removeItem.Click += RemoveCanvasControl_Click;
+        contextMenu.Items.Add(removeItem);
+        container.ContextFlyout = contextMenu;
+        container.PointerPressed += CanvasMessage_PointerPressed;
+        container.PointerMoved += CanvasMessage_PointerMoved;
+        container.PointerReleased += CanvasMessage_PointerReleased;
+        container.PointerCaptureLost += CanvasMessage_PointerCaptureLost;
+        container.DoubleTapped += CanvasMessage_DoubleTapped;
+        Canvas.SetLeft(container, control.Left);
+        Canvas.SetTop(container, control.Top);
+        DesignCanvas.Children.Add(container);
+        container.IsHitTestVisible = !_isCanvasLocked;
+    }
+
+    private void CanvasMessage_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not Border container
+            || container.Tag is not DesignerCanvasControlState control)
+        {
+            return;
+        }
+
+        if (!ReferenceEquals(_selectedCanvasMessage, container))
+        {
+            _selectedCanvasMessage = container;
+            UpdateCanvasTransformHandles(container);
+        }
+
+        _movingCanvasControl = container;
+        var canvasPosition = e.GetCurrentPoint(DesignCanvas).Position;
+        _canvasControlPointerOffset = new Windows.Foundation.Point(
+            canvasPosition.X - Canvas.GetLeft(container),
+            canvasPosition.Y - Canvas.GetTop(container));
+        container.CapturePointer(e.Pointer);
+        e.Handled = true;
+    }
+
+    private void DesignSurface_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (e.OriginalSource is Microsoft.UI.Xaml.DependencyObject source
+            && IsWithinElement(source, _selectedCanvasMessage))
+        {
+            return;
+        }
+
+        _selectedCanvasMessage = null;
+        UpdateCanvasTransformHandles(null);
+    }
+
+    private static bool IsWithinElement(
+        Microsoft.UI.Xaml.DependencyObject source,
+        Microsoft.UI.Xaml.DependencyObject? target)
+    {
+        if (target is null)
+        {
+            return false;
+        }
+
+        for (var current = source; current is not null; current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current))
+        {
+            if (ReferenceEquals(current, target))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void CanvasMessage_PointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isCanvasLocked)
+        {
+            return;
+        }
+
+        if (_resizingCanvasControl is { } resizing)
+        {
+            var position = e.GetCurrentPoint(DesignCanvas).Position;
+            ResizeCanvasMessage(resizing, position);
+            e.Handled = true;
+            return;
+        }
+
+        if (_movingCanvasControl is { } moving)
+        {
+            var position = e.GetCurrentPoint(DesignCanvas).Position;
+            Canvas.SetLeft(moving, Math.Clamp(
+                position.X - _canvasControlPointerOffset.X,
+                0,
+                Math.Max(0, DesignCanvas.ActualWidth - moving.ActualWidth)));
+            Canvas.SetTop(moving, Math.Clamp(
+                position.Y - _canvasControlPointerOffset.Y,
+                0,
+                Math.Max(0, DesignCanvas.ActualHeight - moving.ActualHeight)));
+            if (ReferenceEquals(_selectedCanvasMessage, moving))
+            {
+                UpdateCanvasTransformHandles(moving);
+            }
+
+            e.Handled = true;
+        }
+    }
+
+    private async void CanvasMessage_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        await SaveCanvasMessageGestureAsync();
+        if (sender is Border container)
+        {
+            container.ReleasePointerCapture(e.Pointer);
+        }
+
+        _movingCanvasControl = null;
+        _resizingCanvasControl = null;
+        e.Handled = true;
+    }
+
+    private async void CanvasMessage_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+    {
+        await SaveCanvasMessageGestureAsync();
+        _movingCanvasControl = null;
+        _resizingCanvasControl = null;
+    }
+
+    private async Task SaveCanvasMessageGestureAsync()
+    {
+        if (_movingCanvasControl?.Tag is DesignerCanvasControlState movingControl)
+        {
+            movingControl.Left = Canvas.GetLeft(_movingCanvasControl);
+            movingControl.Top = Canvas.GetTop(_movingCanvasControl);
+        }
+
+        if (_resizingCanvasControl?.Tag is DesignerCanvasControlState resizingControl)
+        {
+            resizingControl.Width = _resizingCanvasControl.Width;
+            resizingControl.Height = _resizingCanvasControl.Height;
+            resizingControl.Left = Canvas.GetLeft(_resizingCanvasControl);
+            resizingControl.Top = Canvas.GetTop(_resizingCanvasControl);
+        }
+
+        if (_movingCanvasControl is not null || _resizingCanvasControl is not null)
+        {
+            await SaveDesignerCanvasStateAsync();
+        }
+    }
+
+    private void UpdateCanvasTransformHandles(Border? selectedMessage)
+    {
+        if (selectedMessage is not null && !_isCanvasLocked
+            && _canvasTransformHandles.Count == 8
+            && _canvasTransformHandles.All(handle =>
+                handle.Tag is CanvasResizeHandleInfo handleInfo
+                && ReferenceEquals(handleInfo.Container, selectedMessage)))
+        {
+            foreach (var handle in _canvasTransformHandles)
+            {
+                var handleInfo = (CanvasResizeHandleInfo)handle.Tag;
+                var (horizontalAnchor, verticalAnchor) = GetResizeHandleAnchor(handleInfo.Edges);
+                Canvas.SetLeft(
+                    handle,
+                    Canvas.GetLeft(selectedMessage) + selectedMessage.Width * horizontalAnchor - handle.Width / 2);
+                Canvas.SetTop(
+                    handle,
+                    Canvas.GetTop(selectedMessage) + selectedMessage.Height * verticalAnchor - handle.Height / 2);
+            }
+
+            return;
+        }
+
+        foreach (var handle in _canvasTransformHandles)
+        {
+            DesignCanvas.Children.Remove(handle);
+        }
+
+        _canvasTransformHandles.Clear();
+        if (selectedMessage is null || _isCanvasLocked
+            || selectedMessage.Tag is not DesignerCanvasControlState)
+        {
+            return;
+        }
+
+        var handlePositions = new[]
+        {
+            (CanvasResizeEdges.Left | CanvasResizeEdges.Top, 0d, 0d),
+            (CanvasResizeEdges.Top, 0.5d, 0d),
+            (CanvasResizeEdges.Right | CanvasResizeEdges.Top, 1d, 0d),
+            (CanvasResizeEdges.Right, 1d, 0.5d),
+            (CanvasResizeEdges.Right | CanvasResizeEdges.Bottom, 1d, 1d),
+            (CanvasResizeEdges.Bottom, 0.5d, 1d),
+            (CanvasResizeEdges.Left | CanvasResizeEdges.Bottom, 0d, 1d),
+            (CanvasResizeEdges.Left, 0d, 0.5d)
+        };
+
+        foreach (var (edges, horizontalAnchor, verticalAnchor) in handlePositions)
+        {
+            var handle = new Border
+            {
+                Width = 12,
+                Height = 12,
+                Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White),
+                BorderBrush = _themeBrushes.GetBrush("#0078D4"),
+                BorderThickness = new Thickness(2),
+                Tag = new CanvasResizeHandleInfo(selectedMessage, edges)
+            };
+            handle.PointerPressed += CanvasTransformHandle_PointerPressed;
+            handle.PointerMoved += CanvasTransformHandle_PointerMoved;
+            handle.PointerReleased += CanvasTransformHandle_PointerReleased;
+            handle.PointerCaptureLost += CanvasTransformHandle_PointerCaptureLost;
+            handle.IsHitTestVisible = !_isCanvasLocked;
+            Canvas.SetLeft(
+                handle,
+                Canvas.GetLeft(selectedMessage) + selectedMessage.Width * horizontalAnchor - handle.Width / 2);
+            Canvas.SetTop(
+                handle,
+                Canvas.GetTop(selectedMessage) + selectedMessage.Height * verticalAnchor - handle.Height / 2);
+            DesignCanvas.Children.Add(handle);
+            _canvasTransformHandles.Add(handle);
+        }
+    }
+
+    private static (double Horizontal, double Vertical) GetResizeHandleAnchor(CanvasResizeEdges edges)
+    {
+        var horizontal = edges.HasFlag(CanvasResizeEdges.Left)
+            ? 0
+            : edges.HasFlag(CanvasResizeEdges.Right) ? 1 : 0.5;
+        var vertical = edges.HasFlag(CanvasResizeEdges.Top)
+            ? 0
+            : edges.HasFlag(CanvasResizeEdges.Bottom) ? 1 : 0.5;
+        return (horizontal, vertical);
+    }
+
+    private void CanvasTransformHandle_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not Border { Tag: CanvasResizeHandleInfo resizeInfo } handle)
+        {
+            return;
+        }
+
+        _selectedCanvasMessage = resizeInfo.Container;
+        _resizingCanvasControl = resizeInfo.Container;
+        _activeCanvasResizeHandle = resizeInfo;
+        _canvasControlResizeStart = e.GetCurrentPoint(DesignCanvas).Position;
+        _canvasControlResizeStartPosition = new Windows.Foundation.Point(
+            Canvas.GetLeft(resizeInfo.Container),
+            Canvas.GetTop(resizeInfo.Container));
+        _canvasControlResizeStartWidth = resizeInfo.Container.Width;
+        _canvasControlResizeStartHeight = resizeInfo.Container.Height;
+        handle.CapturePointer(e.Pointer);
+        e.Handled = true;
+    }
+
+    private void CanvasTransformHandle_PointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isCanvasLocked || _activeCanvasResizeHandle is null || _resizingCanvasControl is not { } resizing)
+        {
+            return;
+        }
+
+        ResizeCanvasMessage(resizing, e.GetCurrentPoint(DesignCanvas).Position);
+        e.Handled = true;
+    }
+
+    private void ResizeCanvasMessage(Border message, Windows.Foundation.Point pointerPosition)
+    {
+        if (_activeCanvasResizeHandle is not { } resizeInfo)
+        {
+            return;
+        }
+
+        var deltaX = pointerPosition.X - _canvasControlResizeStart.X;
+        var deltaY = pointerPosition.Y - _canvasControlResizeStart.Y;
+        var left = _canvasControlResizeStartPosition.X;
+        var top = _canvasControlResizeStartPosition.Y;
+        var width = _canvasControlResizeStartWidth;
+        var height = _canvasControlResizeStartHeight;
+
+        if (resizeInfo.Edges.HasFlag(CanvasResizeEdges.Left))
+        {
+            left += deltaX;
+            width -= deltaX;
+        }
+        else if (resizeInfo.Edges.HasFlag(CanvasResizeEdges.Right))
+        {
+            width += deltaX;
+        }
+
+        if (resizeInfo.Edges.HasFlag(CanvasResizeEdges.Top))
+        {
+            top += deltaY;
+            height -= deltaY;
+        }
+        else if (resizeInfo.Edges.HasFlag(CanvasResizeEdges.Bottom))
+        {
+            height += deltaY;
+        }
+
+        const double minimumWidth = 40;
+        const double minimumHeight = 24;
+        if (width < minimumWidth)
+        {
+            if (resizeInfo.Edges.HasFlag(CanvasResizeEdges.Left))
+            {
+                left -= minimumWidth - width;
+            }
+
+            width = minimumWidth;
+        }
+
+        if (height < minimumHeight)
+        {
+            if (resizeInfo.Edges.HasFlag(CanvasResizeEdges.Top))
+            {
+                top -= minimumHeight - height;
+            }
+
+            height = minimumHeight;
+        }
+
+        left = Math.Clamp(left, 0, Math.Max(0, DesignCanvas.ActualWidth - minimumWidth));
+        top = Math.Clamp(top, 0, Math.Max(0, DesignCanvas.ActualHeight - minimumHeight));
+        width = Math.Clamp(width, minimumWidth, Math.Max(minimumWidth, DesignCanvas.ActualWidth - left));
+        height = Math.Clamp(height, minimumHeight, Math.Max(minimumHeight, DesignCanvas.ActualHeight - top));
+        Canvas.SetLeft(message, left);
+        Canvas.SetTop(message, top);
+        message.Width = width;
+        message.Height = height;
+        if (message.Child is TextBlock messageLabel)
+        {
+            messageLabel.Width = width;
+            messageLabel.Height = height;
+            messageLabel.FontSize = GetResponsiveMessageFontSize(
+                (DesignerCanvasControlState)message.Tag,
+                width,
+                height);
+        }
+
+        UpdateCanvasTransformHandles(message);
+    }
+
+    private async void CanvasTransformHandle_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        await SaveCanvasMessageGestureAsync();
+        _activeCanvasResizeHandle = null;
+        _resizingCanvasControl = null;
+        if (sender is UIElement handle)
+        {
+            handle.ReleasePointerCapture(e.Pointer);
+        }
+
+        e.Handled = true;
+    }
+
+    private async void CanvasTransformHandle_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+    {
+        await SaveCanvasMessageGestureAsync();
+        _activeCanvasResizeHandle = null;
+        _resizingCanvasControl = null;
+    }
+
+    private async void CanvasMessage_DoubleTapped(object sender, DoubleTappedRoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not Border { Tag: DesignerCanvasControlState control, Child: TextBlock messageLabel })
+        {
+            return;
+        }
+
+        var editor = new TextBox
+        {
+            Text = control.Text,
+            MaxLength = 100,
+            AcceptsReturn = true,
+            TextWrapping = TextWrapping.Wrap
+        };
+        var dialog = new ContentDialog
+        {
+            Title = control.MessageControl ?? "Mensaje",
+            Content = editor,
+            PrimaryButtonText = "Guardar",
+            CloseButtonText = "Cancelar",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot
+        };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
+            if (!CanSaveConfigurationTab(7))
+            {
+                ModuleStatusText.Text = "Tu perfil no tiene permiso para editar los mensajes de la configuración.";
+                return;
+            }
+
+            if (string.IsNullOrWhiteSpace(control.MessageControl))
+            {
+                ModuleStatusText.Text = "El mensaje seleccionado no está asociado a un control de dbo.Mensajes.";
+                return;
+            }
+
+            try
+            {
+                var configuredMessages = await _messageConfigurationService.GetMessagesAsync();
+                if (!configuredMessages.TryGetValue(control.MessageControl, out var configuredMessage))
+                {
+                    throw new InvalidOperationException(
+                        $"No se encontró '{control.MessageControl}' en dbo.Mensajes.");
+                }
+
+                await _messageConfigurationService.SaveMessagesAsync(new[]
+                {
+                    new MessageConfigurationUpdate(
+                        configuredMessage.IdMensaje,
+                        configuredMessage.Control,
+                        editor.Text,
+                        configuredMessage.Format)
+                });
+
+                control.Text = editor.Text;
+                _designerCanvasState.MessageTextOverrides[control.MessageControl] = editor.Text;
+                messageLabel.Text = editor.Text;
+                ConfigurationView.ReflectMessageText(control.MessageControl, editor.Text);
+                ModuleStatusText.Text = $"{control.MessageControl} guardado en dbo.Mensajes.";
+                await SaveDesignerCanvasStateAsync();
+            }
+            catch (SqlException exception)
+            {
+                ModuleStatusText.Text =
+                    $"No se pudo guardar {control.MessageControl} en dbo.Mensajes (SQL {exception.Number}): {exception.Message}";
+            }
+            catch (InvalidOperationException exception)
+            {
+                ModuleStatusText.Text = $"No se pudo guardar el mensaje: {exception.Message}";
+            }
+        }
+
+        e.Handled = true;
     }
 
     private FrameworkElement CreateCanvasToggle(DesignerCanvasControlState control)
@@ -4211,7 +4835,7 @@ public sealed partial class MainPage : Page
 
     private async void RemoveCanvasControl_Click(object sender, RoutedEventArgs e)
     {
-        if (_isCanvasLocked || sender is not Button { Tag: Border container })
+        if (_isCanvasLocked || sender is not FrameworkElement { Tag: Border container })
         {
             return;
         }
@@ -4220,8 +4844,136 @@ public sealed partial class MainPage : Page
         {
             _designerCanvasState.Controls.RemoveAll(item => item.Id == control.Id);
             DesignCanvas.Children.Remove(container);
+            if (ReferenceEquals(_selectedCanvasMessage, container))
+            {
+                _selectedCanvasMessage = null;
+                UpdateCanvasTransformHandles(null);
+            }
+
+            UpdateCanvasEditMode();
             await SaveDesignerCanvasStateAsync();
         }
+    }
+
+    private void CanvasControlResizeHandle_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not FrameworkElement handle
+            || handle.Tag is not Border container
+            || container.Tag is not DesignerCanvasControlState control)
+        {
+            return;
+        }
+
+        _resizingCanvasControl = container;
+        _canvasControlResizeStart = e.GetCurrentPoint(DesignCanvas).Position;
+        _canvasControlResizeStartWidth = control.Width ?? container.ActualWidth;
+        _canvasControlResizeStartHeight = control.Height ?? container.ActualHeight;
+        handle.CapturePointer(e.Pointer);
+        e.Handled = true;
+    }
+
+    private void CanvasControlResizeHandle_PointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (_isCanvasLocked || _resizingCanvasControl is not { } container)
+        {
+            return;
+        }
+
+        var position = e.GetCurrentPoint(DesignCanvas).Position;
+        var maxWidth = Math.Max(120, DesignCanvas.ActualWidth - Canvas.GetLeft(container));
+        var maxHeight = Math.Max(36, DesignCanvas.ActualHeight - Canvas.GetTop(container));
+        container.Width = Math.Clamp(_canvasControlResizeStartWidth + position.X - _canvasControlResizeStart.X, 120, maxWidth);
+        container.Height = Math.Clamp(_canvasControlResizeStartHeight + position.Y - _canvasControlResizeStart.Y, 36, maxHeight);
+        e.Handled = true;
+    }
+
+    private async void CanvasControlResizeHandle_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        await SaveResizedCanvasControlAsync();
+        _resizingCanvasControl = null;
+        if (sender is UIElement handle)
+        {
+            handle.ReleasePointerCapture(e.Pointer);
+        }
+
+        e.Handled = true;
+    }
+
+    private async void CanvasControlResizeHandle_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+    {
+        await SaveResizedCanvasControlAsync();
+        _resizingCanvasControl = null;
+    }
+
+    private async Task SaveResizedCanvasControlAsync()
+    {
+        if (_resizingCanvasControl?.Tag is DesignerCanvasControlState control)
+        {
+            control.Width = _resizingCanvasControl.Width;
+            control.Height = _resizingCanvasControl.Height;
+            await SaveDesignerCanvasStateAsync();
+        }
+    }
+
+    private static double? GetMessageFontSize(string format)
+    {
+        foreach (var part in format.Split(',', StringSplitOptions.TrimEntries))
+        {
+            if (part.EndsWith("pt", StringComparison.OrdinalIgnoreCase)
+                && double.TryParse(part[..^2], NumberStyles.Number, CultureInfo.InvariantCulture, out var points)
+                && points is >= 6 and <= 72)
+            {
+                return points * 4 / 3;
+            }
+        }
+
+        return null;
+    }
+
+    private static double GetResponsiveMessageFontSize(
+        DesignerCanvasControlState control,
+        double width,
+        double height)
+    {
+        var baseFontSize = GetMessageFontSize(control.Format) ?? 18;
+        var scale = Math.Sqrt((width / 260) * (height / 56));
+        return Math.Clamp(baseFontSize * scale, 8, 96);
+    }
+
+    [Flags]
+    private enum CanvasResizeEdges
+    {
+        Left = 1,
+        Top = 2,
+        Right = 4,
+        Bottom = 8
+    }
+
+    private sealed record CanvasResizeHandleInfo(Border Container, CanvasResizeEdges Edges);
+
+    private static Microsoft.UI.Xaml.Media.FontFamily? GetMessageFontFamily(string format)
+    {
+        var fontFamily = format.Split(',', StringSplitOptions.TrimEntries).FirstOrDefault();
+        return string.IsNullOrWhiteSpace(fontFamily)
+            ? null
+            : new Microsoft.UI.Xaml.Media.FontFamily(fontFamily);
+    }
+
+    private Microsoft.UI.Xaml.Media.Brush GetMessageForeground(string format)
+    {
+        var colorName = format.Split(',', StringSplitOptions.TrimEntries)
+            .Select(part => part.Split('-', StringSplitOptions.TrimEntries).Last())
+            .LastOrDefault(part => part is "Red" or "Blue" or "Green" or "Yellow" or "White" or "Black");
+        var color = colorName switch
+        {
+            "Red" => Microsoft.UI.Colors.Red,
+            "Blue" => Microsoft.UI.Colors.DeepSkyBlue,
+            "Green" => Microsoft.UI.Colors.LimeGreen,
+            "Yellow" => Microsoft.UI.Colors.Yellow,
+            "Black" => Microsoft.UI.Colors.Black,
+            _ => Microsoft.UI.Colors.White
+        };
+        return new Microsoft.UI.Xaml.Media.SolidColorBrush(color);
     }
 
     private async Task SaveDesignerCanvasStateAsync()
@@ -4298,8 +5050,22 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private void MainPage_KeyDown(object sender, KeyRoutedEventArgs e)
+    private async void MainPage_KeyDown(object sender, KeyRoutedEventArgs e)
     {
+        if (e.Key is Windows.System.VirtualKey.Delete or Windows.System.VirtualKey.Back)
+        {
+            if (_isCanvasLocked
+                || _selectedCanvasMessage is null
+                || IsTextInputSource(e.OriginalSource))
+            {
+                return;
+            }
+
+            e.Handled = true;
+            await RemoveSelectedCanvasMessageAsync();
+            return;
+        }
+
         if (e.Key != Windows.System.VirtualKey.Escape)
         {
             return;
@@ -4310,6 +5076,38 @@ public sealed partial class MainPage : Page
         {
             window.Close();
         }
+    }
+
+    private static bool IsTextInputSource(object? source)
+    {
+        var current = source as Microsoft.UI.Xaml.DependencyObject;
+        while (current is not null)
+        {
+            if (current is TextBox or PasswordBox or RichEditBox)
+            {
+                return true;
+            }
+
+            current = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(current);
+        }
+
+        return false;
+    }
+
+    private async Task RemoveSelectedCanvasMessageAsync()
+    {
+        if (_isCanvasLocked || _selectedCanvasMessage is not { } selectedMessage
+            || selectedMessage.Tag is not DesignerCanvasControlState control)
+        {
+            return;
+        }
+
+        _designerCanvasState.Controls.RemoveAll(item => item.Id == control.Id);
+        DesignCanvas.Children.Remove(selectedMessage);
+        _selectedCanvasMessage = null;
+        UpdateCanvasTransformHandles(null);
+        UpdateCanvasEditMode();
+        await SaveDesignerCanvasStateAsync();
     }
 
     private async Task LoadPlantNameAsync()

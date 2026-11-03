@@ -22,7 +22,7 @@
         </Style>
     </Page.Resources>
 
-    <Grid Background="{ThemeResource Palette0B1220}" SizeChanged="Page_SizeChanged" KeyDown="MainPage_KeyDown">
+    <Grid x:Name="MainPageRoot" Background="{ThemeResource Palette0B1220}" SizeChanged="Page_SizeChanged" KeyDown="MainPage_KeyDown">
         <Grid x:Name="DashboardShell" Visibility="Collapsed">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -139,7 +139,7 @@
                     </Grid.RowDefinitions>
 
                     <Border x:Name="DesignPanel" Background="{ThemeResource Palette101B2D}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1">
-                        <Grid x:Name="DesignSurface" Background="{ThemeResource Palette1A2638}" AllowDrop="True" DragOver="DesignSurface_DragOver" Drop="DesignSurface_Drop">
+                        <Grid x:Name="DesignSurface" Background="{ThemeResource Palette1A2638}" AllowDrop="True" DragOver="DesignSurface_DragOver" Drop="DesignSurface_Drop" PointerPressed="DesignSurface_PointerPressed">
                             <Image x:Name="TemplateImage" Stretch="Uniform" IsHitTestVisible="False" />
                             <Canvas x:Name="DesignCanvas" Background="Transparent" />
 
@@ -314,7 +314,7 @@
                 <Border Width="3" Height="52" Background="{ThemeResource Palette8293AA}" CornerRadius="2" HorizontalAlignment="Center" VerticalAlignment="Center" />
             </Border>
 
-            <TabView x:Name="PlantToolsPanel" Grid.Column="2" IsAddTabButtonVisible="False" CanReorderTabs="False" Background="{ThemeResource Palette101B2D}">
+            <TabView x:Name="PlantToolsPanel" Grid.Column="2" IsAddTabButtonVisible="False" CanReorderTabs="False" Background="{ThemeResource Palette101B2D}" SelectionChanged="PlantToolsPanel_SelectionChanged">
                 <TabViewItem Header="Acciones" IsClosable="False">
                     <StackPanel Padding="8" Spacing="8">
                         <Button Content="PROGRAMAR" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
@@ -326,12 +326,13 @@
                 </TabViewItem>
                 <TabViewItem Header="Controles" IsClosable="False">
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
-                        <StackPanel x:Name="CanvasControlPalette" Padding="8" Spacing="8">
-                            <TextBlock Text="Agregar controles al lienzo" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
-                            <Button Content="Agregar etiqueta" Tag="Etiqueta" Click="AddCanvasControl_Click" Style="{StaticResource DefaultButtonStyle}" />
-                            <Button Content="Agregar botón" Tag="Botón" Click="AddCanvasControl_Click" Style="{StaticResource DefaultButtonStyle}" />
-                            <Button Content="Agregar interruptor" Tag="Interruptor" Click="AddCanvasControl_Click" Style="{StaticResource DefaultButtonStyle}" />
-                            <TextBlock x:Name="CanvasEditStatusText" Text="Desbloquea el lienzo para editarlo." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                        <StackPanel Padding="8" Spacing="8">
+                            <Expander Header="Mensajes" IsExpanded="True">
+                                <StackPanel Spacing="8">
+                                    <TextBlock x:Name="MessagePaletteStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                                    <StackPanel x:Name="MessageControlPalette" Spacing="6" />
+                                </StackPanel>
+                            </Expander>
                         </StackPanel>
                     </ScrollViewer>
                 </TabViewItem>
