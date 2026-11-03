@@ -4159,12 +4159,36 @@ public sealed partial class MainPage : Page
         _ = SaveDesignerCanvasStateAsync();
     }
 
+    private async void CanvasResetButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCanvasLocked)
+        {
+            return;
+        }
+
+        _designerCanvasState.ImagePath = null;
+        _designerCanvasState.Controls.Clear();
+        _designerCanvasState.MessageTextOverrides.Clear();
+        TemplateImage.Source = null;
+        EmptyCanvasPrompt.Visibility = Visibility.Visible;
+        _selectedCanvasMessage = null;
+        _movingCanvasControl = null;
+        _resizingCanvasControl = null;
+        _activeCanvasResizeHandle = null;
+        UpdateCanvasTransformHandles(null);
+        DesignCanvas.Children.Clear();
+        ModuleStatusText.Text = "Lienzo restablecido. Carga una imagen o agrega controles para comenzar.";
+        UpdateCanvasEditMode();
+        await SaveDesignerCanvasStateAsync();
+    }
+
     private void UpdateCanvasEditMode()
     {
         CanvasLockIcon.Glyph = _isCanvasLocked ? "\uE72E" : "\uE785";
         var tooltip = _isCanvasLocked ? "Desbloquear lienzo" : "Bloquear lienzo";
         ToolTipService.SetToolTip(CanvasLockButton, tooltip);
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(CanvasLockButton, tooltip);
+        CanvasResetButton.IsEnabled = !_isCanvasLocked;
         foreach (var button in MessageControlPalette.Children.OfType<Button>())
         {
             button.IsEnabled = !_isCanvasLocked
