@@ -383,6 +383,19 @@
                                     </Grid>
                                 </StackPanel>
                             </Expander>
+                            <Expander Header="Agregados" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <StackPanel Spacing="8" HorizontalAlignment="Stretch">
+                                    <TextBlock x:Name="AggregatePaletteStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                                    <Grid x:Name="AggregateControlPalette" ColumnSpacing="8" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel x:Name="AggregateControlColumn1" Spacing="6" />
+                                        <StackPanel x:Name="AggregateControlColumn2" Grid.Column="1" Spacing="6" />
+                                    </Grid>
+                                </StackPanel>
+                            </Expander>
                         </StackPanel>
                     </ScrollViewer>
                 </TabViewItem>

@@ -147,7 +147,7 @@ public sealed class PlcCommunicationService
                     new Dictionary<string, AdditionalValueTagAddress>(StringComparer.OrdinalIgnoreCase);
                 foreach (var control in additionalValueControls.Distinct(StringComparer.OrdinalIgnoreCase))
                 {
-                    if (!TryGetAdditionalValueTagName(control, out var tagName))
+                    if (!TryGetValueTagName(control, out var tagName))
                     {
                         return PlcConnectionStatus.Unavailable(
                             $"El control de lectura '{control}' no tiene un mapeo PLC válido.");
@@ -547,9 +547,22 @@ public sealed class PlcCommunicationService
         return true;
     }
 
-    private static bool TryGetAdditionalValueTagName(string control, out string tagName)
+    private static bool TryGetValueTagName(string control, out string tagName)
     {
         tagName = string.Empty;
+        const string aggregatePrefix = "ctlAgregado";
+        if (control.StartsWith(aggregatePrefix, StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(
+                control.AsSpan(aggregatePrefix.Length),
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var aggregateIndex)
+            && aggregateIndex is >= 1 and <= 8)
+        {
+            tagName = $"Agregado{aggregateIndex}";
+            return true;
+        }
+
         const string prefix = "ctlAdicionale";
         if (!control.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
             || !int.TryParse(

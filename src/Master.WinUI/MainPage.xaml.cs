@@ -120,6 +120,8 @@ public sealed partial class MainPage : Page
     private bool _isAdditionalImagePaletteLoading;
     private bool _isConfiguredAdditionalPaletteLoading;
     private bool _configuredAdditionalPaletteRefreshPending;
+    private bool _isAggregatePaletteLoading;
+    private bool _aggregatePaletteRefreshPending;
     private bool _isCanvasLocked;
     private bool _isPlcStatusCheckRunning;
     private PlcConnectionState? _lastPlcConnectionState;
@@ -197,9 +199,10 @@ public sealed partial class MainPage : Page
         MachineConfigurationView.IsDesignerCanvasLocked = () => _isCanvasLocked;
         MachineConfigurationView.CloseRequested += (_, _) => MachineConfigurationOverlay.Visibility = Visibility.Collapsed;
         MachineConfigurationView.LoadMachineImageToDesignCanvasAsync = path => LoadMachineImageToDesignCanvasAsync(path);
-        MachineConfigurationView.MachineNameSaved += (_, machineName) =>
+        MachineConfigurationView.MachineNameSaved += async (_, machineName) =>
         {
             MachineNameTextBlock.Text = string.IsNullOrWhiteSpace(machineName) ? "Máquina no configurada" : machineName;
+            await RefreshAggregatePaletteAsync();
         };
         MachineConfigurationView.DashboardOptionsChanged += ApplyMachineDashboardOptions;
         ConfigurationView.PlantNameSaved += (_, plantName) =>
@@ -403,10 +406,9 @@ public sealed partial class MainPage : Page
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
             var additionalValueControls = _designerCanvasState.Controls
-                .Where(control =>
-                    string.Equals(control.Type, "CtlAdicional", StringComparison.OrdinalIgnoreCase)
-                    && !string.IsNullOrWhiteSpace(control.AdditionalControl))
-                .Select(control => control.AdditionalControl!)
+                .Select(GetCanvasValueControlName)
+                .Where(control => !string.IsNullOrWhiteSpace(control))
+                .Select(control => control!)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
             var status = await _plcCommunicationService.CheckConnectionAsync(
@@ -451,17 +453,18 @@ public sealed partial class MainPage : Page
                 ? status.AdditionalTextValues
                 : null;
             foreach (var control in _designerCanvasState.Controls.Where(control =>
-                         string.Equals(control.Type, "CtlAdicional", StringComparison.OrdinalIgnoreCase)))
+                         GetCanvasValueControlName(control) is not null))
             {
-                if (control.AdditionalControl is not null
+                var controlName = GetCanvasValueControlName(control);
+                if (controlName is not null
                     && additionalTextValues is not null
-                    && additionalTextValues.TryGetValue(control.AdditionalControl, out var value))
+                    && additionalTextValues.TryGetValue(controlName, out var value))
                 {
-                    SetCanvasAdditionalValue(control, value.ToString("0.##", CultureInfo.CurrentCulture));
+                    SetCanvasValue(control, value.ToString("0.##", CultureInfo.CurrentCulture));
                 }
                 else
                 {
-                    SetCanvasAdditionalValue(control, "????");
+                    SetCanvasValue(control, "????");
                 }
             }
 
@@ -4207,6 +4210,16 @@ public sealed partial class MainPage : Page
                     string.Equals(control.AdditionalControl, item.Control, StringComparison.OrdinalIgnoreCase));
         }
 
+        foreach (var button in AggregateControlPalette.Children
+                     .OfType<StackPanel>()
+                     .SelectMany(column => column.Children.OfType<Button>()))
+        {
+            button.IsEnabled = !_isCanvasLocked
+                && button.Tag is AggregateConfigurationPaletteItem item
+                && !_designerCanvasState.Controls.Any(control =>
+                    string.Equals(control.AggregateControl, item.Control, StringComparison.OrdinalIgnoreCase));
+        }
+
         foreach (var button in AdditionalImageControlPalette.Children
                      .OfType<StackPanel>()
                      .SelectMany(column => column.Children.OfType<Button>()))
@@ -4262,6 +4275,7 @@ public sealed partial class MainPage : Page
             await RefreshMessagePaletteAsync();
             await RefreshAdditionalImagePaletteAsync();
             await RefreshConfiguredAdditionalPaletteAsync();
+            await RefreshAggregatePaletteAsync();
             await RefreshPumpImagePaletteAsync();
             await RefreshValveImagePaletteAsync();
         }
@@ -4496,7 +4510,7 @@ public sealed partial class MainPage : Page
                 }
 
                 control.Text = item.Text;
-                SetCanvasAdditionalCaption(control, item.Text);
+                SetCanvasValueCaption(control, item.Text);
 
                 canvasChanged = true;
             }
@@ -4529,6 +4543,144 @@ public sealed partial class MainPage : Page
                 await RefreshConfiguredAdditionalPaletteAsync();
             }
         }
+    }
+
+    private async Task RefreshAggregatePaletteAsync()
+    {
+        if (_isAggregatePaletteLoading)
+        {
+            _aggregatePaletteRefreshPending = true;
+            return;
+        }
+
+        _isAggregatePaletteLoading = true;
+        AggregatePaletteStatusText.Text = "Cargando agregados...";
+        AggregateControlColumn1.Children.Clear();
+        AggregateControlColumn2.Children.Clear();
+        try
+        {
+            var configuration = await _machineConfigurationService.GetConfigurationAsync();
+            var options = configuration.MaterialOptions["AGREGADOS"];
+            if (options.Count == 0)
+            {
+                throw new InvalidOperationException("dbo.Agregados no contiene opciones.");
+            }
+
+            var itemsByControl = new Dictionary<string, AggregateConfigurationPaletteItem>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var index in Enumerable.Range(1, 8))
+            {
+                var parameter = $"A{index}";
+                if (!configuration.Values.TryGetValue(parameter, out var selectedValue))
+                {
+                    throw new InvalidOperationException(
+                        $"Falta el parámetro '{parameter}' en dbo.ConfigMaq.");
+                }
+
+                var material = options.FirstOrDefault(option =>
+                    string.Equals(option, selectedValue, StringComparison.OrdinalIgnoreCase));
+                if (material is null)
+                {
+                    throw new InvalidOperationException(
+                        $"El valor '{selectedValue}' de '{parameter}' no existe en dbo.Agregados.");
+                }
+
+                var item = new AggregateConfigurationPaletteItem(
+                    $"ctlAgregado{index}",
+                    parameter,
+                    material);
+                itemsByControl.Add(item.Control, item);
+
+                var button = new Button
+                {
+                    Content = $"{parameter}: {material}",
+                    Tag = item,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Center,
+                    Style = (Style)Resources["DefaultButtonStyle"]
+                };
+                ToolTipService.SetToolTip(button, $"{item.Control} - {material}");
+                button.Click += AddAggregateControl_Click;
+                var column = index % 2 == 1
+                    ? AggregateControlColumn1
+                    : AggregateControlColumn2;
+                column.Children.Add(button);
+            }
+
+            var canvasChanged = false;
+            foreach (var control in _designerCanvasState.Controls.Where(control =>
+                         string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!itemsByControl.TryGetValue(control.AggregateControl ?? string.Empty, out var item)
+                    || string.Equals(control.Text, item.Caption, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                control.Text = item.Caption;
+                SetCanvasValueCaption(control, item.Caption);
+                canvasChanged = true;
+            }
+
+            if (canvasChanged)
+            {
+                await SaveDesignerCanvasStateAsync();
+            }
+
+            AggregatePaletteStatusText.Text = "Selecciona un agregado para agregarlo al lienzo.";
+        }
+        catch (SqlException exception)
+        {
+            AggregatePaletteStatusText.Text =
+                $"No se pudieron cargar los agregados (SQL {exception.Number}): {exception.Message}";
+        }
+        catch (InvalidOperationException exception)
+        {
+            AggregatePaletteStatusText.Text = $"No se pudieron cargar los agregados: {exception.Message}";
+        }
+        finally
+        {
+            _isAggregatePaletteLoading = false;
+            UpdateCanvasEditMode();
+            if (_aggregatePaletteRefreshPending)
+            {
+                _aggregatePaletteRefreshPending = false;
+                await RefreshAggregatePaletteAsync();
+            }
+        }
+    }
+
+    private async void AddAggregateControl_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not Button { Tag: AggregateConfigurationPaletteItem item })
+        {
+            return;
+        }
+
+        if (_designerCanvasState.Controls.Any(control =>
+                string.Equals(control.AggregateControl, item.Control, StringComparison.OrdinalIgnoreCase)))
+        {
+            AggregatePaletteStatusText.Text = $"{item.Control} ya está agregado al lienzo.";
+            UpdateCanvasEditMode();
+            return;
+        }
+
+        var index = _designerCanvasState.Controls.Count;
+        var control = new DesignerCanvasControlState
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Type = "CtlAgregado",
+            AggregateControl = item.Control,
+            Text = item.Caption,
+            Width = 180,
+            Height = 54,
+            Left = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualWidth - 180)),
+            Top = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualHeight - 54))
+        };
+        _designerCanvasState.Controls.Add(control);
+        await AddCanvasControlToSurfaceAsync(control);
+        UpdateCanvasEditMode();
+        await SaveDesignerCanvasStateAsync();
     }
 
     private async void AddConfiguredAdditionalControl_Click(object sender, RoutedEventArgs e)
@@ -4896,9 +5048,10 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        if (string.Equals(control.Type, "CtlAdicional", StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(control.Type, "CtlAdicional", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase))
         {
-            AddCanvasConfiguredAdditionalControlToSurface(control);
+            AddCanvasValueControlToSurface(control);
             return;
         }
 
@@ -4981,7 +5134,7 @@ public sealed partial class MainPage : Page
         container.IsHitTestVisible = !_isCanvasLocked;
     }
 
-    private void AddCanvasConfiguredAdditionalControlToSurface(DesignerCanvasControlState control)
+    private void AddCanvasValueControlToSurface(DesignerCanvasControlState control)
     {
         var width = control.Width ?? 180;
         var height = control.Height ?? 54;
@@ -5045,7 +5198,7 @@ public sealed partial class MainPage : Page
         container.IsHitTestVisible = !_isCanvasLocked;
     }
 
-    private void SetCanvasAdditionalCaption(DesignerCanvasControlState control, string text)
+    private void SetCanvasValueCaption(DesignerCanvasControlState control, string text)
     {
         var container = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
             candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
@@ -5056,7 +5209,7 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private void SetCanvasAdditionalValue(DesignerCanvasControlState control, string value)
+    private void SetCanvasValue(DesignerCanvasControlState control, string value)
     {
         var container = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
             candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
@@ -5072,6 +5225,18 @@ public sealed partial class MainPage : Page
         return string.Equals(control.Type, "ImagenAdicional", StringComparison.OrdinalIgnoreCase)
             || string.Equals(control.Type, "ImagenBomba", StringComparison.OrdinalIgnoreCase)
             || string.Equals(control.Type, "ImagenValvula", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? GetCanvasValueControlName(DesignerCanvasControlState control)
+    {
+        if (string.Equals(control.Type, "CtlAdicional", StringComparison.OrdinalIgnoreCase))
+        {
+            return control.AdditionalControl;
+        }
+
+        return string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase)
+            ? control.AggregateControl
+            : null;
     }
 
     private static bool IsCanvasPlcImageControl(DesignerCanvasControlState control)
@@ -5854,6 +6019,10 @@ public sealed partial class MainPage : Page
 
     private sealed record CanvasResizeHandleInfo(Border Container, CanvasResizeEdges Edges);
     private sealed record AdditionalConfigurationPaletteItem(string Control, string Text);
+    private sealed record AggregateConfigurationPaletteItem(string Control, string Parameter, string Material)
+    {
+        public string Caption => $"{Parameter}: {Material}";
+    }
 
     private static Microsoft.UI.Xaml.Media.FontFamily? GetMessageFontFamily(string format)
     {
