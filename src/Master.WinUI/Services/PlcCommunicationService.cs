@@ -576,6 +576,19 @@ public sealed class PlcCommunicationService
             return false;
         }
 
+        const string fiberControlPrefix = "ctlFibra";
+        if (control.StartsWith(fiberControlPrefix, StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(
+                control.AsSpan(fiberControlPrefix.Length),
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var fiberIndex)
+            && fiberIndex is >= 1 and <= 3)
+        {
+            tagName = $"Fibra{fiberIndex}";
+            return true;
+        }
+
         const string additivePrefix = "ctlAditivo";
         if (control.StartsWith(additivePrefix, StringComparison.OrdinalIgnoreCase)
             && int.TryParse(
@@ -633,7 +646,8 @@ public sealed class PlcCommunicationService
 
     private static bool TryGetExpectedValueTagAddressType(string tagName, out float expectedAddressType)
     {
-        if (tagName.StartsWith("Aditivo", StringComparison.OrdinalIgnoreCase))
+        if (tagName.StartsWith("Aditivo", StringComparison.OrdinalIgnoreCase)
+            || tagName.StartsWith("Fibra", StringComparison.OrdinalIgnoreCase))
         {
             expectedAddressType = 3;
             return true;

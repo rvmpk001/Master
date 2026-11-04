@@ -52,6 +52,7 @@ public sealed class DesignerCanvasStore
                 CementControl = control.CementControl,
                 AdditiveControl = control.AdditiveControl,
                 WaterControl = control.WaterControl,
+                FiberControl = control.FiberControl,
                 ImageControl = control.ImageControl,
                 ImageOnPath = control.ImageOnPath,
                 ImageOffPath = control.ImageOffPath,
@@ -154,6 +155,7 @@ public sealed class DesignerCanvasControlState
     public string? CementControl { get; set; }
     public string? AdditiveControl { get; set; }
     public string? WaterControl { get; set; }
+    public string? FiberControl { get; set; }
     public string? ImageControl { get; set; }
     public string? ImageOnPath { get; set; }
     public string? ImageOffPath { get; set; }

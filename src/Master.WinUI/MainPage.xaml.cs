@@ -128,6 +128,8 @@ public sealed partial class MainPage : Page
     private bool _additivePaletteRefreshPending;
     private bool _isWaterPaletteLoading;
     private bool _waterPaletteRefreshPending;
+    private bool _isFiberPaletteLoading;
+    private bool _fiberPaletteRefreshPending;
     private bool _isCanvasLocked;
     private bool _isPlcStatusCheckRunning;
     private PlcConnectionState? _lastPlcConnectionState;
@@ -212,6 +214,7 @@ public sealed partial class MainPage : Page
             await RefreshCementPaletteAsync();
             await RefreshAdditivePaletteAsync();
             await RefreshWaterPaletteAsync();
+            await RefreshFiberPaletteAsync();
         };
         MachineConfigurationView.DashboardOptionsChanged += ApplyMachineDashboardOptions;
         ConfigurationView.PlantNameSaved += (_, plantName) =>
@@ -4278,6 +4281,16 @@ public sealed partial class MainPage : Page
                     string.Equals(control.WaterControl, item.Control, StringComparison.OrdinalIgnoreCase));
         }
 
+        foreach (var button in FiberControlPalette.Children
+                     .OfType<StackPanel>()
+                     .SelectMany(column => column.Children.OfType<Button>()))
+        {
+            button.IsEnabled = !_isCanvasLocked
+                && button.Tag is FiberConfigurationPaletteItem item
+                && !_designerCanvasState.Controls.Any(control =>
+                    string.Equals(control.FiberControl, item.Control, StringComparison.OrdinalIgnoreCase));
+        }
+
         foreach (var button in AdditionalImageControlPalette.Children
                      .OfType<StackPanel>()
                      .SelectMany(column => column.Children.OfType<Button>()))
@@ -4337,6 +4350,7 @@ public sealed partial class MainPage : Page
             await RefreshCementPaletteAsync();
             await RefreshAdditivePaletteAsync();
             await RefreshWaterPaletteAsync();
+            await RefreshFiberPaletteAsync();
             await RefreshPumpImagePaletteAsync();
             await RefreshValveImagePaletteAsync();
         }
@@ -5155,6 +5169,145 @@ public sealed partial class MainPage : Page
         await SaveDesignerCanvasStateAsync();
     }
 
+    private async Task RefreshFiberPaletteAsync()
+    {
+        if (_isFiberPaletteLoading)
+        {
+            _fiberPaletteRefreshPending = true;
+            return;
+        }
+
+        _isFiberPaletteLoading = true;
+        FiberPaletteStatusText.Text = "Cargando configuración de fibras...";
+        FiberControlColumn1.Children.Clear();
+        try
+        {
+            var configuration = await _machineConfigurationService.GetConfigurationAsync();
+            var options = configuration.MaterialOptions["FIBRAS"];
+            if (options.Count == 0)
+            {
+                throw new InvalidOperationException("dbo.Fibras no contiene opciones.");
+            }
+
+            var itemsByControl = new Dictionary<string, FiberConfigurationPaletteItem>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var index in Enumerable.Range(1, 3))
+            {
+                var parameter = $"FI{index}";
+                if (!configuration.Values.TryGetValue(parameter, out var selectedValue))
+                {
+                    throw new InvalidOperationException(
+                        $"Falta el parámetro '{parameter}' en dbo.ConfigMaq.");
+                }
+
+                var material = options.FirstOrDefault(option =>
+                    string.Equals(option, selectedValue, StringComparison.OrdinalIgnoreCase));
+                if (material is null)
+                {
+                    throw new InvalidOperationException(
+                        $"El valor '{selectedValue}' de '{parameter}' no existe en dbo.Fibras.");
+                }
+
+                var item = new FiberConfigurationPaletteItem(
+                    $"ctlFibra{index}",
+                    parameter,
+                    $"Fibra {index}",
+                    material);
+                itemsByControl.Add(item.Control, item);
+
+                var button = new Button
+                {
+                    Content = $"{item.Label}: {material}",
+                    Tag = item,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Center,
+                    Style = (Style)Resources["DefaultButtonStyle"]
+                };
+                ToolTipService.SetToolTip(button, $"{item.Control} - {item.Label} - {material}");
+                button.Click += AddFiberControl_Click;
+                FiberControlColumn1.Children.Add(button);
+            }
+
+            var canvasChanged = false;
+            foreach (var control in _designerCanvasState.Controls.Where(control =>
+                         string.Equals(control.Type, "CtlFibra", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!itemsByControl.TryGetValue(control.FiberControl ?? string.Empty, out var item)
+                    || (string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
+                        && control.IsConfiguredDisabled == item.IsDisabled))
+                {
+                    continue;
+                }
+
+                control.Text = item.Caption;
+                control.IsConfiguredDisabled = item.IsDisabled;
+                SetCanvasValueCaption(control, item.Caption);
+                SetCanvasValue(control, item.IsDisabled ? "—" : "????");
+                canvasChanged = true;
+            }
+
+            if (canvasChanged)
+            {
+                await SaveDesignerCanvasStateAsync();
+            }
+
+            FiberPaletteStatusText.Text = "Selecciona una fibra para agregarla al lienzo.";
+        }
+        catch (SqlException exception)
+        {
+            FiberPaletteStatusText.Text =
+                $"No se pudieron cargar las fibras (SQL {exception.Number}): {exception.Message}";
+        }
+        catch (InvalidOperationException exception)
+        {
+            FiberPaletteStatusText.Text = $"No se pudieron cargar las fibras: {exception.Message}";
+        }
+        finally
+        {
+            _isFiberPaletteLoading = false;
+            UpdateCanvasEditMode();
+            if (_fiberPaletteRefreshPending)
+            {
+                _fiberPaletteRefreshPending = false;
+                await RefreshFiberPaletteAsync();
+            }
+        }
+    }
+
+    private async void AddFiberControl_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not Button { Tag: FiberConfigurationPaletteItem item })
+        {
+            return;
+        }
+
+        if (_designerCanvasState.Controls.Any(control =>
+                string.Equals(control.FiberControl, item.Control, StringComparison.OrdinalIgnoreCase)))
+        {
+            FiberPaletteStatusText.Text = $"{item.Control} ya está agregado al lienzo.";
+            UpdateCanvasEditMode();
+            return;
+        }
+
+        var index = _designerCanvasState.Controls.Count;
+        var control = new DesignerCanvasControlState
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Type = "CtlFibra",
+            FiberControl = item.Control,
+            Text = item.Caption,
+            IsConfiguredDisabled = item.IsDisabled,
+            Width = 180,
+            Height = 54,
+            Left = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualWidth - 180)),
+            Top = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualHeight - 54))
+        };
+        _designerCanvasState.Controls.Add(control);
+        await AddCanvasControlToSurfaceAsync(control);
+        UpdateCanvasEditMode();
+        await SaveDesignerCanvasStateAsync();
+    }
+
     private async void AddConfiguredAdditionalControl_Click(object sender, RoutedEventArgs e)
     {
         if (_isCanvasLocked || sender is not Button { Tag: AdditionalConfigurationPaletteItem item })
@@ -5524,7 +5677,8 @@ public sealed partial class MainPage : Page
             || string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase)
             || string.Equals(control.Type, "CtlCemento", StringComparison.OrdinalIgnoreCase)
             || string.Equals(control.Type, "CtlAditivo", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(control.Type, "CtlAgua", StringComparison.OrdinalIgnoreCase))
+            || string.Equals(control.Type, "CtlAgua", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(control.Type, "CtlFibra", StringComparison.OrdinalIgnoreCase))
         {
             AddCanvasValueControlToSurface(control);
             return;
@@ -5714,6 +5868,11 @@ public sealed partial class MainPage : Page
         if (string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase))
         {
             return control.AggregateControl;
+        }
+
+        if (string.Equals(control.Type, "CtlFibra", StringComparison.OrdinalIgnoreCase))
+        {
+            return control.IsConfiguredDisabled ? null : control.FiberControl;
         }
 
         return string.Equals(control.Type, "CtlCemento", StringComparison.OrdinalIgnoreCase)
@@ -6529,6 +6688,11 @@ public sealed partial class MainPage : Page
         public bool IsDisabled => Material.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);
     }
     private sealed record WaterConfigurationPaletteItem(string Control, string Parameter, string Label, string Material)
+    {
+        public string Caption => $"{Label}: {Material}";
+        public bool IsDisabled => Material.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);
+    }
+    private sealed record FiberConfigurationPaletteItem(string Control, string Parameter, string Label, string Material)
     {
         public string Caption => $"{Label}: {Material}";
         public bool IsDisabled => Material.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);

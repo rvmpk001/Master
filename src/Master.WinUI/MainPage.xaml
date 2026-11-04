@@ -427,6 +427,17 @@
                                     </Grid>
                                 </StackPanel>
                             </Expander>
+                            <Expander Header="Fibras" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <StackPanel Spacing="8" HorizontalAlignment="Stretch">
+                                    <TextBlock x:Name="FiberPaletteStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                                    <Grid x:Name="FiberControlPalette" ColumnSpacing="8" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel x:Name="FiberControlColumn1" Spacing="6" />
+                                    </Grid>
+                                </StackPanel>
+                            </Expander>
                         </StackPanel>
                     </ScrollViewer>
                 </TabViewItem>
