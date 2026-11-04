@@ -122,6 +122,10 @@ public sealed partial class MainPage : Page
     private bool _configuredAdditionalPaletteRefreshPending;
     private bool _isAggregatePaletteLoading;
     private bool _aggregatePaletteRefreshPending;
+    private bool _isCementPaletteLoading;
+    private bool _cementPaletteRefreshPending;
+    private bool _isAdditivePaletteLoading;
+    private bool _additivePaletteRefreshPending;
     private bool _isCanvasLocked;
     private bool _isPlcStatusCheckRunning;
     private PlcConnectionState? _lastPlcConnectionState;
@@ -203,6 +207,8 @@ public sealed partial class MainPage : Page
         {
             MachineNameTextBlock.Text = string.IsNullOrWhiteSpace(machineName) ? "Máquina no configurada" : machineName;
             await RefreshAggregatePaletteAsync();
+            await RefreshCementPaletteAsync();
+            await RefreshAdditivePaletteAsync();
         };
         MachineConfigurationView.DashboardOptionsChanged += ApplyMachineDashboardOptions;
         ConfigurationView.PlantNameSaved += (_, plantName) =>
@@ -4220,6 +4226,26 @@ public sealed partial class MainPage : Page
                     string.Equals(control.AggregateControl, item.Control, StringComparison.OrdinalIgnoreCase));
         }
 
+        foreach (var button in CementControlPalette.Children
+                     .OfType<StackPanel>()
+                     .SelectMany(column => column.Children.OfType<Button>()))
+        {
+            button.IsEnabled = !_isCanvasLocked
+                && button.Tag is CementConfigurationPaletteItem item
+                && !_designerCanvasState.Controls.Any(control =>
+                    string.Equals(control.CementControl, item.Control, StringComparison.OrdinalIgnoreCase));
+        }
+
+        foreach (var button in AdditiveControlPalette.Children
+                     .OfType<StackPanel>()
+                     .SelectMany(column => column.Children.OfType<Button>()))
+        {
+            button.IsEnabled = !_isCanvasLocked
+                && button.Tag is AdditiveConfigurationPaletteItem item
+                && !_designerCanvasState.Controls.Any(control =>
+                    string.Equals(control.AdditiveControl, item.Control, StringComparison.OrdinalIgnoreCase));
+        }
+
         foreach (var button in AdditionalImageControlPalette.Children
                      .OfType<StackPanel>()
                      .SelectMany(column => column.Children.OfType<Button>()))
@@ -4276,6 +4302,8 @@ public sealed partial class MainPage : Page
             await RefreshAdditionalImagePaletteAsync();
             await RefreshConfiguredAdditionalPaletteAsync();
             await RefreshAggregatePaletteAsync();
+            await RefreshCementPaletteAsync();
+            await RefreshAdditivePaletteAsync();
             await RefreshPumpImagePaletteAsync();
             await RefreshValveImagePaletteAsync();
         }
@@ -4556,7 +4584,6 @@ public sealed partial class MainPage : Page
         _isAggregatePaletteLoading = true;
         AggregatePaletteStatusText.Text = "Cargando agregados...";
         AggregateControlColumn1.Children.Clear();
-        AggregateControlColumn2.Children.Clear();
         try
         {
             var configuration = await _machineConfigurationService.GetConfigurationAsync();
@@ -4601,10 +4628,7 @@ public sealed partial class MainPage : Page
                 };
                 ToolTipService.SetToolTip(button, $"{item.Control} - {material}");
                 button.Click += AddAggregateControl_Click;
-                var column = index % 2 == 1
-                    ? AggregateControlColumn1
-                    : AggregateControlColumn2;
-                column.Children.Add(button);
+                AggregateControlColumn1.Children.Add(button);
             }
 
             var canvasChanged = false;
@@ -4672,6 +4696,280 @@ public sealed partial class MainPage : Page
             Type = "CtlAgregado",
             AggregateControl = item.Control,
             Text = item.Caption,
+            Width = 180,
+            Height = 54,
+            Left = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualWidth - 180)),
+            Top = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualHeight - 54))
+        };
+        _designerCanvasState.Controls.Add(control);
+        await AddCanvasControlToSurfaceAsync(control);
+        UpdateCanvasEditMode();
+        await SaveDesignerCanvasStateAsync();
+    }
+
+    private async Task RefreshCementPaletteAsync()
+    {
+        if (_isCementPaletteLoading)
+        {
+            _cementPaletteRefreshPending = true;
+            return;
+        }
+
+        _isCementPaletteLoading = true;
+        CementPaletteStatusText.Text = "Cargando cementos...";
+        CementControlColumn1.Children.Clear();
+        try
+        {
+            var configuration = await _machineConfigurationService.GetConfigurationAsync();
+            var options = configuration.MaterialOptions["CEMENTOS"];
+            if (options.Count == 0)
+            {
+                throw new InvalidOperationException("dbo.Cementos no contiene opciones.");
+            }
+
+            var itemsByControl = new Dictionary<string, CementConfigurationPaletteItem>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var index in Enumerable.Range(1, 5))
+            {
+                var parameter = $"C{index}";
+                if (!configuration.Values.TryGetValue(parameter, out var selectedValue))
+                {
+                    throw new InvalidOperationException(
+                        $"Falta el parámetro '{parameter}' en dbo.ConfigMaq.");
+                }
+
+                var material = options.FirstOrDefault(option =>
+                    string.Equals(option, selectedValue, StringComparison.OrdinalIgnoreCase));
+                if (material is null)
+                {
+                    throw new InvalidOperationException(
+                        $"El valor '{selectedValue}' de '{parameter}' no existe en dbo.Cementos.");
+                }
+
+                var item = new CementConfigurationPaletteItem(
+                    $"ctlCemento{index}",
+                    parameter,
+                    index == 1 ? "Principal" : $"Auxiliar {index - 1}",
+                    material);
+                itemsByControl.Add(item.Control, item);
+
+                var button = new Button
+                {
+                    Content = $"{item.Label}: {material}",
+                    Tag = item,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Center,
+                    Style = (Style)Resources["DefaultButtonStyle"]
+                };
+                ToolTipService.SetToolTip(button, $"{item.Control} - {item.Label} - {material}");
+                button.Click += AddCementControl_Click;
+                CementControlColumn1.Children.Add(button);
+            }
+
+            var canvasChanged = false;
+            foreach (var control in _designerCanvasState.Controls.Where(control =>
+                         string.Equals(control.Type, "CtlCemento", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!itemsByControl.TryGetValue(control.CementControl ?? string.Empty, out var item)
+                    || string.Equals(control.Text, item.Caption, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                control.Text = item.Caption;
+                SetCanvasValueCaption(control, item.Caption);
+                canvasChanged = true;
+            }
+
+            if (canvasChanged)
+            {
+                await SaveDesignerCanvasStateAsync();
+            }
+
+            CementPaletteStatusText.Text = "Selecciona un cemento para agregarlo al lienzo.";
+        }
+        catch (SqlException exception)
+        {
+            CementPaletteStatusText.Text =
+                $"No se pudieron cargar los cementos (SQL {exception.Number}): {exception.Message}";
+        }
+        catch (InvalidOperationException exception)
+        {
+            CementPaletteStatusText.Text = $"No se pudieron cargar los cementos: {exception.Message}";
+        }
+        finally
+        {
+            _isCementPaletteLoading = false;
+            UpdateCanvasEditMode();
+            if (_cementPaletteRefreshPending)
+            {
+                _cementPaletteRefreshPending = false;
+                await RefreshCementPaletteAsync();
+            }
+        }
+    }
+
+    private async void AddCementControl_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not Button { Tag: CementConfigurationPaletteItem item })
+        {
+            return;
+        }
+
+        if (_designerCanvasState.Controls.Any(control =>
+                string.Equals(control.CementControl, item.Control, StringComparison.OrdinalIgnoreCase)))
+        {
+            CementPaletteStatusText.Text = $"{item.Control} ya está agregado al lienzo.";
+            UpdateCanvasEditMode();
+            return;
+        }
+
+        var index = _designerCanvasState.Controls.Count;
+        var control = new DesignerCanvasControlState
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Type = "CtlCemento",
+            CementControl = item.Control,
+            Text = item.Caption,
+            Width = 180,
+            Height = 54,
+            Left = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualWidth - 180)),
+            Top = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualHeight - 54))
+        };
+        _designerCanvasState.Controls.Add(control);
+        await AddCanvasControlToSurfaceAsync(control);
+        UpdateCanvasEditMode();
+        await SaveDesignerCanvasStateAsync();
+    }
+
+    private async Task RefreshAdditivePaletteAsync()
+    {
+        if (_isAdditivePaletteLoading)
+        {
+            _additivePaletteRefreshPending = true;
+            return;
+        }
+
+        _isAdditivePaletteLoading = true;
+        AdditivePaletteStatusText.Text = "Cargando aditivos...";
+        AdditiveControlColumn1.Children.Clear();
+        try
+        {
+            var configuration = await _machineConfigurationService.GetConfigurationAsync();
+            var options = configuration.MaterialOptions["ADITIVOS"];
+            if (options.Count == 0)
+            {
+                throw new InvalidOperationException("dbo.Aditivos no contiene opciones.");
+            }
+
+            var itemsByControl = new Dictionary<string, AdditiveConfigurationPaletteItem>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var index in Enumerable.Range(1, 6))
+            {
+                var parameter = $"D{index}";
+                if (!configuration.Values.TryGetValue(parameter, out var selectedValue))
+                {
+                    throw new InvalidOperationException(
+                        $"Falta el parámetro '{parameter}' en dbo.ConfigMaq.");
+                }
+
+                var material = options.FirstOrDefault(option =>
+                    string.Equals(option, selectedValue, StringComparison.OrdinalIgnoreCase));
+                if (material is null)
+                {
+                    throw new InvalidOperationException(
+                        $"El valor '{selectedValue}' de '{parameter}' no existe en dbo.Aditivos.");
+                }
+
+                var item = new AdditiveConfigurationPaletteItem(
+                    $"ctlAditivo{index}",
+                    parameter,
+                    $"Aditivo {index}",
+                    material);
+                itemsByControl.Add(item.Control, item);
+
+                var button = new Button
+                {
+                    Content = $"{item.Label}: {material}",
+                    Tag = item,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Center,
+                    Style = (Style)Resources["DefaultButtonStyle"]
+                };
+                ToolTipService.SetToolTip(button, $"{item.Control} - {item.Label} - {material}");
+                button.Click += AddAdditiveControl_Click;
+                AdditiveControlColumn1.Children.Add(button);
+            }
+
+            var canvasChanged = false;
+            foreach (var control in _designerCanvasState.Controls.Where(control =>
+                         string.Equals(control.Type, "CtlAditivo", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!itemsByControl.TryGetValue(control.AdditiveControl ?? string.Empty, out var item)
+                    || (string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
+                        && control.IsConfiguredDisabled == item.IsDisabled))
+                {
+                    continue;
+                }
+
+                control.Text = item.Caption;
+                control.IsConfiguredDisabled = item.IsDisabled;
+                SetCanvasValueCaption(control, item.Caption);
+                SetCanvasValue(control, item.IsDisabled ? "—" : "????");
+                canvasChanged = true;
+            }
+
+            if (canvasChanged)
+            {
+                await SaveDesignerCanvasStateAsync();
+            }
+
+            AdditivePaletteStatusText.Text = "Selecciona un aditivo para agregarlo al lienzo.";
+        }
+        catch (SqlException exception)
+        {
+            AdditivePaletteStatusText.Text =
+                $"No se pudieron cargar los aditivos (SQL {exception.Number}): {exception.Message}";
+        }
+        catch (InvalidOperationException exception)
+        {
+            AdditivePaletteStatusText.Text = $"No se pudieron cargar los aditivos: {exception.Message}";
+        }
+        finally
+        {
+            _isAdditivePaletteLoading = false;
+            UpdateCanvasEditMode();
+            if (_additivePaletteRefreshPending)
+            {
+                _additivePaletteRefreshPending = false;
+                await RefreshAdditivePaletteAsync();
+            }
+        }
+    }
+
+    private async void AddAdditiveControl_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not Button { Tag: AdditiveConfigurationPaletteItem item })
+        {
+            return;
+        }
+
+        if (_designerCanvasState.Controls.Any(control =>
+                string.Equals(control.AdditiveControl, item.Control, StringComparison.OrdinalIgnoreCase)))
+        {
+            AdditivePaletteStatusText.Text = $"{item.Control} ya está agregado al lienzo.";
+            UpdateCanvasEditMode();
+            return;
+        }
+
+        var index = _designerCanvasState.Controls.Count;
+        var control = new DesignerCanvasControlState
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Type = "CtlAditivo",
+            AdditiveControl = item.Control,
+            Text = item.Caption,
+            IsConfiguredDisabled = item.IsDisabled,
             Width = 180,
             Height = 54,
             Left = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualWidth - 180)),
@@ -5049,7 +5347,9 @@ public sealed partial class MainPage : Page
         }
 
         if (string.Equals(control.Type, "CtlAdicional", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase))
+            || string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(control.Type, "CtlCemento", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(control.Type, "CtlAditivo", StringComparison.OrdinalIgnoreCase))
         {
             AddCanvasValueControlToSurface(control);
             return;
@@ -5149,7 +5449,7 @@ public sealed partial class MainPage : Page
         };
         var valueText = new TextBlock
         {
-            Text = "????",
+            Text = control.IsConfiguredDisabled ? "—" : "????",
             TextAlignment = TextAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             FontSize = 16,
@@ -5234,9 +5534,16 @@ public sealed partial class MainPage : Page
             return control.AdditionalControl;
         }
 
-        return string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase)
-            ? control.AggregateControl
-            : null;
+        if (string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase))
+        {
+            return control.AggregateControl;
+        }
+
+        return string.Equals(control.Type, "CtlCemento", StringComparison.OrdinalIgnoreCase)
+            ? control.CementControl
+            : string.Equals(control.Type, "CtlAditivo", StringComparison.OrdinalIgnoreCase)
+                ? (control.IsConfiguredDisabled ? null : control.AdditiveControl)
+                : null;
     }
 
     private static bool IsCanvasPlcImageControl(DesignerCanvasControlState control)
@@ -6022,6 +6329,15 @@ public sealed partial class MainPage : Page
     private sealed record AggregateConfigurationPaletteItem(string Control, string Parameter, string Material)
     {
         public string Caption => $"{Parameter}: {Material}";
+    }
+    private sealed record CementConfigurationPaletteItem(string Control, string Parameter, string Label, string Material)
+    {
+        public string Caption => $"{Label}: {Material}";
+    }
+    private sealed record AdditiveConfigurationPaletteItem(string Control, string Parameter, string Label, string Material)
+    {
+        public string Caption => $"{Label}: {Material}";
+        public bool IsDisabled => Material.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);
     }
 
     private static Microsoft.UI.Xaml.Media.FontFamily? GetMessageFontFamily(string format)

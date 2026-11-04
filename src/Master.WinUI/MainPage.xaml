@@ -389,10 +389,30 @@
                                     <Grid x:Name="AggregateControlPalette" ColumnSpacing="8" HorizontalAlignment="Stretch">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
-                                            <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <StackPanel x:Name="AggregateControlColumn1" Spacing="6" />
-                                        <StackPanel x:Name="AggregateControlColumn2" Grid.Column="1" Spacing="6" />
+                                    </Grid>
+                                </StackPanel>
+                            </Expander>
+                            <Expander Header="Cementos" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <StackPanel Spacing="8" HorizontalAlignment="Stretch">
+                                    <TextBlock x:Name="CementPaletteStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                                    <Grid x:Name="CementControlPalette" ColumnSpacing="8" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel x:Name="CementControlColumn1" Spacing="6" />
+                                    </Grid>
+                                </StackPanel>
+                            </Expander>
+                            <Expander Header="Aditivos" IsExpanded="False" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                <StackPanel Spacing="8" HorizontalAlignment="Stretch">
+                                    <TextBlock x:Name="AdditivePaletteStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                                    <Grid x:Name="AdditiveControlPalette" ColumnSpacing="8" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel x:Name="AdditiveControlColumn1" Spacing="6" />
                                     </Grid>
                                 </StackPanel>
                             </Expander>

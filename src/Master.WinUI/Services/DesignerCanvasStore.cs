@@ -45,9 +45,12 @@ public sealed class DesignerCanvasStore
                 Left = control.Left,
                 Top = control.Top,
                 IsOn = control.IsOn,
+                IsConfiguredDisabled = control.IsConfiguredDisabled,
                 MessageControl = control.MessageControl,
                 AdditionalControl = control.AdditionalControl,
                 AggregateControl = control.AggregateControl,
+                CementControl = control.CementControl,
+                AdditiveControl = control.AdditiveControl,
                 ImageControl = control.ImageControl,
                 ImageOnPath = control.ImageOnPath,
                 ImageOffPath = control.ImageOffPath,
@@ -143,9 +146,12 @@ public sealed class DesignerCanvasControlState
     public double Left { get; set; }
     public double Top { get; set; }
     public bool IsOn { get; set; }
+    public bool IsConfiguredDisabled { get; set; }
     public string? MessageControl { get; set; }
     public string? AdditionalControl { get; set; }
     public string? AggregateControl { get; set; }
+    public string? CementControl { get; set; }
+    public string? AdditiveControl { get; set; }
     public string? ImageControl { get; set; }
     public string? ImageOnPath { get; set; }
     public string? ImageOffPath { get; set; }

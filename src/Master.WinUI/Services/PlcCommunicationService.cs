@@ -155,13 +155,16 @@ public sealed class PlcCommunicationService
 
                     var tag = tags.SingleOrDefault(candidate =>
                         candidate.Name.Equals(tagName, StringComparison.OrdinalIgnoreCase));
+                    var expectedAddressType = tagName.StartsWith("Aditivo", StringComparison.OrdinalIgnoreCase)
+                        ? 3f
+                        : 4f;
                     if (tag is null
                         || !tag.IsEnabled
-                        || tag.AddressType != 4
+                        || tag.AddressType != expectedAddressType
                         || tag.PlcAddress is not >= 0)
                     {
                         return PlcConnectionStatus.Unavailable(
-                            $"No hay una dirección MI habilitada y válida para la lectura '{tagName}'.");
+                            $"No hay una dirección MI habilitada y válida (tipo {expectedAddressType:0}) para la lectura '{tagName}'.");
                     }
 
                     mappedValueTags.Add(
@@ -550,6 +553,32 @@ public sealed class PlcCommunicationService
     private static bool TryGetValueTagName(string control, out string tagName)
     {
         tagName = string.Empty;
+        const string additivePrefix = "ctlAditivo";
+        if (control.StartsWith(additivePrefix, StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(
+                control.AsSpan(additivePrefix.Length),
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var additiveIndex)
+            && additiveIndex is >= 1 and <= 6)
+        {
+            tagName = $"Aditivo{additiveIndex}";
+            return true;
+        }
+
+        const string cementPrefix = "ctlCemento";
+        if (control.StartsWith(cementPrefix, StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(
+                control.AsSpan(cementPrefix.Length),
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var cementIndex)
+            && cementIndex is >= 1 and <= 5)
+        {
+            tagName = $"Cemento{cementIndex}";
+            return true;
+        }
+
         const string aggregatePrefix = "ctlAgregado";
         if (control.StartsWith(aggregatePrefix, StringComparison.OrdinalIgnoreCase)
             && int.TryParse(
