@@ -126,6 +126,8 @@ public sealed partial class MainPage : Page
     private bool _cementPaletteRefreshPending;
     private bool _isAdditivePaletteLoading;
     private bool _additivePaletteRefreshPending;
+    private bool _isWaterPaletteLoading;
+    private bool _waterPaletteRefreshPending;
     private bool _isCanvasLocked;
     private bool _isPlcStatusCheckRunning;
     private PlcConnectionState? _lastPlcConnectionState;
@@ -209,6 +211,7 @@ public sealed partial class MainPage : Page
             await RefreshAggregatePaletteAsync();
             await RefreshCementPaletteAsync();
             await RefreshAdditivePaletteAsync();
+            await RefreshWaterPaletteAsync();
         };
         MachineConfigurationView.DashboardOptionsChanged += ApplyMachineDashboardOptions;
         ConfigurationView.PlantNameSaved += (_, plantName) =>
@@ -420,6 +423,20 @@ public sealed partial class MainPage : Page
             var status = await _plcCommunicationService.CheckConnectionAsync(
                 additionalImageControls,
                 additionalValueControls);
+            var unsupportedWaterControls = _designerCanvasState.Controls
+                .Where(IsUnsupportedWaterValueControl)
+                .Select(control => control.Text)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray();
+            if (unsupportedWaterControls.Length > 0)
+            {
+                status = status with
+                {
+                    Detail = $"{status.Detail} No se leen {string.Join(", ", unsupportedWaterControls)}: " +
+                             "el tag heredado no es compatible con el lector MI actual."
+                };
+            }
+
             var imageStatesChanged = false;
             if (status.State == PlcConnectionState.Connected
                 && status.AdditionalImageValues is { } additionalImageValues)
@@ -472,6 +489,11 @@ public sealed partial class MainPage : Page
                 {
                     SetCanvasValue(control, "????");
                 }
+            }
+
+            foreach (var control in _designerCanvasState.Controls.Where(IsUnsupportedWaterValueControl))
+            {
+                SetCanvasValue(control, "N/D");
             }
 
             var message = status.State switch
@@ -4246,6 +4268,16 @@ public sealed partial class MainPage : Page
                     string.Equals(control.AdditiveControl, item.Control, StringComparison.OrdinalIgnoreCase));
         }
 
+        foreach (var button in WaterControlPalette.Children
+                     .OfType<StackPanel>()
+                     .SelectMany(column => column.Children.OfType<Button>()))
+        {
+            button.IsEnabled = !_isCanvasLocked
+                && button.Tag is WaterConfigurationPaletteItem item
+                && !_designerCanvasState.Controls.Any(control =>
+                    string.Equals(control.WaterControl, item.Control, StringComparison.OrdinalIgnoreCase));
+        }
+
         foreach (var button in AdditionalImageControlPalette.Children
                      .OfType<StackPanel>()
                      .SelectMany(column => column.Children.OfType<Button>()))
@@ -4304,6 +4336,7 @@ public sealed partial class MainPage : Page
             await RefreshAggregatePaletteAsync();
             await RefreshCementPaletteAsync();
             await RefreshAdditivePaletteAsync();
+            await RefreshWaterPaletteAsync();
             await RefreshPumpImagePaletteAsync();
             await RefreshValveImagePaletteAsync();
         }
@@ -4915,7 +4948,9 @@ public sealed partial class MainPage : Page
                 control.Text = item.Caption;
                 control.IsConfiguredDisabled = item.IsDisabled;
                 SetCanvasValueCaption(control, item.Caption);
-                SetCanvasValue(control, item.IsDisabled ? "—" : "????");
+                SetCanvasValue(control, item.IsDisabled
+                    ? "—"
+                    : IsUnsupportedWaterValueControl(control) ? "N/D" : "????");
                 canvasChanged = true;
             }
 
@@ -4968,6 +5003,145 @@ public sealed partial class MainPage : Page
             Id = Guid.NewGuid().ToString("N"),
             Type = "CtlAditivo",
             AdditiveControl = item.Control,
+            Text = item.Caption,
+            IsConfiguredDisabled = item.IsDisabled,
+            Width = 180,
+            Height = 54,
+            Left = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualWidth - 180)),
+            Top = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualHeight - 54))
+        };
+        _designerCanvasState.Controls.Add(control);
+        await AddCanvasControlToSurfaceAsync(control);
+        UpdateCanvasEditMode();
+        await SaveDesignerCanvasStateAsync();
+    }
+
+    private async Task RefreshWaterPaletteAsync()
+    {
+        if (_isWaterPaletteLoading)
+        {
+            _waterPaletteRefreshPending = true;
+            return;
+        }
+
+        _isWaterPaletteLoading = true;
+        WaterPaletteStatusText.Text = "Cargando configuración de agua...";
+        WaterControlColumn1.Children.Clear();
+        try
+        {
+            var configuration = await _machineConfigurationService.GetConfigurationAsync();
+            var options = configuration.MaterialOptions["AGUA"];
+            if (options.Count == 0)
+            {
+                throw new InvalidOperationException("dbo.Agua no contiene opciones.");
+            }
+
+            var itemsByControl = new Dictionary<string, WaterConfigurationPaletteItem>(
+                StringComparer.OrdinalIgnoreCase);
+            foreach (var index in Enumerable.Range(1, 3))
+            {
+                var parameter = $"G{index}";
+                if (!configuration.Values.TryGetValue(parameter, out var selectedValue))
+                {
+                    throw new InvalidOperationException(
+                        $"Falta el parámetro '{parameter}' en dbo.ConfigMaq.");
+                }
+
+                var material = options.FirstOrDefault(option =>
+                    string.Equals(option, selectedValue, StringComparison.OrdinalIgnoreCase));
+                if (material is null)
+                {
+                    throw new InvalidOperationException(
+                        $"El valor '{selectedValue}' de '{parameter}' no existe en dbo.Agua.");
+                }
+
+                var item = new WaterConfigurationPaletteItem(
+                    index == 1 ? "ctlAgua" : $"ctlAgua{index}",
+                    parameter,
+                    $"Agua {index}",
+                    material);
+                itemsByControl.Add(item.Control, item);
+
+                var button = new Button
+                {
+                    Content = $"{item.Label}: {material}",
+                    Tag = item,
+                    HorizontalAlignment = HorizontalAlignment.Stretch,
+                    HorizontalContentAlignment = HorizontalAlignment.Center,
+                    Style = (Style)Resources["DefaultButtonStyle"]
+                };
+                ToolTipService.SetToolTip(button, $"{item.Control} - {item.Label} - {material}");
+                button.Click += AddWaterControl_Click;
+                WaterControlColumn1.Children.Add(button);
+            }
+
+            var canvasChanged = false;
+            foreach (var control in _designerCanvasState.Controls.Where(control =>
+                         string.Equals(control.Type, "CtlAgua", StringComparison.OrdinalIgnoreCase)))
+            {
+                if (!itemsByControl.TryGetValue(control.WaterControl ?? string.Empty, out var item)
+                    || (string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
+                        && control.IsConfiguredDisabled == item.IsDisabled))
+                {
+                    continue;
+                }
+
+                control.Text = item.Caption;
+                control.IsConfiguredDisabled = item.IsDisabled;
+                SetCanvasValueCaption(control, item.Caption);
+                SetCanvasValue(control, item.IsDisabled ? "—" : "????");
+                canvasChanged = true;
+            }
+
+            if (canvasChanged)
+            {
+                await SaveDesignerCanvasStateAsync();
+            }
+
+            WaterPaletteStatusText.Text = "Selecciona un control de agua para agregarlo al lienzo.";
+        }
+        catch (SqlException exception)
+        {
+            WaterPaletteStatusText.Text =
+                $"No se pudo cargar la configuración de agua (SQL {exception.Number}): {exception.Message}";
+        }
+        catch (InvalidOperationException exception)
+        {
+            WaterPaletteStatusText.Text = $"No se pudo cargar la configuración de agua: {exception.Message}";
+        }
+        finally
+        {
+            _isWaterPaletteLoading = false;
+            UpdateCanvasEditMode();
+            if (_waterPaletteRefreshPending)
+            {
+                _waterPaletteRefreshPending = false;
+                await RefreshWaterPaletteAsync();
+            }
+        }
+    }
+
+    private async void AddWaterControl_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not Button { Tag: WaterConfigurationPaletteItem item })
+        {
+            return;
+        }
+
+        if (_designerCanvasState.Controls.Any(control =>
+                string.Equals(control.WaterControl, item.Control, StringComparison.OrdinalIgnoreCase)))
+        {
+            WaterPaletteStatusText.Text = $"{item.Control} ya está agregado al lienzo.";
+            UpdateCanvasEditMode();
+            return;
+        }
+
+        var index = _designerCanvasState.Controls.Count;
+        var control = new DesignerCanvasControlState
+        {
+            Id = Guid.NewGuid().ToString("N"),
+            Type = "CtlAgua",
+            WaterControl = item.Control,
             Text = item.Caption,
             IsConfiguredDisabled = item.IsDisabled,
             Width = 180,
@@ -5349,7 +5523,8 @@ public sealed partial class MainPage : Page
         if (string.Equals(control.Type, "CtlAdicional", StringComparison.OrdinalIgnoreCase)
             || string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase)
             || string.Equals(control.Type, "CtlCemento", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(control.Type, "CtlAditivo", StringComparison.OrdinalIgnoreCase))
+            || string.Equals(control.Type, "CtlAditivo", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(control.Type, "CtlAgua", StringComparison.OrdinalIgnoreCase))
         {
             AddCanvasValueControlToSurface(control);
             return;
@@ -5449,7 +5624,9 @@ public sealed partial class MainPage : Page
         };
         var valueText = new TextBlock
         {
-            Text = control.IsConfiguredDisabled ? "—" : "????",
+            Text = control.IsConfiguredDisabled
+                ? "—"
+                : IsUnsupportedWaterValueControl(control) ? "N/D" : "????",
             TextAlignment = TextAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             FontSize = 16,
@@ -5543,7 +5720,19 @@ public sealed partial class MainPage : Page
             ? control.CementControl
             : string.Equals(control.Type, "CtlAditivo", StringComparison.OrdinalIgnoreCase)
                 ? (control.IsConfiguredDisabled ? null : control.AdditiveControl)
-                : null;
+                : string.Equals(control.Type, "CtlAgua", StringComparison.OrdinalIgnoreCase)
+                    ? (control.IsConfiguredDisabled || IsUnsupportedWaterValueControl(control)
+                        ? null
+                        : control.WaterControl)
+                    : null;
+    }
+
+    private static bool IsUnsupportedWaterValueControl(DesignerCanvasControlState control)
+    {
+        return string.Equals(control.Type, "CtlAgua", StringComparison.OrdinalIgnoreCase)
+            && !control.IsConfiguredDisabled
+            && (string.Equals(control.WaterControl, "ctlAgua", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(control.WaterControl, "ctlAgua2", StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsCanvasPlcImageControl(DesignerCanvasControlState control)
@@ -6335,6 +6524,11 @@ public sealed partial class MainPage : Page
         public string Caption => $"{Label}: {Material}";
     }
     private sealed record AdditiveConfigurationPaletteItem(string Control, string Parameter, string Label, string Material)
+    {
+        public string Caption => $"{Label}: {Material}";
+        public bool IsDisabled => Material.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);
+    }
+    private sealed record WaterConfigurationPaletteItem(string Control, string Parameter, string Label, string Material)
     {
         public string Caption => $"{Label}: {Material}";
         public bool IsDisabled => Material.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);

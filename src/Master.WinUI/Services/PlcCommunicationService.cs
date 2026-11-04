@@ -155,9 +155,12 @@ public sealed class PlcCommunicationService
 
                     var tag = tags.SingleOrDefault(candidate =>
                         candidate.Name.Equals(tagName, StringComparison.OrdinalIgnoreCase));
-                    var expectedAddressType = tagName.StartsWith("Aditivo", StringComparison.OrdinalIgnoreCase)
-                        ? 3f
-                        : 4f;
+                    if (!TryGetExpectedValueTagAddressType(tagName, out var expectedAddressType))
+                    {
+                        return PlcConnectionStatus.Unavailable(
+                            $"El tag '{tagName}' usa un tipo de dirección que el lector actual de operandos MI no soporta.");
+                    }
+
                     if (tag is null
                         || !tag.IsEnabled
                         || tag.AddressType != expectedAddressType
@@ -553,6 +556,26 @@ public sealed class PlcCommunicationService
     private static bool TryGetValueTagName(string control, out string tagName)
     {
         tagName = string.Empty;
+        const string waterControlPrefix = "ctlAgua";
+        if (control.StartsWith(waterControlPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var waterSuffix = control.AsSpan(waterControlPrefix.Length);
+            if (waterSuffix.IsEmpty)
+            {
+                tagName = "Agua";
+                return true;
+            }
+
+            if (int.TryParse(waterSuffix, NumberStyles.None, CultureInfo.InvariantCulture, out var waterIndex)
+                && waterIndex is 2 or 3)
+            {
+                tagName = $"Agua{waterIndex}";
+                return true;
+            }
+
+            return false;
+        }
+
         const string additivePrefix = "ctlAditivo";
         if (control.StartsWith(additivePrefix, StringComparison.OrdinalIgnoreCase)
             && int.TryParse(
@@ -605,6 +628,25 @@ public sealed class PlcCommunicationService
         }
 
         tagName = $"Adicionale{index}";
+        return true;
+    }
+
+    private static bool TryGetExpectedValueTagAddressType(string tagName, out float expectedAddressType)
+    {
+        if (tagName.StartsWith("Aditivo", StringComparison.OrdinalIgnoreCase))
+        {
+            expectedAddressType = 3;
+            return true;
+        }
+
+        if (tagName.Equals("Agua", StringComparison.OrdinalIgnoreCase)
+            || tagName.Equals("Agua2", StringComparison.OrdinalIgnoreCase))
+        {
+            expectedAddressType = 0;
+            return false;
+        }
+
+        expectedAddressType = 4;
         return true;
     }
 

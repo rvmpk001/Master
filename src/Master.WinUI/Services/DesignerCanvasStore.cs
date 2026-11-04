@@ -51,6 +51,7 @@ public sealed class DesignerCanvasStore
                 AggregateControl = control.AggregateControl,
                 CementControl = control.CementControl,
                 AdditiveControl = control.AdditiveControl,
+                WaterControl = control.WaterControl,
                 ImageControl = control.ImageControl,
                 ImageOnPath = control.ImageOnPath,
                 ImageOffPath = control.ImageOffPath,
@@ -152,6 +153,7 @@ public sealed class DesignerCanvasControlState
     public string? AggregateControl { get; set; }
     public string? CementControl { get; set; }
     public string? AdditiveControl { get; set; }
+    public string? WaterControl { get; set; }
     public string? ImageControl { get; set; }
     public string? ImageOnPath { get; set; }
     public string? ImageOffPath { get; set; }
