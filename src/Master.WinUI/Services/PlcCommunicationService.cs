@@ -9,6 +9,36 @@ namespace Master_WinUI.Services;
 
 public sealed class PlcCommunicationService
 {
+    private static readonly IReadOnlyDictionary<string, string> ImageTagNames =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["B_Ad1"] = "bAditivo1",
+            ["B_Ad2"] = "bAditivo2",
+            ["B_Ad3"] = "bAditivo3",
+            ["B_Agua"] = "bAgua",
+            ["B_Agua2"] = "bAgua2",
+            ["B_Adic1"] = "bAdic1",
+            ["B_Adic2"] = "bAdic2",
+            ["V_Ag1"] = "vAgregado1",
+            ["V_Ag2"] = "vAgregado2",
+            ["V_Ag3"] = "vAgregado3",
+            ["V_Ag4"] = "vAgregado4",
+            ["V_Ag"] = "vAgregados",
+            ["V_C1"] = "vCemento1",
+            ["V_C2"] = "vCemento2",
+            ["V_C3"] = "vCemento3",
+            ["V_Agua"] = "vAgua",
+            ["V_Agua2"] = "vAgua2",
+            ["V_Adic1"] = "vAdic1",
+            ["V_Adic2"] = "vAdic2",
+            ["V_Adic3"] = "vAdic3",
+            ["Adic1"] = "Adic1",
+            ["Adic2"] = "Adic2",
+            ["Adic3"] = "Adic3",
+            ["Adic4"] = "Adic4",
+            ["Adic5"] = "Adic5"
+        };
+
     private static readonly string[] ParameterNames =
     {
         "DirPLC", "Port", "Velocity", "DataBits", "Parity", "StopBits",
@@ -134,10 +164,15 @@ public sealed class PlcCommunicationService
 
                     var tag = tags.SingleOrDefault(candidate =>
                         candidate.Name.Equals(tagName, StringComparison.OrdinalIgnoreCase));
-                    if (tag is null || !tag.IsEnabled || tag.AddressType != 2 || tag.PlcAddress is not >= 0)
+                    var expectedAddressType = IsAdditionalImageControl(control) ? 2f : 1f;
+                    if (tag is null
+                        || !tag.IsEnabled
+                        || tag.AddressType != expectedAddressType
+                        || tag.PlcAddress is not >= 0)
                     {
                         return PlcConnectionStatus.Unavailable(
-                            $"No hay una dirección MI habilitada y válida para el tag '{tagName}' de {control}.");
+                            $"No hay una dirección MI habilitada y válida (tipo {expectedAddressType:0}) " +
+                            $"para el tag '{tagName}' de {control}.");
                     }
 
                     mappedTags.Add(control, (ushort)tag.PlcAddress.Value);
@@ -175,6 +210,22 @@ public sealed class PlcCommunicationService
                         new AdditionalValueTagAddress(
                             (ushort)tag.PlcAddress.Value,
                             tag.Multiplier ?? 1));
+                }
+
+                var duplicateAddressDetails = mappedTags
+                    .Select(pair => (Control: pair.Key, Address: pair.Value))
+                    .Concat(mappedValueTags.Select(pair =>
+                        (Control: pair.Key, Address: pair.Value.Address)))
+                    .GroupBy(item => item.Address)
+                    .Where(group => group.Count() > 1)
+                    .Select(group =>
+                        $"MI{group.Key}: {string.Join(", ", group.Select(item => item.Control))}")
+                    .ToArray();
+                if (duplicateAddressDetails.Length > 0)
+                {
+                    return PlcConnectionStatus.Unavailable(
+                        "Hay controles PLC distintos con la misma dirección MI; no se pueden validar " +
+                        $"sus estados hasta corregir dbo.Tags: {string.Join("; ", duplicateAddressDetails)}.");
                 }
 
                 additionalTagAddresses = mappedTags;
@@ -536,21 +587,31 @@ public sealed class PlcCommunicationService
     private static bool TryGetImageTagName(string control, out string tagName)
     {
         tagName = string.Empty;
-        if (ImageConfigurationService.PumpControls.Contains(control, StringComparer.OrdinalIgnoreCase))
+        if (ImageTagNames.TryGetValue(control, out var mappedTagName))
         {
-            tagName = control;
+            tagName = mappedTagName;
             return true;
         }
 
-        if (!control.StartsWith("AdI", StringComparison.OrdinalIgnoreCase)
-            || !int.TryParse(control.AsSpan(3), NumberStyles.None, CultureInfo.InvariantCulture, out var index)
-            || index is < 1 or > 25)
+        if (IsAdditionalImageControl(control)
+            && int.TryParse(control.AsSpan(3), NumberStyles.None, CultureInfo.InvariantCulture, out var index))
         {
-            return false;
+            tagName = $"Ad{index}";
+            return true;
         }
 
-        tagName = $"Ad{index}";
-        return true;
+        return false;
+    }
+
+    private static bool IsAdditionalImageControl(string control)
+    {
+        return control.StartsWith("AdI", StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(
+                control.AsSpan(3),
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var index)
+            && index is >= 1 and <= 25;
     }
 
     private static bool TryGetValueTagName(string control, out string tagName)

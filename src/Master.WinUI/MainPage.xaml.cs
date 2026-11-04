@@ -210,11 +210,7 @@ public sealed partial class MainPage : Page
         MachineConfigurationView.MachineNameSaved += async (_, machineName) =>
         {
             MachineNameTextBlock.Text = string.IsNullOrWhiteSpace(machineName) ? "Máquina no configurada" : machineName;
-            await RefreshAggregatePaletteAsync();
-            await RefreshCementPaletteAsync();
-            await RefreshAdditivePaletteAsync();
-            await RefreshWaterPaletteAsync();
-            await RefreshFiberPaletteAsync();
+            await RefreshMaterialControlPalettesAsync();
         };
         MachineConfigurationView.DashboardOptionsChanged += ApplyMachineDashboardOptions;
         ConfigurationView.PlantNameSaved += (_, plantName) =>
@@ -4346,14 +4342,19 @@ public sealed partial class MainPage : Page
             await RefreshMessagePaletteAsync();
             await RefreshAdditionalImagePaletteAsync();
             await RefreshConfiguredAdditionalPaletteAsync();
-            await RefreshAggregatePaletteAsync();
-            await RefreshCementPaletteAsync();
-            await RefreshAdditivePaletteAsync();
-            await RefreshWaterPaletteAsync();
-            await RefreshFiberPaletteAsync();
+            await RefreshMaterialControlPalettesAsync();
             await RefreshPumpImagePaletteAsync();
             await RefreshValveImagePaletteAsync();
         }
+    }
+
+    private async Task RefreshMaterialControlPalettesAsync()
+    {
+        await RefreshAggregatePaletteAsync();
+        await RefreshCementPaletteAsync();
+        await RefreshAdditivePaletteAsync();
+        await RefreshWaterPaletteAsync();
+        await RefreshFiberPaletteAsync();
     }
 
     private async Task RefreshMessagePaletteAsync()
@@ -4667,13 +4668,13 @@ public sealed partial class MainPage : Page
 
                 var button = new Button
                 {
-                    Content = $"{parameter}: {material}",
+                    Content = item.Caption,
                     Tag = item,
                     HorizontalAlignment = HorizontalAlignment.Stretch,
                     HorizontalContentAlignment = HorizontalAlignment.Center,
                     Style = (Style)Resources["DefaultButtonStyle"]
                 };
-                ToolTipService.SetToolTip(button, $"{item.Control} - {material}");
+                ToolTipService.SetToolTip(button, $"{item.Control} - {item.Caption}");
                 button.Click += AddAggregateControl_Click;
                 AggregateControlColumn1.Children.Add(button);
             }
@@ -4683,13 +4684,16 @@ public sealed partial class MainPage : Page
                          string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase)))
             {
                 if (!itemsByControl.TryGetValue(control.AggregateControl ?? string.Empty, out var item)
-                    || string.Equals(control.Text, item.Caption, StringComparison.Ordinal))
+                    || (string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
+                        && control.IsConfiguredDisabled == item.IsDisabled))
                 {
                     continue;
                 }
 
                 control.Text = item.Caption;
+                control.IsConfiguredDisabled = item.IsDisabled;
                 SetCanvasValueCaption(control, item.Caption);
+                SetCanvasValue(control, item.IsDisabled ? "—" : "????");
                 canvasChanged = true;
             }
 
@@ -4743,6 +4747,7 @@ public sealed partial class MainPage : Page
             Type = "CtlAgregado",
             AggregateControl = item.Control,
             Text = item.Caption,
+            IsConfiguredDisabled = item.IsDisabled,
             Width = 180,
             Height = 54,
             Left = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualWidth - 180)),
@@ -4818,13 +4823,16 @@ public sealed partial class MainPage : Page
                          string.Equals(control.Type, "CtlCemento", StringComparison.OrdinalIgnoreCase)))
             {
                 if (!itemsByControl.TryGetValue(control.CementControl ?? string.Empty, out var item)
-                    || string.Equals(control.Text, item.Caption, StringComparison.Ordinal))
+                    || (string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
+                        && control.IsConfiguredDisabled == item.IsDisabled))
                 {
                     continue;
                 }
 
                 control.Text = item.Caption;
+                control.IsConfiguredDisabled = item.IsDisabled;
                 SetCanvasValueCaption(control, item.Caption);
+                SetCanvasValue(control, item.IsDisabled ? "—" : "????");
                 canvasChanged = true;
             }
 
@@ -4878,6 +4886,7 @@ public sealed partial class MainPage : Page
             Type = "CtlCemento",
             CementControl = item.Control,
             Text = item.Caption,
+            IsConfiguredDisabled = item.IsDisabled,
             Width = 180,
             Height = 54,
             Left = Math.Clamp(24 + (index % 8) * 24, 0, Math.Max(0, DesignCanvas.ActualWidth - 180)),
@@ -5867,7 +5876,7 @@ public sealed partial class MainPage : Page
 
         if (string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase))
         {
-            return control.AggregateControl;
+            return control.IsConfiguredDisabled ? null : control.AggregateControl;
         }
 
         if (string.Equals(control.Type, "CtlFibra", StringComparison.OrdinalIgnoreCase))
@@ -5876,7 +5885,7 @@ public sealed partial class MainPage : Page
         }
 
         return string.Equals(control.Type, "CtlCemento", StringComparison.OrdinalIgnoreCase)
-            ? control.CementControl
+            ? (control.IsConfiguredDisabled ? null : control.CementControl)
             : string.Equals(control.Type, "CtlAditivo", StringComparison.OrdinalIgnoreCase)
                 ? (control.IsConfiguredDisabled ? null : control.AdditiveControl)
                 : string.Equals(control.Type, "CtlAgua", StringComparison.OrdinalIgnoreCase)
@@ -5897,7 +5906,8 @@ public sealed partial class MainPage : Page
     private static bool IsCanvasPlcImageControl(DesignerCanvasControlState control)
     {
         return string.Equals(control.Type, "ImagenAdicional", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(control.Type, "ImagenBomba", StringComparison.OrdinalIgnoreCase);
+            || string.Equals(control.Type, "ImagenBomba", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(control.Type, "ImagenValvula", StringComparison.OrdinalIgnoreCase);
     }
 
     private async Task AddCanvasAdditionalImageToSurfaceAsync(DesignerCanvasControlState control)
@@ -6677,10 +6687,12 @@ public sealed partial class MainPage : Page
     private sealed record AggregateConfigurationPaletteItem(string Control, string Parameter, string Material)
     {
         public string Caption => $"{Parameter}: {Material}";
+        public bool IsDisabled => Material.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);
     }
     private sealed record CementConfigurationPaletteItem(string Control, string Parameter, string Label, string Material)
     {
         public string Caption => $"{Label}: {Material}";
+        public bool IsDisabled => Material.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);
     }
     private sealed record AdditiveConfigurationPaletteItem(string Control, string Parameter, string Label, string Material)
     {
@@ -6773,6 +6785,7 @@ public sealed partial class MainPage : Page
             LoginShell.Visibility = Visibility.Collapsed;
             DashboardShell.Visibility = Visibility.Visible;
             await LoadPlantNameAsync();
+            await RefreshMaterialControlPalettesAsync();
             _plcStatusTimer.Start();
             await RefreshPlcStatusAsync();
         }
