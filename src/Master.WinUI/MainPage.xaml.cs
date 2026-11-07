@@ -1,4 +1,5 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using System;
@@ -135,14 +136,8 @@ public sealed partial class MainPage : Page
     private PlcConnectionState? _lastPlcConnectionState;
     private string? _lastPlcStatusDetail;
 
-    public ObservableCollection<MaterialRow> MaterialRows { get; } = new()
-    {
-        new("GRAVA", "0"),
-        new("ARENA", "0"),
-        new("CEMENTO", "0"),
-        new("ADITIVO 1", "0"),
-        new("AGUA 1", "0")
-    };
+    public ObservableCollection<MaterialRow> MaterialRows { get; } = new();
+    public ObservableCollection<MaterialRowPair> MaterialRowPairs { get; } = new();
 
     public ObservableCollection<RemissionField> RemissionRows { get; } = new()
     {
@@ -155,9 +150,12 @@ public sealed partial class MainPage : Page
         new("Camión", string.Empty, true),
         new("N. Pedido", string.Empty, true)
     };
+    public ObservableCollection<RemissionFieldPair> RemissionRowPairs { get; } = new();
 
-    public ObservableCollection<PlantValue> HumidityRows { get; } = CreateAdjustmentRows();
-    public ObservableCollection<PlantValue> AbsorptionRows { get; } = CreateAdjustmentRows();
+    public ObservableCollection<PlantValue> HumidityRows { get; } = CreateAdjustmentRows("H");
+    public ObservableCollection<PlantValue> AbsorptionRows { get; } = CreateAdjustmentRows("O");
+    public ObservableCollection<PlantValuePair> HumidityRowPairs { get; } = new();
+    public ObservableCollection<PlantValuePair> AbsorptionRowPairs { get; } = new();
     public ObservableCollection<InventoryMaterial> AggregateInventory { get; } = new();
     public ObservableCollection<InventoryMaterial> AdditiveInventory { get; } = new();
     public ObservableCollection<InventoryMaterial> WaterInventory { get; } = new();
@@ -195,6 +193,21 @@ public sealed partial class MainPage : Page
 
     public MainPage()
     {
+        foreach (var row in CreateAdjustmentPairs(HumidityRows))
+        {
+            HumidityRowPairs.Add(row);
+        }
+
+        foreach (var row in CreateAdjustmentPairs(AbsorptionRows))
+        {
+            AbsorptionRowPairs.Add(row);
+        }
+
+        foreach (var row in CreateRemissionPairs())
+        {
+            RemissionRowPairs.Add(row);
+        }
+
         InitializeComponent();
         AddCanvasDeleteAccelerator(Windows.System.VirtualKey.Delete);
         AddCanvasDeleteAccelerator(Windows.System.VirtualKey.Back);
@@ -207,6 +220,7 @@ public sealed partial class MainPage : Page
         MachineConfigurationView.IsDesignerCanvasLocked = () => _isCanvasLocked;
         MachineConfigurationView.CloseRequested += (_, _) => MachineConfigurationOverlay.Visibility = Visibility.Collapsed;
         MachineConfigurationView.LoadMachineImageToDesignCanvasAsync = path => LoadMachineImageToDesignCanvasAsync(path);
+        MachineConfigurationView.DashboardConfigurationChanged += ApplyMachineAdjustmentValues;
         MachineConfigurationView.MachineNameSaved += async (_, machineName) =>
         {
             MachineNameTextBlock.Text = string.IsNullOrWhiteSpace(machineName) ? "Máquina no configurada" : machineName;
@@ -733,7 +747,7 @@ public sealed partial class MainPage : Page
 
     private void DashboardPanelsScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
     {
-        DashboardPanelsGrid.Width = Math.Max(1200, e.NewSize.Width);
+        DashboardPanelsGrid.Width = Math.Max(1520, e.NewSize.Width);
         DashboardPanelsGrid.Height = e.NewSize.Height;
     }
 
@@ -745,15 +759,128 @@ public sealed partial class MainPage : Page
 
         HumidityPanel.Visibility = options.HumidityEnabled ? Visibility.Visible : Visibility.Collapsed;
         HumidityPanelColumn.Width = options.HumidityEnabled
-            ? new GridLength(1.15, GridUnitType.Star)
+            ? new GridLength(1, GridUnitType.Star)
             : new GridLength(0);
-        HumidityPanelColumn.MinWidth = options.HumidityEnabled ? 270 : 0;
+        HumidityPanelColumn.MinWidth = options.HumidityEnabled ? 360 : 0;
 
         AbsorptionPanel.Visibility = options.AbsorptionEnabled ? Visibility.Visible : Visibility.Collapsed;
         AbsorptionPanelColumn.Width = options.AbsorptionEnabled
-            ? new GridLength(1.15, GridUnitType.Star)
+            ? new GridLength(1, GridUnitType.Star)
             : new GridLength(0);
-        AbsorptionPanelColumn.MinWidth = options.AbsorptionEnabled ? 270 : 0;
+        AbsorptionPanelColumn.MinWidth = options.AbsorptionEnabled ? 360 : 0;
+    }
+
+    private void ApplyMachineAdjustmentValues(IReadOnlyDictionary<string, string> values)
+    {
+        for (var index = 1; index <= 8; index++)
+        {
+            var materialName = values.GetValueOrDefault($"A{index}");
+            var humidity = HumidityRows[index - 1];
+            humidity.Nombre = string.IsNullOrWhiteSpace(materialName) ? $"AGREGADO {index}" : materialName;
+            humidity.Valor = values.GetValueOrDefault($"H{index}", "0");
+
+            var absorption = AbsorptionRows[index - 1];
+            absorption.Nombre = humidity.Nombre;
+            absorption.Valor = values.GetValueOrDefault($"O{index}", "0");
+        }
+    }
+
+    private void LoadDashboardMaterials(
+        IReadOnlyDictionary<string, string> configuration,
+        IReadOnlyList<InventoryMaterial> inventory)
+    {
+        var configuredMaterials = new[]
+        {
+            ("A1", "AGREGADOS"),
+            ("A2", "AGREGADOS"),
+            ("C1", "CEMENTOS"),
+            ("D1", "ADITIVOS"),
+            ("G1", "AGUAS"),
+            ("FI1", "FIBRAS")
+        };
+
+        MaterialRows.Clear();
+        foreach (var (parameter, category) in configuredMaterials)
+        {
+            var name = configuration.GetValueOrDefault(parameter)?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(name))
+            {
+                name = "DESHABILITADA";
+            }
+
+            var material = inventory.FirstOrDefault(item =>
+                item.Category.Equals(category, StringComparison.OrdinalIgnoreCase)
+                && item.Name.Trim().Equals(name, StringComparison.OrdinalIgnoreCase));
+            var quantity = name.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase)
+                ? "0"
+                : material?.Quantity ?? "N/D";
+
+            MaterialRows.Add(new MaterialRow(name, quantity));
+        }
+
+        MaterialRowPairs.Clear();
+        foreach (var pair in CreateMaterialPairs())
+        {
+            MaterialRowPairs.Add(pair);
+        }
+    }
+
+    private IEnumerable<MaterialRowPair> CreateMaterialPairs() =>
+        Enumerable.Range(0, MaterialRows.Count / 2)
+            .Select(index => new MaterialRowPair(MaterialRows[index * 2], MaterialRows[index * 2 + 1]));
+
+    private IEnumerable<RemissionFieldPair> CreateRemissionPairs() =>
+        Enumerable.Range(0, RemissionRows.Count / 2)
+            .Select(index => new RemissionFieldPair(RemissionRows[index * 2], RemissionRows[index * 2 + 1]));
+
+    private async void SaveDashboardAdjustment_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button { Tag: string parameterPrefix } saveButton)
+        {
+            return;
+        }
+
+        if (!await RefreshCurrentUserPermissionsAsync()
+            || !RequireActionPermission("Maquina", "Editar"))
+        {
+            return;
+        }
+
+        var rows = parameterPrefix == "H" ? HumidityRows : AbsorptionRows;
+        var values = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        foreach (var row in rows)
+        {
+            if (!double.TryParse(row.Valor, NumberStyles.Number, CultureInfo.InvariantCulture, out var value)
+                && !double.TryParse(row.Valor, NumberStyles.Number, CultureInfo.CurrentCulture, out value)
+                || !double.IsFinite(value)
+                || value < 0)
+            {
+                ModuleStatusText.Text = $"El porcentaje de {row.Nombre} debe ser un número válido mayor o igual que cero.";
+                return;
+            }
+
+            values[row.Parameter] = value.ToString("0.##", CultureInfo.InvariantCulture);
+        }
+
+        saveButton.IsEnabled = false;
+        ModuleStatusText.Text = "Guardando ajuste en la configuración de la máquina...";
+        try
+        {
+            await _machineConfigurationService.SaveConfigurationAsync(values);
+            ModuleStatusText.Text = $"Ajuste de {(parameterPrefix == "H" ? "humedad" : "absorción")} guardado en BlapaciSQL.";
+        }
+        catch (SqlException exception)
+        {
+            ModuleStatusText.Text = $"No se pudo guardar el ajuste (SQL {exception.Number}): {exception.Message}";
+        }
+        catch (InvalidOperationException exception)
+        {
+            ModuleStatusText.Text = exception.Message;
+        }
+        finally
+        {
+            saveButton.IsEnabled = true;
+        }
     }
 
     private async void ModuleNavigation_Click(object sender, RoutedEventArgs e)
@@ -6912,11 +7039,18 @@ public sealed partial class MainPage : Page
 
         try
         {
-            ApplyMachineDashboardOptions(await _machineConfigurationService.GetDashboardOptionsAsync());
+            var machineConfiguration = await _machineConfigurationService.GetConfigurationAsync();
+            ApplyMachineAdjustmentValues(machineConfiguration.Values);
+            var inventory = await _inventoryService.GetInventoryAsync();
+            LoadDashboardMaterials(machineConfiguration.Values, inventory);
+            ApplyMachineDashboardOptions(new MachineDashboardOptions(
+                machineConfiguration.Values.GetValueOrDefault("MU") == "1",
+                machineConfiguration.Values.GetValueOrDefault("OS") == "1",
+                machineConfiguration.Values.GetValueOrDefault("DC") == "1"));
         }
         catch (SqlException exception)
         {
-            errors.Add($"No se pudieron cargar las opciones del tablero (SQL {exception.Number}): {exception.Message}");
+            errors.Add($"No se pudieron cargar los materiales y ajustes del tablero desde BlapaciSQL (SQL {exception.Number}): {exception.Message}");
         }
 
         if (errors.Count == 0)
@@ -7183,26 +7317,26 @@ public sealed partial class MainPage : Page
         ClockText.Text = DateTime.Now.ToString("dd/MM/yyyy  HH:mm:ss");
     }
 
-    private static ObservableCollection<PlantValue> CreateAdjustmentRows() =>
-        new()
-        {
-            new("GRAVA", "0"),
-            new("ARENA", "0"),
-            new("DESHABILITADA", "0"),
-            new("DESHABILITADA", "0"),
-            new("DESHABILITADA", "0"),
-            new("DESHABILITADA", "0"),
-            new("DESHABILITADA", "0"),
-            new("DESHABILITADA", "0"),
-            new("DESHABILITADA", "0"),
-            new("DESHABILITADA", "0")
-        };
+    private static ObservableCollection<PlantValue> CreateAdjustmentRows(string parameterPrefix) =>
+        new(Enumerable.Range(1, 8)
+            .Select(index => new PlantValue($"{parameterPrefix}{index}", $"AGREGADO {index}", "0")));
+
+    private static ObservableCollection<PlantValuePair> CreateAdjustmentPairs(
+        ObservableCollection<PlantValue> values) =>
+        new(Enumerable.Range(0, values.Count / 2)
+            .Select(index => new PlantValuePair(values[index * 2], values[index * 2 + 1])));
 }
 
 public sealed class MaterialRow(string nombre, string cantidad)
 {
     public string Nombre { get; } = nombre;
     public string Cantidad { get; } = cantidad;
+}
+
+public sealed class MaterialRowPair(MaterialRow first, MaterialRow second)
+{
+    public MaterialRow First { get; } = first;
+    public MaterialRow Second { get; } = second;
 }
 
 public sealed class RemissionField(string titulo, string valor, bool editable)
@@ -7212,8 +7346,54 @@ public sealed class RemissionField(string titulo, string valor, bool editable)
     public bool Editable { get; } = editable;
 }
 
-public sealed class PlantValue(string nombre, string valor)
+public sealed class RemissionFieldPair(RemissionField first, RemissionField second)
 {
-    public string Nombre { get; } = nombre;
-    public string Valor { get; } = valor;
+    public RemissionField First { get; } = first;
+    public RemissionField Second { get; } = second;
+}
+
+public sealed class PlantValue(string parameter, string nombre, string valor) : INotifyPropertyChanged
+{
+    private string _nombre = nombre;
+    private string _valor = valor;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
+    public string Parameter { get; } = parameter;
+    public string Nombre
+    {
+        get => _nombre;
+        set
+        {
+            if (_nombre == value)
+            {
+                return;
+            }
+
+            _nombre = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Nombre)));
+        }
+    }
+
+    public string Valor
+    {
+        get => _valor;
+        set
+        {
+            if (_valor == value)
+            {
+                return;
+            }
+
+            _valor = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Valor)));
+        }
+    }
+
+}
+
+public sealed class PlantValuePair(PlantValue first, PlantValue second)
+{
+    public PlantValue First { get; } = first;
+    public PlantValue Second { get; } = second;
 }

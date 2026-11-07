@@ -170,10 +170,10 @@
                 </Border>
 
                 <ScrollViewer x:Name="DashboardPanelsScrollViewer" Grid.Row="2" Height="200" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto" SizeChanged="DashboardPanelsScrollViewer_SizeChanged">
-                    <Grid x:Name="DashboardPanelsGrid" Width="1200" Height="200" MinWidth="1200" ColumnSpacing="12" Padding="4">
+                    <Grid x:Name="DashboardPanelsGrid" Width="1520" Height="200" MinWidth="1520" ColumnSpacing="8" Padding="4">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="1*" MinWidth="250" />
-                            <ColumnDefinition Width="1.35*" MinWidth="330" />
+                            <ColumnDefinition Width="1*" MinWidth="360" />
+                            <ColumnDefinition Width="1*" MinWidth="360" />
                             <ColumnDefinition x:Name="HumidityPanelColumn" Width="0" MinWidth="0" />
                             <ColumnDefinition x:Name="AbsorptionPanelColumn" Width="0" MinWidth="0" />
                         </Grid.ColumnDefinitions>
@@ -181,30 +181,48 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <Expander x:Name="MaterialsPanel" Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Header="Materiales" IsExpanded="False" Background="{ThemeResource Palette172337}" Foreground="{ThemeResource PaletteE6EDF7}">
-                            <Grid RowSpacing="4">
+                        <Expander x:Name="MaterialsPanel" Grid.Row="0" Grid.Column="0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalAlignment="Center" MinWidth="360" Header="Materiales" IsExpanded="False" Background="{ThemeResource Palette172337}" Foreground="{ThemeResource PaletteE6EDF7}">
+                            <Grid RowSpacing="4" HorizontalAlignment="Stretch">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
-                                <Grid Background="{ThemeResource Palette263B5A}" Padding="4">
+                                <Grid Background="{ThemeResource Palette263B5A}" Padding="4" ColumnSpacing="8" HorizontalAlignment="Stretch">
                                     <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="75" />
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="75" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Material" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="11" />
                                     <TextBlock Grid.Column="1" Text="Cantidad" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="11" />
+                                    <TextBlock Grid.Column="2" Text="Material" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="11" />
+                                    <TextBlock Grid.Column="3" Text="Cantidad" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="11" />
                                 </Grid>
-                                <ItemsControl Grid.Row="1" ItemsSource="{x:Bind MaterialRows}">
+                                <ItemsControl Grid.Row="1" ItemsSource="{x:Bind MaterialRowPairs}" HorizontalAlignment="Stretch">
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="local:MaterialRow">
-                                            <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette3B4A60}" BorderThickness="0,0,0,1" Padding="6,6">
+                                        <DataTemplate x:DataType="local:MaterialRowPair">
+                                            <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette3B4A60}" BorderThickness="0,0,0,1" Padding="4,5" ColumnSpacing="8" HorizontalAlignment="Stretch">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="75" />
+                                                    <ColumnDefinition Width="1*" />
+                                                    <ColumnDefinition Width="1*" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{x:Bind Nombre}" FontSize="11" />
-                                                <TextBlock Grid.Column="1" Text="{x:Bind Cantidad}" FontSize="11" />
+                                                <Grid ColumnSpacing="4" HorizontalAlignment="Stretch">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="75" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Bind First.Nombre}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Column="1" Text="{x:Bind First.Cantidad}" FontSize="11" />
+                                                </Grid>
+                                                <Grid Grid.Column="1" ColumnSpacing="4" HorizontalAlignment="Stretch">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="75" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Bind Second.Nombre}" FontSize="11" TextTrimming="CharacterEllipsis" />
+                                                    <TextBlock Grid.Column="1" Text="{x:Bind Second.Cantidad}" FontSize="11" />
+                                                </Grid>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -212,30 +230,58 @@
                             </Grid>
                         </Expander>
 
-                        <Expander x:Name="RemissionPanel" Grid.Row="0" Grid.Column="1" VerticalAlignment="Center" Header="Datos de Remisión" IsExpanded="False" Background="{ThemeResource Palette172337}" Foreground="{ThemeResource PaletteE6EDF7}">
-                            <Grid RowSpacing="4">
+                        <Expander x:Name="RemissionPanel" Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalAlignment="Center" MinWidth="360" Header="Datos de Remisión" IsExpanded="False" Background="{ThemeResource Palette172337}" Foreground="{ThemeResource PaletteE6EDF7}">
+                            <Grid RowSpacing="4" HorizontalAlignment="Stretch">
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
-                                <Grid Background="{ThemeResource Palette263B5A}" Padding="4">
+                                <Grid Background="{ThemeResource Palette263B5A}" Padding="4" ColumnSpacing="8" HorizontalAlignment="Stretch">
                                     <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="115" />
-                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="1*" />
+                                        <ColumnDefinition Width="1*" />
                                     </Grid.ColumnDefinitions>
-                                    <TextBlock Text="Título" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="11" />
-                                    <TextBlock Grid.Column="1" Text="Descripción" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="11" />
+                                    <Grid ColumnSpacing="4" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Título" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
+                                        <TextBlock Grid.Column="1" Text="Descripción" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
+                                    </Grid>
+                                    <Grid Grid.Column="1" ColumnSpacing="4" HorizontalAlignment="Stretch">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="90" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="Título" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
+                                        <TextBlock Grid.Column="1" Text="Descripción" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
+                                    </Grid>
                                 </Grid>
-                                <ItemsControl Grid.Row="1" ItemsSource="{x:Bind RemissionRows}">
+                                <ItemsControl Grid.Row="1" ItemsSource="{x:Bind RemissionRowPairs}" HorizontalAlignment="Stretch">
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="local:RemissionField">
-                                            <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette3B4A60}" BorderThickness="0,0,0,1" Padding="4,3">
+                                        <DataTemplate x:DataType="local:RemissionFieldPair">
+                                            <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette3B4A60}" BorderThickness="0,0,0,1" Padding="4,3" ColumnSpacing="8" HorizontalAlignment="Stretch">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="115" />
-                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="1*" />
+                                                    <ColumnDefinition Width="1*" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{x:Bind Titulo}" FontSize="10" />
-                                                <TextBox Grid.Column="1" Text="{x:Bind Valor, Mode=TwoWay}" MinHeight="26" Padding="5,2" FontSize="11" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" IsEnabled="{x:Bind Editable}" />
+                                                <Grid ColumnSpacing="4" HorizontalAlignment="Stretch">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="90" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Bind First.Titulo}" FontSize="9" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                    <TextBox Grid.Column="1" Text="{x:Bind First.Valor, Mode=TwoWay}" MinHeight="26" Padding="3,2" FontSize="10" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" IsEnabled="{x:Bind First.Editable}" />
+                                                </Grid>
+                                                <Grid Grid.Column="1" ColumnSpacing="4" HorizontalAlignment="Stretch">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="90" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Bind Second.Titulo}" FontSize="9" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                    <TextBox Grid.Column="1" Text="{x:Bind Second.Valor, Mode=TwoWay}" MinHeight="26" Padding="3,2" FontSize="10" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" IsEnabled="{x:Bind Second.Editable}" />
+                                                </Grid>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
@@ -243,70 +289,96 @@
                             </Grid>
                         </Expander>
 
-                        <Expander x:Name="HumidityPanel" Grid.Row="0" Grid.Column="2" Visibility="Collapsed" VerticalAlignment="Center" Header="Ajuste de Humedad" IsExpanded="False" Background="{ThemeResource Palette172337}" Foreground="{ThemeResource PaletteE6EDF7}">
-                            <Grid RowSpacing="4">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
+                        <Expander x:Name="HumidityPanel" Grid.Row="0" Grid.Column="2" Visibility="Collapsed" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalAlignment="Center" MinWidth="360" Header="Ajuste de Humedad" IsExpanded="False" Background="{ThemeResource Palette172337}" Foreground="{ThemeResource PaletteE6EDF7}">
+                            <StackPanel Spacing="4" HorizontalAlignment="Stretch">
                                 <Grid Background="{ThemeResource Palette263B5A}" Padding="4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="45" />
+                                        <ColumnDefinition Width="56" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="56" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Agregados" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
                                     <TextBlock Grid.Column="1" Text="%" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
+                                    <TextBlock Grid.Column="2" Text="Agregados" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
+                                    <TextBlock Grid.Column="3" Text="%" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
                                 </Grid>
-                                <ItemsControl Grid.Row="1" ItemsSource="{x:Bind HumidityRows}">
+                                <ItemsControl ItemsSource="{x:Bind HumidityRowPairs}">
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="local:PlantValue">
-                                            <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette3B4A60}" BorderThickness="0,0,0,1" Padding="6,5">
+                                        <DataTemplate x:DataType="local:PlantValuePair">
+                                            <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette3B4A60}" BorderThickness="0,0,0,1" Padding="4,3" ColumnSpacing="6">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="45" />
+                                                    <ColumnDefinition Width="1*" />
+                                                    <ColumnDefinition Width="1*" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{x:Bind Nombre}" FontSize="11" />
-                                                <TextBlock Grid.Column="1" Text="{x:Bind Valor}" FontSize="11" HorizontalAlignment="Center" />
+                                                <Grid ColumnSpacing="3">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="56" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Bind First.Nombre}" FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                    <TextBox Grid.Column="1" Text="{x:Bind First.Valor, Mode=TwoWay}" Width="56" MinWidth="56" MinHeight="24" Padding="3,0" FontSize="10" TextAlignment="Center" InputScope="Number" AutomationProperties.Name="{x:Bind First.Nombre}" />
+                                                </Grid>
+                                                <Grid Grid.Column="1" ColumnSpacing="3">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="56" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Bind Second.Nombre}" FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                    <TextBox Grid.Column="1" Text="{x:Bind Second.Valor, Mode=TwoWay}" Width="56" MinWidth="56" MinHeight="24" Padding="3,0" FontSize="10" TextAlignment="Center" InputScope="Number" AutomationProperties.Name="{x:Bind Second.Nombre}" />
+                                                </Grid>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <Button Grid.Row="2" Content="Guardar" IsEnabled="False" ToolTipService.ToolTip="La persistencia real requiere integración con la planta." HorizontalAlignment="Center" FontSize="11" Style="{StaticResource DefaultButtonStyle}" />
-                            </Grid>
+                                <Button x:Name="HumiditySaveButton" Content="Guardar" Tag="H" Click="SaveDashboardAdjustment_Click" Width="100" Height="36" MinHeight="36" Padding="12,4" HorizontalAlignment="Center" FontSize="11" Style="{StaticResource DefaultButtonStyle}" />
+                            </StackPanel>
                         </Expander>
 
-                        <Expander x:Name="AbsorptionPanel" Grid.Row="0" Grid.Column="3" Visibility="Collapsed" VerticalAlignment="Center" Header="Ajuste de Absorción" IsExpanded="False" Background="{ThemeResource Palette172337}" Foreground="{ThemeResource PaletteE6EDF7}">
-                            <Grid RowSpacing="4">
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="Auto" />
-                                </Grid.RowDefinitions>
+                        <Expander x:Name="AbsorptionPanel" Grid.Row="0" Grid.Column="3" Visibility="Collapsed" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" VerticalAlignment="Center" MinWidth="360" Header="Ajuste de Absorción" IsExpanded="False" Background="{ThemeResource Palette172337}" Foreground="{ThemeResource PaletteE6EDF7}">
+                            <StackPanel Spacing="4" HorizontalAlignment="Stretch">
                                 <Grid Background="{ThemeResource Palette263B5A}" Padding="4">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="45" />
+                                        <ColumnDefinition Width="56" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="56" />
                                     </Grid.ColumnDefinitions>
                                     <TextBlock Text="Agregados" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
                                     <TextBlock Grid.Column="1" Text="%" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
+                                    <TextBlock Grid.Column="2" Text="Agregados" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
+                                    <TextBlock Grid.Column="3" Text="%" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="10" />
                                 </Grid>
-                                <ItemsControl Grid.Row="1" ItemsSource="{x:Bind AbsorptionRows}">
+                                <ItemsControl ItemsSource="{x:Bind AbsorptionRowPairs}">
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="local:PlantValue">
-                                            <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette3B4A60}" BorderThickness="0,0,0,1" Padding="6,5">
+                                        <DataTemplate x:DataType="local:PlantValuePair">
+                                            <Grid Background="{ThemeResource Palette1E2D43}" BorderBrush="{ThemeResource Palette3B4A60}" BorderThickness="0,0,0,1" Padding="4,3" ColumnSpacing="6">
                                                 <Grid.ColumnDefinitions>
-                                                    <ColumnDefinition Width="*" />
-                                                    <ColumnDefinition Width="45" />
+                                                    <ColumnDefinition Width="1*" />
+                                                    <ColumnDefinition Width="1*" />
                                                 </Grid.ColumnDefinitions>
-                                                <TextBlock Text="{x:Bind Nombre}" FontSize="11" />
-                                                <TextBlock Grid.Column="1" Text="{x:Bind Valor}" FontSize="11" HorizontalAlignment="Center" />
+                                                <Grid ColumnSpacing="3">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="56" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Bind First.Nombre}" FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                    <TextBox Grid.Column="1" Text="{x:Bind First.Valor, Mode=TwoWay}" Width="56" MinWidth="56" MinHeight="24" Padding="3,0" FontSize="10" TextAlignment="Center" InputScope="Number" AutomationProperties.Name="{x:Bind First.Nombre}" />
+                                                </Grid>
+                                                <Grid Grid.Column="1" ColumnSpacing="3">
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="*" />
+                                                        <ColumnDefinition Width="56" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <TextBlock Text="{x:Bind Second.Nombre}" FontSize="10" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                                                    <TextBox Grid.Column="1" Text="{x:Bind Second.Valor, Mode=TwoWay}" Width="56" MinWidth="56" MinHeight="24" Padding="3,0" FontSize="10" TextAlignment="Center" InputScope="Number" AutomationProperties.Name="{x:Bind Second.Nombre}" />
+                                                </Grid>
                                             </Grid>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
-                                <Button Grid.Row="2" Content="Guardar" IsEnabled="False" ToolTipService.ToolTip="La persistencia real requiere integración con la planta." HorizontalAlignment="Center" FontSize="11" Style="{StaticResource DefaultButtonStyle}" />
-                            </Grid>
+                                <Button x:Name="AbsorptionSaveButton" Content="Guardar" Tag="O" Click="SaveDashboardAdjustment_Click" Width="100" Height="36" MinHeight="36" Padding="12,4" HorizontalAlignment="Center" FontSize="11" Style="{StaticResource DefaultButtonStyle}" />
+                            </StackPanel>
                         </Expander>
 
                     </Grid>

@@ -63,6 +63,7 @@ public sealed partial class MachineConfigurationView : UserControl
     public event EventHandler? CloseRequested;
     public event EventHandler<string>? MachineNameSaved;
     public event Action<MachineDashboardOptions>? DashboardOptionsChanged;
+    public event Action<IReadOnlyDictionary<string, string>>? DashboardConfigurationChanged;
     public Func<string, Task<string?>>? LoadMachineImageToDesignCanvasAsync { get; set; }
     public Func<bool>? IsDesignerCanvasLocked { get; set; }
     public Func<string, bool>? HasPermission { get; set; }
@@ -139,6 +140,7 @@ public sealed partial class MachineConfigurationView : UserControl
                 input.IsChecked = snapshot.Values.GetValueOrDefault(parameter, "0") == "1";
             }
 
+            DashboardConfigurationChanged?.Invoke(snapshot.Values);
             PublishDashboardOptions();
             SetEditMode(false);
             SetStatus(
@@ -601,6 +603,7 @@ public sealed partial class MachineConfigurationView : UserControl
             SetEditMode(false);
             _loadedMachineImagePath = imagePath;
             MachineNameSaved?.Invoke(this, _textInputs["Mq"].Text.Trim());
+            DashboardConfigurationChanged?.Invoke(values);
             PublishDashboardOptions();
             if (!string.IsNullOrWhiteSpace(imagePath)
                 && LoadMachineImageToDesignCanvasAsync is not null
