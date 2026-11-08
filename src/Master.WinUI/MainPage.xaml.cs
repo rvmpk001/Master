@@ -1192,6 +1192,366 @@ public sealed partial class MainPage : Page
         ManualLoadOverlay.Visibility = Visibility.Collapsed;
     }
 
+    private async void ProgramAction_Click(object sender, RoutedEventArgs e)
+    {
+        if (!await RefreshCurrentUserPermissionsAsync()
+            || !HasModulePermission("Carga Manual")
+            || !HasActionPermission("Carga Manual", "Alta"))
+        {
+            ModuleStatusText.Text = "Tu perfil no tiene permiso para programar cargas.";
+            return;
+        }
+
+        var recipes = new ComboBox
+        {
+            DisplayMemberPath = "Code",
+            PlaceholderText = "Selecciona receta",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var description = new TextBox { IsReadOnly = true };
+        var quantity = new NumberBox { Value = 0, Minimum = 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
+        var clients = new ComboBox
+        {
+            DisplayMemberPath = "Client",
+            IsEditable = true,
+            PlaceholderText = "Selecciona cliente",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var construction = new ComboBox
+        {
+            IsEditable = true,
+            PlaceholderText = "Selecciona obra",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var trucks = new ComboBox
+        {
+            DisplayMemberPath = "Unit",
+            IsEditable = true,
+            PlaceholderText = "Selecciona camión",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var operators = new ComboBox
+        {
+            DisplayMemberPath = "Name",
+            IsEditable = true,
+            PlaceholderText = "Selecciona chofer",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var capacity = new TextBox { IsReadOnly = true };
+        var orders = new ComboBox { IsEditable = true, PlaceholderText = "Selecciona pedido", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var orderStatus = new TextBox { IsReadOnly = true };
+        var products = new ComboBox { IsEditable = true, PlaceholderText = "Selecciona producto", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var paymentConditions = new ComboBox { IsEditable = true, PlaceholderText = "Selecciona condición", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var dischargeTypes = new ComboBox { IsEditable = true, PlaceholderText = "Selecciona tipo", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var dispatcher = new TextBox { Text = "1" };
+        var remissionNumber = new TextBox { IsReadOnly = true };
+        var orderedQuantity = new NumberBox { Value = 0, Minimum = 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
+        var suppliedQuantity = new NumberBox { Value = 0, Minimum = 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
+        var toSupplyQuantity = new NumberBox { Value = 0, Minimum = 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
+        var observations = new TextBox { AcceptsReturn = true, Height = 72, TextWrapping = TextWrapping.Wrap };
+        var status = new TextBlock
+        {
+            Text = "Cargando catálogos...",
+            TextWrapping = TextWrapping.Wrap,
+            Foreground = _themeBrushes.GetBrush("#A9B8CC")
+        };
+
+        recipes.SelectionChanged += (_, _) =>
+        {
+            if (recipes.SelectedItem is ProgramFormulaOption selectedRecipe)
+            {
+                description.Text = selectedRecipe.Description;
+            }
+        };
+        clients.SelectionChanged += (_, _) =>
+        {
+            if (clients.SelectedItem is ClientRecord selectedClient)
+            {
+                construction.Text = selectedClient.Construction;
+            }
+        };
+        trucks.SelectionChanged += (_, _) =>
+        {
+            if (trucks.SelectedItem is TruckRecord selectedTruck)
+            {
+                capacity.Text = selectedTruck.Capacity;
+            }
+        };
+
+        var programButton = new Button
+        {
+            Content = "Programar",
+            IsEnabled = false,
+            Style = (Style)Resources["DefaultButtonStyle"]
+        };
+        var lastLoadButton = new Button
+        {
+            Content = "Última carga",
+            IsEnabled = false,
+            Style = (Style)Resources["DefaultButtonStyle"]
+        };
+        ToolTipService.SetToolTip(programButton, "La programación al PLC aún no está disponible.");
+        ToolTipService.SetToolTip(lastLoadButton, "Carga los datos de la última descarga registrada.");
+        lastLoadButton.Click += async (_, _) => await LoadLatestDownloadAsync();
+        var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
+        toolbar.Children.Add(programButton);
+        toolbar.Children.Add(lastLoadButton);
+
+        var formContent = new StackPanel { Spacing = 8, Width = 480 };
+        formContent.Children.Add(toolbar);
+        formContent.Children.Add(status);
+        var sections = new StackPanel { Spacing = 10 };
+        sections.Children.Add(CreateProgramFormSection(
+            "Datos de Fórmula",
+            ("Código de receta:", (Control)recipes),
+            ("Descripción:", description),
+            ("Cantidad:", quantity),
+            ("Cliente:", clients),
+            ("Obra:", construction),
+            ("Camión:", trucks),
+            ("Chofer:", operators),
+            ("Capacidad:", capacity)));
+        sections.Children.Add(CreateProgramFormSection(
+            "Datos de Remisión",
+            ("Pedido:", orders),
+            ("Estatus:", orderStatus),
+            ("Producto:", products),
+            ("Condiciones pago:", paymentConditions),
+            ("Tipo descarga:", dischargeTypes),
+            ("Despachador:", dispatcher),
+            ("No de remisión:", remissionNumber)));
+        sections.Children.Add(CreateProgramFormSection(
+            "Datos de Remisión Opcionales",
+            ("Pedidos (m³):", orderedQuantity),
+            ("Surtidos (m³):", suppliedQuantity),
+            ("x Surtir (m³):", toSupplyQuantity),
+            ("Observaciones:", observations)));
+        var scrollViewer = new ScrollViewer
+        {
+            Content = sections,
+            MaxHeight = 560,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+        };
+        formContent.Children.Add(scrollViewer);
+
+        var dialog = new ContentDialog
+        {
+            Title = "Programar Carga Automática",
+            Content = formContent,
+            CloseButtonText = "Cancelar",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot
+        };
+        var dialogOperation = dialog.ShowAsync();
+
+        try
+        {
+            var formulasTask = _formulaService.GetFormulasAsync();
+            var orderNumbersTask = _orderService.GetOrderNumbersAsync();
+            var clientsTask = _clientService.GetClientsAsync();
+            var dischargeTypesTask = _orderService.GetDischargeTypesAsync();
+            var productsTask = _orderService.GetProductsAsync();
+            var paymentConditionsTask = _orderService.GetPaymentConditionsAsync();
+            var operatorsTask = _truckService.GetOperatorsAsync();
+            var trucksTask = _truckService.GetTrucksAsync();
+            var remissionTask = _orderService.GetNextManualLoadRemissionAsync();
+            await Task.WhenAll(
+                formulasTask,
+                orderNumbersTask,
+                clientsTask,
+                dischargeTypesTask,
+                productsTask,
+                paymentConditionsTask,
+                operatorsTask,
+                trucksTask,
+                remissionTask);
+
+            var clientData = await clientsTask;
+            var formulaData = await formulasTask;
+            recipes.ItemsSource = formulaData.ActiveRows
+                .Select(row => new ProgramFormulaOption(
+                    row.Values.GetValueOrDefault("Cod_Formula") ?? string.Empty,
+                    row.Values.GetValueOrDefault("Descripcion") ?? string.Empty))
+                .Where(formula => !string.IsNullOrWhiteSpace(formula.Code))
+                .ToArray();
+            clients.ItemsSource = clientData.Clients;
+            construction.ItemsSource = clientData.Clients
+                .Select(client => client.Construction.Trim())
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(value => value, StringComparer.CurrentCultureIgnoreCase)
+                .ToArray();
+            trucks.ItemsSource = (await trucksTask).Trucks;
+            operators.ItemsSource = (await operatorsTask).Operators;
+            orders.ItemsSource = new[] { "Ocasional" }.Concat(await orderNumbersTask).ToArray();
+            products.ItemsSource = await productsTask;
+            paymentConditions.ItemsSource = await paymentConditionsTask;
+            dischargeTypes.ItemsSource = await dischargeTypesTask;
+            remissionNumber.Text = await remissionTask;
+            status.Text =
+                $"Catálogos cargados: {formulaData.ActiveRows.Count} fórmulas. Pedidos disponibles: {orders.Items.Count - 1}.";
+        }
+        catch (SqlException exception)
+        {
+            status.Text = $"No se pudieron cargar los catálogos (SQL {exception.Number}): {exception.Message}";
+        }
+        catch (InvalidOperationException exception)
+        {
+            status.Text = $"No se pudieron cargar los catálogos: {exception.Message}";
+        }
+
+        lastLoadButton.IsEnabled = true;
+        await dialogOperation;
+
+        async Task LoadLatestDownloadAsync()
+        {
+            lastLoadButton.IsEnabled = false;
+            status.Text = "Consultando la última descarga registrada...";
+            try
+            {
+                var latest = await _orderService.GetLatestDownloadAsync();
+                if (latest is null)
+                {
+                    status.Text = "No hay registros en la tabla Descarga.";
+                    return;
+                }
+
+                var recipeOptions = recipes.ItemsSource is IEnumerable<ProgramFormulaOption> loadedRecipes
+                    ? loadedRecipes.ToList()
+                    : new List<ProgramFormulaOption>();
+                var recipe = recipeOptions.FirstOrDefault(option =>
+                    string.Equals(option.Code, latest.RecipeCode, StringComparison.OrdinalIgnoreCase));
+                if (recipe is null && !string.IsNullOrWhiteSpace(latest.RecipeCode))
+                {
+                    recipe = new ProgramFormulaOption(latest.RecipeCode, latest.Description);
+                    recipeOptions.Add(recipe);
+                    recipes.ItemsSource = recipeOptions;
+                }
+
+                recipes.SelectedItem = recipe;
+                description.Text = !string.IsNullOrWhiteSpace(latest.Description)
+                    ? latest.Description
+                    : recipe?.Description ?? string.Empty;
+                SetProgramComboValue(clients, latest.Client, item => item is ClientRecord client ? client.Client : null);
+                SetProgramComboValue(construction, latest.Construction, item => item as string);
+                SetProgramComboValue(trucks, latest.TruckUnit, item => item is TruckRecord truck ? truck.Unit : item as string);
+                SetProgramComboValue(operators, latest.Operator, item => item is OperatorRecord operatorRecord ? operatorRecord.Name : item as string);
+                if (trucks.SelectedItem is TruckRecord selectedTruck)
+                {
+                    capacity.Text = selectedTruck.Capacity;
+                }
+
+                SetProgramComboValue(orders, latest.OrderNumber, item => item as string);
+                orderStatus.Text = latest.OrderStatus;
+                SetProgramComboValue(products, latest.Product, item => item as string);
+                SetProgramComboValue(paymentConditions, latest.PaymentCondition, item => item as string);
+                SetProgramComboValue(dischargeTypes, latest.DischargeType, item => item as string);
+                dispatcher.Text = latest.Dispatcher;
+                remissionNumber.Text = latest.Remission;
+                if (TryParseProgramNumber(latest.Quantity, out var quantityValue))
+                {
+                    quantity.Value = quantityValue;
+                }
+
+                if (latest.OrderedQuantity.HasValue)
+                {
+                    orderedQuantity.Value = (double)latest.OrderedQuantity.Value;
+                }
+
+                if (latest.SuppliedQuantity.HasValue)
+                {
+                    suppliedQuantity.Value = (double)latest.SuppliedQuantity.Value;
+                }
+
+                if (latest.ToSupplyQuantity.HasValue)
+                {
+                    toSupplyQuantity.Value = (double)latest.ToSupplyQuantity.Value;
+                }
+
+                observations.Text = latest.Observations;
+                var date = latest.Date?.ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.CurrentCulture) ?? "fecha no disponible";
+                status.Text = $"Datos cargados desde la última descarga ({date}, remisión {latest.Remission}).";
+            }
+            catch (SqlException exception)
+            {
+                status.Text = $"No se pudo consultar la última descarga (SQL {exception.Number}): {exception.Message}";
+            }
+            catch (InvalidOperationException exception)
+            {
+                status.Text = $"No se pudo cargar la última descarga: {exception.Message}";
+            }
+            finally
+            {
+                lastLoadButton.IsEnabled = true;
+            }
+        }
+    }
+
+    private static void SetProgramComboValue(ComboBox combo, string value, Func<object, string?> getItemValue)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return;
+        }
+
+        var matchingItem = combo.Items
+            .FirstOrDefault(item => string.Equals(getItemValue(item), value.Trim(), StringComparison.OrdinalIgnoreCase));
+        if (matchingItem is not null)
+        {
+            combo.SelectedItem = matchingItem;
+        }
+        else if (combo.IsEditable)
+        {
+            combo.Text = value.Trim();
+        }
+    }
+
+    private static bool TryParseProgramNumber(string value, out double number)
+    {
+        return double.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out number)
+            || double.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out number);
+    }
+
+    private Border CreateProgramFormSection(string title, params (string Label, Control Field)[] fields)
+    {
+        var content = new StackPanel { Spacing = 6 };
+        content.Children.Add(new TextBlock
+        {
+            Text = title,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Foreground = _themeBrushes.GetBrush("#F1F5F9")
+        });
+
+        foreach (var (label, field) in fields)
+        {
+            var row = new Grid { ColumnSpacing = 10 };
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(120) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+            var labelText = new TextBlock
+            {
+                Text = label,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = _themeBrushes.GetBrush("#E6EDF7")
+            };
+            Grid.SetColumn(field, 1);
+            row.Children.Add(labelText);
+            row.Children.Add(field);
+            content.Children.Add(row);
+        }
+
+        return new Border
+        {
+            Child = content,
+            Padding = new Thickness(10),
+            BorderThickness = new Thickness(1),
+            BorderBrush = _themeBrushes.GetBrush("#40516A"),
+            Background = _themeBrushes.GetBrush("#172337")
+        };
+    }
+
+    private sealed record ProgramFormulaOption(string Code, string Description);
+
     private async Task LoadManualLoadRecipesAsync()
     {
         ManualLoadStatusText.Text = "Consultando catálogos y pedidos en BlapaciSQL...";
@@ -7353,6 +7713,10 @@ public sealed partial class MainPage : Page
 
     private void ApplyProfilePermissions()
     {
+        ProgramActionButton.IsEnabled =
+            HasModulePermission("Carga Manual")
+            && HasActionPermission("Carga Manual", "Alta");
+
         foreach (var menu in MainMenuBar.Items.OfType<MenuBarItem>())
         {
             var hasProfileItems = false;

@@ -102,6 +102,82 @@ public sealed class OrderService
         return orderNumbers;
     }
 
+    public async Task<LatestDownloadRecord?> GetLatestDownloadAsync(CancellationToken cancellationToken = default)
+    {
+        const string query = """
+            SELECT TOP (1)
+                d.Fecha_Hora,
+                d.Cod_Formula,
+                d.Cantidad,
+                d.Remision,
+                d.Obra,
+                d.Cliente,
+                d.TipoDescarga,
+                p.NumPedido,
+                p.Estatus,
+                r.Producto,
+                r.Uso,
+                r.Despachador,
+                r.Operador,
+                r.Unidad,
+                r.Pedidos,
+                r.Surtidos,
+                r.xSurtir,
+                r.Observaciones,
+                r.DescFormula
+            FROM dbo.Descarga AS d
+            LEFT JOIN dbo.Pedidos AS p ON p.IdPedido = d.IdPedido
+            OUTER APPLY
+            (
+                SELECT TOP (1)
+                    Remisiones.Producto,
+                    Remisiones.Uso,
+                    Remisiones.Despachador,
+                    Remisiones.Operador,
+                    Remisiones.Unidad,
+                    Remisiones.Pedidos,
+                    Remisiones.Surtidos,
+                    Remisiones.xSurtir,
+                    Remisiones.Observaciones,
+                    Remisiones.DescFormula
+                FROM dbo.Remisiones
+                WHERE Remisiones.Remision = d.Remision
+                ORDER BY Remisiones.Id DESC
+            ) AS r
+            ORDER BY d.Fecha_Hora DESC, d.FechaCarga DESC;
+            """;
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(query, connection);
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        if (!await reader.ReadAsync(cancellationToken))
+        {
+            return null;
+        }
+
+        return new LatestDownloadRecord(
+            GetDateTime(reader, "Fecha_Hora"),
+            FormatValue(reader["Cod_Formula"]),
+            FormatValue(reader["Cantidad"]),
+            FormatValue(reader["Remision"]),
+            FormatValue(reader["Obra"]),
+            FormatValue(reader["Cliente"]),
+            FormatValue(reader["TipoDescarga"]),
+            FormatValue(reader["NumPedido"]),
+            FormatValue(reader["Estatus"]),
+            FormatValue(reader["Producto"]),
+            FormatValue(reader["Uso"]),
+            FormatValue(reader["Despachador"]),
+            FormatValue(reader["Operador"]),
+            FormatValue(reader["Unidad"]),
+            GetDecimal(reader, "Pedidos"),
+            GetDecimal(reader, "Surtidos"),
+            GetDecimal(reader, "xSurtir"),
+            FormatValue(reader["Observaciones"]),
+            FormatValue(reader["DescFormula"]));
+    }
+
     public async Task<OrderRecipe?> GetOrderRecipeAsync(int orderNumber, CancellationToken cancellationToken = default)
     {
         const string query = """
@@ -703,6 +779,27 @@ public sealed record ManualLoadOrderDetails(
     decimal? Supplied,
     decimal? ToSupply,
     string Observations);
+
+public sealed record LatestDownloadRecord(
+    DateTime? Date,
+    string RecipeCode,
+    string Quantity,
+    string Remission,
+    string Construction,
+    string Client,
+    string DischargeType,
+    string OrderNumber,
+    string OrderStatus,
+    string Product,
+    string PaymentCondition,
+    string Dispatcher,
+    string Operator,
+    string TruckUnit,
+    decimal? OrderedQuantity,
+    decimal? SuppliedQuantity,
+    decimal? ToSupplyQuantity,
+    string Observations,
+    string Description);
 
 public sealed class OrderRecord(
     int id,

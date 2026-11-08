@@ -381,7 +381,7 @@
             <TabView x:Name="PlantToolsPanel" Grid.Column="2" IsAddTabButtonVisible="False" CanReorderTabs="False" Background="{ThemeResource Palette101B2D}" SelectionChanged="PlantToolsPanel_SelectionChanged">
                 <TabViewItem Header="Acciones" IsClosable="False">
                     <StackPanel Padding="8" Spacing="8" HorizontalAlignment="Stretch">
-                        <Button Content="PROGRAMAR" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
+                        <Button x:Name="ProgramActionButton" Content="PROGRAMAR" Click="ProgramAction_Click" HorizontalAlignment="Stretch" ToolTipService.ToolTip="Abre el formulario de programación automática." Style="{StaticResource DefaultButtonStyle}" />
                         <Button Content="CARGAR" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="DownloadActionButton" Content="DESCARGAR" HorizontalAlignment="Stretch" Visibility="Collapsed" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
                         <Button Content="PAUSAR" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Requiere conexión autorizada al controlador de la planta." Style="{StaticResource DefaultButtonStyle}" />
