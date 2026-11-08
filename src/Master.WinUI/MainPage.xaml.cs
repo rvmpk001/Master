@@ -7265,7 +7265,10 @@ public sealed partial class MainPage : Page
 
     private static bool IsReportNavigation(string navigationTag) =>
         navigationTag.StartsWith("Reporte", StringComparison.OrdinalIgnoreCase)
-        || navigationTag is "Remisión anterior" or "Remisión de salida" or "Relación de producción";
+        || navigationTag is "ReportCenter"
+            or "Remisión anterior"
+            or "Remisión de salida"
+            or "Relación de producción";
 
     private bool HasActionPermission(string module, string action) =>
         AccessPermissionLookup.IsActionEnabled(_currentUserPermissions, module, action);

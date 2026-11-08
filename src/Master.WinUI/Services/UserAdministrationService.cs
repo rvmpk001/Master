@@ -204,13 +204,72 @@ public sealed class UserAdministrationService
     {
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
-        await using var command = new SqlCommand("dbo.sp_del_Usuario", connection)
+        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
+        try
         {
-            CommandType = CommandType.StoredProcedure
-        };
-        command.Parameters.Add("@usuario", SqlDbType.NVarChar, 15).Value =
-            user.Id.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        await EnsureProcedureSucceededAsync(command, cancellationToken);
+            const string deletePermissionDetailsQuery = """
+                DELETE permissionDetail
+                FROM dbo.PerfilDetalle AS permissionDetail
+                LEFT JOIN dbo.Perfiles AS profile
+                    ON profile.IdPerfil = permissionDetail.IdPerfil
+                WHERE permissionDetail.IdPerfil <> 1
+                  AND (
+                      profile.IdUsuario = @UserId
+                      OR (
+                          profile.IdPerfil IS NULL
+                          AND permissionDetail.IdUsuario = @UserId
+                      )
+                  );
+                """;
+            await using (var command = new SqlCommand(deletePermissionDetailsQuery, connection, transaction))
+            {
+                command.Parameters.Add("@UserId", SqlDbType.Int).Value = user.Id;
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            const string deleteProfilesQuery = """
+                DELETE FROM dbo.Perfiles
+                WHERE IdUsuario = @UserId
+                  AND IdPerfil <> 1;
+                """;
+            await using (var command = new SqlCommand(deleteProfilesQuery, connection, transaction))
+            {
+                command.Parameters.Add("@UserId", SqlDbType.Int).Value = user.Id;
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            const string detachTemplateProfileQuery = """
+                UPDATE dbo.Perfiles
+                SET IdUsuario = NULL
+                WHERE IdPerfil = 1
+                  AND IdUsuario = @UserId;
+                """;
+            await using (var command = new SqlCommand(detachTemplateProfileQuery, connection, transaction))
+            {
+                command.Parameters.Add("@UserId", SqlDbType.Int).Value = user.Id;
+                await command.ExecuteNonQueryAsync(cancellationToken);
+            }
+
+            const string deleteUserQuery = """
+                DELETE FROM dbo.[Password]
+                WHERE IdUsuario = @UserId;
+                """;
+            await using (var command = new SqlCommand(deleteUserQuery, connection, transaction))
+            {
+                command.Parameters.Add("@UserId", SqlDbType.Int).Value = user.Id;
+                if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
+                {
+                    throw new InvalidOperationException("No se encontró el usuario que se intentó borrar.");
+                }
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
     }
 
     private static async Task EnsureProcedureSucceededAsync(

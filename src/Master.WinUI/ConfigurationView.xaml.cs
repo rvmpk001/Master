@@ -19,9 +19,7 @@ public sealed partial class ConfigurationView : UserControl
         "AJUSTEABSORCION",
         "AJUSTEHUMEDADES",
         "AJUSTEREMISION",
-        "CAMIONES",
         "CARGAMANUAL",
-        "CLIENTES",
         "CONFIGURARPEDIDO",
         "DATOSCOMPANIA",
         "ENTRADAS",
@@ -360,6 +358,7 @@ public sealed partial class ConfigurationView : UserControl
 
         var nodesByOption = new Dictionary<string, TreeViewNode>(StringComparer.OrdinalIgnoreCase);
         var nodesByEntryId = new Dictionary<int, TreeViewNode>();
+        var reportCenterNodesByOption = new Dictionary<string, TreeViewNode>(StringComparer.OrdinalIgnoreCase);
         foreach (var entry in visibleEntries)
         {
             var entryId = entry.TemplateDetailId ?? entry.DetailId;
@@ -377,7 +376,25 @@ public sealed partial class ConfigurationView : UserControl
             }
             nodesByEntryId.Add(entryId, node);
 
+            var isReportsEntry = IsReportsEntry(entry);
             var actions = entry.Actions;
+            if (isReportsEntry)
+            {
+                var legacyCenterAction = actions.FirstOrDefault(action =>
+                    string.Equals(action.Column, "Alta", StringComparison.OrdinalIgnoreCase));
+                var viewAction = actions.FirstOrDefault(action =>
+                    string.Equals(action.Column, "Visualizar", StringComparison.OrdinalIgnoreCase));
+                actions = actions
+                    .Where(action =>
+                        !string.Equals(action.Column, "Alta", StringComparison.OrdinalIgnoreCase)
+                        && !string.Equals(action.Column, "Visualizar", StringComparison.OrdinalIgnoreCase))
+                    .Append(new AccessPermissionAction(
+                        "Visualizar",
+                        "Centro de reportes",
+                        viewAction?.IsEnabled ?? legacyCenterAction?.IsEnabled ?? false))
+                    .ToArray();
+            }
+
             if (string.Equals(
                     NormalizeAccessModule(entry.Option),
                     "MAQUINA",
@@ -411,13 +428,24 @@ public sealed partial class ConfigurationView : UserControl
 
                 var actionNode = new TreeViewNode();
                 actionNode.Content = CreateAccessPermissionItem(
-                    action.Title,
+                    isReportsEntry
+                        && string.Equals(action.Column, "Visualizar", StringComparison.OrdinalIgnoreCase)
+                            ? "Centro de reportes"
+                            : action.Title,
                     entry.DetailId,
                     action.Column,
                     action.IsEnabled,
                     entry.TemplateProfileId,
                     entry.TemplateDetailId);
                 node.Children.Add(actionNode);
+                if (isReportsEntry
+                    && string.Equals(action.Column, "Visualizar", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.IsNullOrWhiteSpace(entry.Option))
+                    {
+                        reportCenterNodesByOption.Add(entry.Option, actionNode);
+                    }
+                }
             }
         }
 
@@ -428,7 +456,18 @@ public sealed partial class ConfigurationView : UserControl
                 && nodesByOption.TryGetValue(entry.ParentOption, out var parentNode)
                 && !ReferenceEquals(parentNode, node))
             {
-                parentNode.Children.Add(node);
+                if (string.Equals(
+                        NormalizeAccessModule(entry.ParentOption),
+                        "REPORTES",
+                        StringComparison.Ordinal)
+                    && reportCenterNodesByOption.TryGetValue(entry.ParentOption, out var reportCenterNode))
+                {
+                    reportCenterNode.Children.Add(node);
+                }
+                else
+                {
+                    parentNode.Children.Add(node);
+                }
             }
             else
             {
@@ -436,6 +475,10 @@ public sealed partial class ConfigurationView : UserControl
             }
         }
     }
+
+    private static bool IsReportsEntry(AccessPermissionEntry entry) =>
+        string.Equals(NormalizeAccessModule(entry.Option), "REPORTES", StringComparison.Ordinal)
+        || string.Equals(NormalizeAccessModule(entry.Title), "REPORTES", StringComparison.Ordinal);
 
     private static bool AddHiddenOption(string? option, HashSet<string> hiddenOptions) =>
         !string.IsNullOrWhiteSpace(option)
@@ -463,9 +506,20 @@ public sealed partial class ConfigurationView : UserControl
         }
 
         var module = NormalizeAccessModule(entry.Option);
+        var title = NormalizeAccessModule(entry.Title);
+        if (module == "CAMIONES" || title == "CAMIONES")
+        {
+            return actionColumn is "Exportar" or "Imprimir";
+        }
+
+        if (module == "CLIENTES" || title == "CLIENTES")
+        {
+            return actionColumn is "Exportar" or "Imprimir";
+        }
+
         if (string.Equals(actionColumn, "Alta", StringComparison.OrdinalIgnoreCase)
             && (AccessModulesWithoutCreateAction.Contains(module)
-                || AccessModulesWithoutCreateAction.Contains(NormalizeAccessModule(entry.Title))))
+                || AccessModulesWithoutCreateAction.Contains(title)))
         {
             return true;
         }
@@ -483,7 +537,7 @@ public sealed partial class ConfigurationView : UserControl
         }
 
         return AccessModulesWithoutViewActions.Contains(module)
-            || AccessModulesWithoutViewActions.Contains(NormalizeAccessModule(entry.Title));
+            || AccessModulesWithoutViewActions.Contains(title);
     }
 
     private static string NormalizeAccessModule(string? value)
