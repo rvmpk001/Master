@@ -190,7 +190,7 @@ public sealed partial class SecurityView : UserControl
             var content = new StackPanel { Spacing = 8 };
             content.Children.Add(new TextBlock
             {
-                Text = "Los permisos se asignan por separado en Configuración > Accesos.",
+                Text = "El tipo Administrador inicia con todos los accesos habilitados; los demás tipos inician sin accesos. Puedes ajustarlos en Configuración > Accesos.",
                 TextWrapping = TextWrapping.Wrap
             });
             content.Children.Add(usernameInput);
@@ -264,7 +264,9 @@ public sealed partial class SecurityView : UserControl
             {
                 ShowStatus(
                     user is null
-                        ? $"El usuario «{username}» fue agregado sin accesos. Asígnalos en Configuración, Accesos."
+                        ? string.Equals(role, "Administrador", StringComparison.OrdinalIgnoreCase)
+                            ? $"El usuario «{username}» fue agregado con todos los accesos habilitados."
+                            : $"El usuario «{username}» fue agregado sin accesos habilitados."
                         : $"El usuario «{username}» fue actualizado.",
                     InfoBarSeverity.Success);
             }

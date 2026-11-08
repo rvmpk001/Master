@@ -38,10 +38,26 @@ public sealed class UserAdministrationService
         CancellationToken cancellationToken = default)
     {
         const string query = """
-            SELECT DISTINCT LTRIM(RTRIM(Clase))
-            FROM dbo.[Password]
-            WHERE Clase IS NOT NULL AND LTRIM(RTRIM(Clase)) <> ''
-            ORDER BY LTRIM(RTRIM(Clase));
+            SELECT Role
+            FROM
+            (
+                SELECT DISTINCT LTRIM(RTRIM(Clase)) AS Role
+                FROM dbo.[Password]
+                WHERE Clase IS NOT NULL AND LTRIM(RTRIM(Clase)) <> ''
+
+                UNION
+
+                SELECT N'Administrador'
+
+                UNION
+
+                SELECT N'Usuario'
+            ) AS roles
+            ORDER BY CASE Role
+                WHEN N'Administrador' THEN 0
+                WHEN N'Usuario' THEN 1
+                ELSE 2
+            END, Role;
             """;
 
         await using var connection = _connectionFactory.CreateConnection();
@@ -87,29 +103,29 @@ public sealed class UserAdministrationService
                 await EnsureProcedureSucceededAsync(command, cancellationToken);
             }
 
-            const string clearDefaultPermissionsQuery = """
+            const string initializeDefaultPermissionsQuery = """
                 UPDATE dbo.PerfilDetalle
-                SET [Alta] = 0,
-                    [Editar] = 0,
-                    [Baja] = 0,
-                    [Visualizar] = 0,
-                    [Imprimir] = 0,
-                    [Exportar] = 0,
-                    [Por Vendedor] = 0,
-                    [Autorizar] = 0,
-                    [AutoOPSP] = 0,
-                    [AutoOP] = 0,
-                    [Opcion11] = 0,
-                    [Opcion12] = 0,
-                    [Opcion13] = 0,
-                    [Opcion14] = 0,
-                    [Opcion15] = 0,
-                    [Opcion16] = 0,
-                    [Opcion17] = 0,
-                    [Opcion18] = 0,
-                    [Opcion19] = 0,
-                    [Opcion20] = 0,
-                    [Estatus] = 0
+                SET [Alta] = @AccessEnabled,
+                    [Editar] = @AccessEnabled,
+                    [Baja] = @AccessEnabled,
+                    [Visualizar] = @AccessEnabled,
+                    [Imprimir] = @AccessEnabled,
+                    [Exportar] = @AccessEnabled,
+                    [Por Vendedor] = @AccessEnabled,
+                    [Autorizar] = @AccessEnabled,
+                    [AutoOPSP] = @AccessEnabled,
+                    [AutoOP] = @AccessEnabled,
+                    [Opcion11] = @AccessEnabled,
+                    [Opcion12] = @AccessEnabled,
+                    [Opcion13] = @AccessEnabled,
+                    [Opcion14] = @AccessEnabled,
+                    [Opcion15] = @AccessEnabled,
+                    [Opcion16] = @AccessEnabled,
+                    [Opcion17] = @AccessEnabled,
+                    [Opcion18] = @AccessEnabled,
+                    [Opcion19] = @AccessEnabled,
+                    [Opcion20] = @AccessEnabled,
+                    [Estatus] = @AccessEnabled
                 WHERE IdPerfil = (
                     SELECT TOP (1) IdPerfil
                     FROM dbo.Perfiles
@@ -120,9 +136,11 @@ public sealed class UserAdministrationService
                     )
                 );
                 """;
-            await using (var command = new SqlCommand(clearDefaultPermissionsQuery, connection, transaction))
+            await using (var command = new SqlCommand(initializeDefaultPermissionsQuery, connection, transaction))
             {
                 command.Parameters.Add("@Username", SqlDbType.NVarChar, 15).Value = username;
+                command.Parameters.Add("@AccessEnabled", SqlDbType.Int).Value =
+                    string.Equals(role.Trim(), "Administrador", StringComparison.OrdinalIgnoreCase) ? 1 : 0;
                 if (await command.ExecuteNonQueryAsync(cancellationToken) == 0)
                 {
                     throw new InvalidOperationException(
