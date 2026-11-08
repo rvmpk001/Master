@@ -138,6 +138,10 @@ public sealed partial class MainPage : Page
     private PlcConnectionState? _lastPlcConnectionState;
     private string? _lastPlcStatusDetail;
     private ReportCatalogResult? _currentReportResult;
+    private SimulatedRemission? _simulatedRemission;
+    private string[]? _remissionBeforeSimulation;
+    private SimulatedProcessState _simulatedProcessState;
+    private SimulatedProcessState _stateBeforePause;
 
     public ObservableCollection<MaterialRow> MaterialRows { get; } = new();
     public ObservableCollection<MaterialRowPair> MaterialRowPairs { get; } = new();
@@ -1240,9 +1244,27 @@ public sealed partial class MainPage : Page
         var capacity = new TextBox { IsReadOnly = true };
         var orders = new ComboBox { IsEditable = true, PlaceholderText = "Selecciona pedido", HorizontalAlignment = HorizontalAlignment.Stretch };
         var orderStatus = new TextBox { IsReadOnly = true };
-        var products = new ComboBox { IsEditable = true, PlaceholderText = "Selecciona producto", HorizontalAlignment = HorizontalAlignment.Stretch };
-        var paymentConditions = new ComboBox { IsEditable = true, PlaceholderText = "Selecciona condición", HorizontalAlignment = HorizontalAlignment.Stretch };
-        var dischargeTypes = new ComboBox { IsEditable = true, PlaceholderText = "Selecciona tipo", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var products = new ComboBox
+        {
+            IsEditable = true,
+            IsEnabled = false,
+            PlaceholderText = "Selecciona producto",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var paymentConditions = new ComboBox
+        {
+            IsEditable = true,
+            IsEnabled = false,
+            PlaceholderText = "Selecciona condición",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        var dischargeTypes = new ComboBox
+        {
+            IsEditable = true,
+            IsEnabled = false,
+            PlaceholderText = "Selecciona tipo",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
         var dispatcher = new TextBox { Text = "1" };
         var remissionNumber = new TextBox { IsReadOnly = true };
         var orderedQuantity = new NumberBox { Value = 0, Minimum = 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
@@ -1255,6 +1277,7 @@ public sealed partial class MainPage : Page
             TextWrapping = TextWrapping.Wrap,
             Foreground = _themeBrushes.GetBrush("#A9B8CC")
         };
+        ContentDialog? programDialog = null;
 
         recipes.SelectionChanged += (_, _) =>
         {
@@ -1262,6 +1285,11 @@ public sealed partial class MainPage : Page
             {
                 description.Text = selectedRecipe.Description;
             }
+
+            var hasSelectedRecipe = recipes.SelectedItem is ProgramFormulaOption;
+            products.IsEnabled = hasSelectedRecipe;
+            paymentConditions.IsEnabled = hasSelectedRecipe;
+            dischargeTypes.IsEnabled = hasSelectedRecipe;
         };
         clients.SelectionChanged += (_, _) =>
         {
@@ -1280,7 +1308,7 @@ public sealed partial class MainPage : Page
 
         var programButton = new Button
         {
-            Content = "Programar",
+            Content = "Validar (prueba)",
             IsEnabled = false,
             Style = (Style)Resources["DefaultButtonStyle"]
         };
@@ -1290,8 +1318,91 @@ public sealed partial class MainPage : Page
             IsEnabled = false,
             Style = (Style)Resources["DefaultButtonStyle"]
         };
-        ToolTipService.SetToolTip(programButton, "La programación al PLC aún no está disponible.");
+        ToolTipService.SetToolTip(
+            programButton,
+            "Valida y muestra una vista previa local. No guarda cambios ni envía órdenes al PLC.");
         ToolTipService.SetToolTip(lastLoadButton, "Carga los datos de la última descarga registrada.");
+        programButton.Click += (_, _) =>
+        {
+            var validationErrors = new List<string>();
+            var selectedRecipe = recipes.SelectedItem as ProgramFormulaOption;
+            if (selectedRecipe is null)
+            {
+                validationErrors.Add("Selecciona una receta.");
+            }
+
+            if (!TryGetPositiveDecimal(quantity, out var validatedQuantity))
+            {
+                validationErrors.Add("La cantidad debe ser un número mayor que cero.");
+            }
+
+            var hasValidOrderedQuantity = TryGetNonNegativeDecimal(orderedQuantity, out var validatedOrderedQuantity);
+            var hasValidSuppliedQuantity = TryGetNonNegativeDecimal(suppliedQuantity, out var validatedSuppliedQuantity);
+            var hasValidToSupplyQuantity = TryGetNonNegativeDecimal(toSupplyQuantity, out var validatedToSupplyQuantity);
+            if (!hasValidOrderedQuantity || !hasValidSuppliedQuantity || !hasValidToSupplyQuantity)
+            {
+                validationErrors.Add("Pedidos, surtidos y por surtir deben ser números iguales o mayores que cero.");
+            }
+
+            if (validationErrors.Count > 0)
+            {
+                status.Foreground = _themeBrushes.GetBrush("#F87171");
+                status.Text = $"Validación fallida (modo de prueba): {string.Join(" ", validationErrors)}";
+                return;
+            }
+
+            status.Foreground = _themeBrushes.GetBrush("#72D49A");
+            status.Text = string.Join(
+                Environment.NewLine,
+                "Validación local correcta (modo de prueba).",
+                $"Receta: {selectedRecipe!.Code} — {selectedRecipe.Description}",
+                $"Cantidad: {validatedQuantity.ToString(CultureInfo.CurrentCulture)}",
+                $"Cliente: {clients.Text.Trim()}",
+                $"Obra: {construction.Text.Trim()}",
+                $"Camión: {trucks.Text.Trim()}",
+                $"Chofer: {operators.Text.Trim()}",
+                $"Remisión: {remissionNumber.Text.Trim()}",
+                $"Pedidos / surtidos / por surtir: {validatedOrderedQuantity.ToString(CultureInfo.CurrentCulture)} / " +
+                $"{validatedSuppliedQuantity.ToString(CultureInfo.CurrentCulture)} / " +
+                $"{validatedToSupplyQuantity.ToString(CultureInfo.CurrentCulture)}",
+                "Simulación solamente: no se guardó ni se envió ninguna orden al PLC.");
+            RemissionRows[0].Valor = remissionNumber.Text.Trim();
+            RemissionRows[1].Valor = selectedRecipe!.Code;
+            RemissionRows[2].Valor = selectedRecipe.Description;
+            RemissionRows[3].Valor = validatedQuantity.ToString(CultureInfo.CurrentCulture);
+            RemissionRows[4].Valor = clients.Text.Trim();
+            RemissionRows[5].Valor = construction.Text.Trim();
+            RemissionRows[6].Valor = trucks.Text.Trim();
+            RemissionRows[7].Valor = orders.Text.Trim();
+            RemissionPanel.IsExpanded = true;
+            ModuleStatusText.Text =
+                "Receta preparada para cargarse (vista de prueba; no guardada ni enviada al PLC). " +
+                "Las cantidades de materiales siguen mostrando lecturas existentes, no objetivos de receta.";
+            _remissionBeforeSimulation ??= RemissionRows.Select(row => row.Valor).ToArray();
+            _simulatedRemission = new SimulatedRemission(
+                remissionNumber.Text.Trim(),
+                selectedRecipe.Code,
+                selectedRecipe.Description,
+                validatedQuantity.ToString(CultureInfo.CurrentCulture),
+                clients.Text.Trim(),
+                construction.Text.Trim(),
+                trucks.Text.Trim(),
+                operators.Text.Trim(),
+                orders.Text.Trim(),
+                orderStatus.Text.Trim(),
+                products.Text.Trim(),
+                paymentConditions.Text.Trim(),
+                dischargeTypes.Text.Trim(),
+                dispatcher.Text.Trim(),
+                validatedOrderedQuantity.ToString(CultureInfo.CurrentCulture),
+                validatedSuppliedQuantity.ToString(CultureInfo.CurrentCulture),
+                validatedToSupplyQuantity.ToString(CultureInfo.CurrentCulture),
+                observations.Text.Trim(),
+                selectedRecipe.Values);
+            _simulatedProcessState = SimulatedProcessState.Prepared;
+            UpdateSimulatedActionButtons();
+            programDialog?.Hide();
+        };
         lastLoadButton.Click += async (_, _) => await LoadLatestDownloadAsync();
         var toolbar = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
         toolbar.Children.Add(programButton);
@@ -1335,16 +1446,17 @@ public sealed partial class MainPage : Page
         };
         formContent.Children.Add(scrollViewer);
 
-        var dialog = new ContentDialog
+        programDialog = new ContentDialog
         {
-            Title = "Programar Carga Automática",
+            Title = "Programar Carga Automática — MODO PRUEBA",
             Content = formContent,
             CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = XamlRoot
         };
-        var dialogOperation = dialog.ShowAsync();
+        var dialogOperation = programDialog.ShowAsync();
 
+        var catalogsLoaded = false;
         try
         {
             var formulasTask = _formulaService.GetFormulasAsync();
@@ -1372,7 +1484,8 @@ public sealed partial class MainPage : Page
             recipes.ItemsSource = formulaData.ActiveRows
                 .Select(row => new ProgramFormulaOption(
                     row.Values.GetValueOrDefault("Cod_Formula") ?? string.Empty,
-                    row.Values.GetValueOrDefault("Descripcion") ?? string.Empty))
+                    row.Values.GetValueOrDefault("Descripcion") ?? string.Empty,
+                    row.Values))
                 .Where(formula => !string.IsNullOrWhiteSpace(formula.Code))
                 .ToArray();
             clients.ItemsSource = clientData.Clients;
@@ -1390,7 +1503,9 @@ public sealed partial class MainPage : Page
             dischargeTypes.ItemsSource = await dischargeTypesTask;
             remissionNumber.Text = await remissionTask;
             status.Text =
-                $"Catálogos cargados: {formulaData.ActiveRows.Count} fórmulas. Pedidos disponibles: {orders.Items.Count - 1}.";
+                $"Catálogos cargados: {formulaData.ActiveRows.Count} fórmulas. Pedidos disponibles: {orders.Items.Count - 1}. " +
+                "Modo de prueba: no se guardan ni se envían órdenes al PLC.";
+            catalogsLoaded = true;
         }
         catch (SqlException exception)
         {
@@ -1401,7 +1516,8 @@ public sealed partial class MainPage : Page
             status.Text = $"No se pudieron cargar los catálogos: {exception.Message}";
         }
 
-        lastLoadButton.IsEnabled = true;
+        programButton.IsEnabled = catalogsLoaded;
+        lastLoadButton.IsEnabled = catalogsLoaded;
         await dialogOperation;
 
         async Task LoadLatestDownloadAsync()
@@ -1424,7 +1540,10 @@ public sealed partial class MainPage : Page
                     string.Equals(option.Code, latest.RecipeCode, StringComparison.OrdinalIgnoreCase));
                 if (recipe is null && !string.IsNullOrWhiteSpace(latest.RecipeCode))
                 {
-                    recipe = new ProgramFormulaOption(latest.RecipeCode, latest.Description);
+                    recipe = new ProgramFormulaOption(
+                        latest.RecipeCode,
+                        latest.Description,
+                        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase));
                     recipeOptions.Add(recipe);
                     recipes.ItemsSource = recipeOptions;
                 }
@@ -1488,6 +1607,260 @@ public sealed partial class MainPage : Page
         }
     }
 
+    private void SimulatedLoad_Click(object sender, RoutedEventArgs e)
+    {
+        if (_simulatedProcessState != SimulatedProcessState.Prepared || _simulatedRemission is null)
+        {
+            ModuleStatusText.Text = "Primero prepara una remisión en modo de simulación.";
+            return;
+        }
+
+        _simulatedProcessState = SimulatedProcessState.LoadReceived;
+        ModuleStatusText.Text = "Fin de carga recibida (SIMULACIÓN LOCAL; no se accionó el PLC).";
+        UpdateSimulatedActionButtons();
+    }
+
+    private async void SimulatedDownload_Click(object sender, RoutedEventArgs e)
+    {
+        if (_simulatedRemission is null
+            || _simulatedProcessState is not (SimulatedProcessState.LoadReceived or SimulatedProcessState.AwaitingReport))
+        {
+            ModuleStatusText.Text = "La simulación requiere una remisión preparada y una carga recibida.";
+            return;
+        }
+
+        if (_simulatedProcessState == SimulatedProcessState.LoadReceived)
+        {
+            _simulatedProcessState = SimulatedProcessState.Downloading;
+            ModuleStatusText.Text = "Máquina Descargando (SIMULACIÓN LOCAL; no se accionó el PLC).";
+            UpdateSimulatedActionButtons();
+            await Task.Delay(TimeSpan.FromSeconds(1));
+            _simulatedProcessState = SimulatedProcessState.AwaitingReport;
+        }
+
+        await SaveSimulatedRemissionPdfAsync();
+    }
+
+    private void SimulatedPause_Click(object sender, RoutedEventArgs e)
+    {
+        if (_simulatedProcessState == SimulatedProcessState.Paused)
+        {
+            _simulatedProcessState = _stateBeforePause;
+            ModuleStatusText.Text = $"Proceso reanudado ({GetSimulationStageName(_simulatedProcessState)}; SIMULACIÓN LOCAL).";
+        }
+        else if (_simulatedProcessState is SimulatedProcessState.Prepared or SimulatedProcessState.LoadReceived)
+        {
+            _stateBeforePause = _simulatedProcessState;
+            _simulatedProcessState = SimulatedProcessState.Paused;
+            ModuleStatusText.Text = "Proceso pausado (SIMULACIÓN LOCAL; no se accionó el PLC).";
+        }
+        else
+        {
+            ModuleStatusText.Text = "La simulación solo permite pausar antes de iniciar la descarga.";
+            return;
+        }
+
+        UpdateSimulatedActionButtons();
+    }
+
+    private void SimulatedCancel_Click(object sender, RoutedEventArgs e)
+    {
+        if (_remissionBeforeSimulation is { Length: 8 } previousValues)
+        {
+            for (var index = 0; index < previousValues.Length; index++)
+            {
+                RemissionRows[index].Valor = previousValues[index];
+            }
+        }
+
+        _remissionBeforeSimulation = null;
+        _simulatedRemission = null;
+        _simulatedProcessState = SimulatedProcessState.Idle;
+        RemissionPanel.IsExpanded = true;
+        ModuleStatusText.Text = "Simulación cancelada. No se guardó ni se envió ninguna orden al PLC.";
+        UpdateSimulatedActionButtons();
+    }
+
+    private async Task SaveSimulatedRemissionPdfAsync()
+    {
+        if (_simulatedRemission is not { } remission)
+        {
+            ModuleStatusText.Text = "No hay una remisión de prueba para exportar.";
+            return;
+        }
+
+        if (Application.Current is not App { MainWindow: { } window })
+        {
+            ModuleStatusText.Text = "No se pudo abrir el selector para guardar el PDF de prueba.";
+            return;
+        }
+
+        try
+        {
+            var picker = new FileSavePicker();
+            picker.FileTypeChoices.Add("Documento PDF", new List<string> { ".pdf" });
+            picker.SuggestedFileName = $"Remision_{SanitizeFileName(remission.Remission)}";
+            InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(window));
+            var file = await picker.PickSaveFileAsync();
+            if (file is null)
+            {
+                ModuleStatusText.Text =
+                    "Descarga de prueba simulada; el guardado del PDF se canceló. Usa GUARDAR PDF (SIMULACIÓN) para reintentar.";
+                UpdateSimulatedActionButtons();
+                return;
+            }
+
+            var report = BuildSimulatedRemissionReport(remission);
+            await File.WriteAllBytesAsync(file.Path, _reportExportService.BuildPdf(report));
+            _simulatedProcessState = SimulatedProcessState.Complete;
+            _remissionBeforeSimulation = null;
+            ModuleStatusText.Text = $"Remisión Completa (SIMULACIÓN). PDF guardado en {file.Path}";
+            RemissionPanel.IsExpanded = true;
+            UpdateSimulatedActionButtons();
+        }
+        catch (COMException exception)
+        {
+            ModuleStatusText.Text = $"No se pudo abrir el selector de PDF: {exception.Message}";
+            UpdateSimulatedActionButtons();
+        }
+        catch (IOException exception)
+        {
+            ModuleStatusText.Text = $"No se pudo guardar el PDF de prueba: {exception.Message}";
+            UpdateSimulatedActionButtons();
+        }
+        catch (UnauthorizedAccessException exception)
+        {
+            ModuleStatusText.Text = $"No hay permiso para guardar el PDF de prueba: {exception.Message}";
+            UpdateSimulatedActionButtons();
+        }
+        catch (InvalidOperationException exception)
+        {
+            ModuleStatusText.Text = $"No se pudo generar el PDF de prueba: {exception.Message}";
+            UpdateSimulatedActionButtons();
+        }
+        catch (ArgumentException exception)
+        {
+            ModuleStatusText.Text = $"Los datos de la remisión no son válidos para PDF: {exception.Message}";
+            UpdateSimulatedActionButtons();
+        }
+    }
+
+    private static ReportCatalogResult BuildSimulatedRemissionReport(SimulatedRemission remission)
+    {
+        var rows = new List<IReadOnlyList<string>>
+        {
+            new[] { "Estado", "Remisión completa (SIMULACIÓN; no representa producción real)" },
+            new[] { "No. remisión", remission.Remission },
+            new[] { "Código de receta", remission.RecipeCode },
+            new[] { "Descripción", remission.Description },
+            new[] { "Cantidad", remission.Quantity },
+            new[] { "Cliente", remission.Client },
+            new[] { "Obra", remission.Construction },
+            new[] { "Camión", remission.Truck },
+            new[] { "Chofer", remission.Operator },
+            new[] { "Pedido", remission.Order },
+            new[] { "Estatus del pedido", remission.OrderStatus },
+            new[] { "Producto", remission.Product },
+            new[] { "Condiciones de pago", remission.PaymentCondition },
+            new[] { "Tipo de descarga", remission.DischargeType },
+            new[] { "Despachador", remission.Dispatcher },
+            new[] { "Pedidos (m³)", remission.OrderedQuantity },
+            new[] { "Surtidos (m³)", remission.SuppliedQuantity },
+            new[] { "Por surtir (m³)", remission.ToSupplyQuantity },
+            new[] { "Observaciones", remission.Observations },
+            new[] { "Materiales", "Valores del catálogo de receta; no son pesajes reales" }
+        };
+
+        foreach (var (nameField, quantityField) in GetFormulaMaterialFields())
+        {
+            var name = remission.FormulaValues.GetValueOrDefault(nameField)?.Trim() ?? string.Empty;
+            var value = remission.FormulaValues.GetValueOrDefault(quantityField)?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(name)
+                || name.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            rows.Add(new[] { name, value });
+        }
+
+        var definition = new ReportCatalogDefinition(
+            "remision-simulada",
+            $"Remisión {remission.Remission} (SIMULACIÓN)",
+            "Vista previa local de una remisión; no acredita una carga real.",
+            Array.Empty<string>(),
+            string.Empty);
+        return new ReportCatalogResult(definition, new[] { "Dato", "Valor" }, rows, false);
+    }
+
+    private static IEnumerable<(string NameField, string QuantityField)> GetFormulaMaterialFields()
+    {
+        for (var index = 1; index <= 8; index++)
+        {
+            yield return ($"A{index}", $"A{index}C");
+        }
+
+        for (var index = 1; index <= 5; index++)
+        {
+            yield return ($"C{index}", $"C{index}C");
+        }
+
+        for (var index = 1; index <= 6; index++)
+        {
+            yield return ($"D{index}", $"D{index}C");
+        }
+
+        yield return ("Agua", "AguaC");
+        yield return ("Agua2", "Agua2C");
+        yield return ("Agua3", "Agua3C");
+        yield return ("Fibra1", "Fibra1C");
+        yield return ("Fibra2", "Fibra2C");
+        yield return ("Fibra3", "Fibra3C");
+    }
+
+    private void UpdateSimulatedActionButtons()
+    {
+        var hasPermission = HasModulePermission("Carga Manual") && HasActionPermission("Carga Manual", "Alta");
+        ProgramActionButton.IsEnabled = hasPermission
+            && _simulatedProcessState is SimulatedProcessState.Idle or SimulatedProcessState.Complete;
+        LoadActionButton.IsEnabled = _simulatedProcessState == SimulatedProcessState.Prepared;
+        DownloadActionButton.Visibility =
+            _simulatedProcessState is SimulatedProcessState.LoadReceived or SimulatedProcessState.AwaitingReport
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+        DownloadActionButton.IsEnabled =
+            _simulatedProcessState is SimulatedProcessState.LoadReceived or SimulatedProcessState.AwaitingReport;
+        DownloadActionButton.Content = _simulatedProcessState == SimulatedProcessState.AwaitingReport
+            ? "GUARDAR PDF (SIMULACIÓN)"
+            : "DESCARGAR (SIMULACIÓN)";
+        PauseActionButton.IsEnabled =
+            _simulatedProcessState is SimulatedProcessState.Prepared or SimulatedProcessState.LoadReceived or SimulatedProcessState.Paused;
+        PauseActionButton.Content = _simulatedProcessState == SimulatedProcessState.Paused
+            ? "REANUDAR (SIMULACIÓN)"
+            : "PAUSAR (SIMULACIÓN)";
+        CancelActionButton.IsEnabled =
+            _simulatedProcessState is SimulatedProcessState.Prepared
+                or SimulatedProcessState.LoadReceived
+                or SimulatedProcessState.Paused
+                or SimulatedProcessState.AwaitingReport;
+    }
+
+    private static string GetSimulationStageName(SimulatedProcessState state) =>
+        state switch
+        {
+            SimulatedProcessState.Prepared => "remisión preparada",
+            SimulatedProcessState.LoadReceived => "carga recibida",
+            _ => "proceso"
+        };
+
+    private static string SanitizeFileName(string fileName)
+    {
+        var invalidCharacters = Path.GetInvalidFileNameChars();
+        var sanitized = string.Concat(fileName.Select(character =>
+            invalidCharacters.Contains(character) ? '_' : character));
+        return string.IsNullOrWhiteSpace(sanitized) ? "Prueba" : sanitized;
+    }
+
     private static void SetProgramComboValue(ComboBox combo, string value, Func<object, string?> getItemValue)
     {
         if (string.IsNullOrWhiteSpace(value))
@@ -1511,6 +1884,18 @@ public sealed partial class MainPage : Page
     {
         return double.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out number)
             || double.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out number);
+    }
+
+    private static bool TryGetPositiveDecimal(NumberBox input, out decimal value)
+    {
+        value = 0;
+        return double.IsFinite(input.Value) &&
+               input.Value > 0 &&
+               decimal.TryParse(
+                   input.Value.ToString(CultureInfo.InvariantCulture),
+                   NumberStyles.Number,
+                   CultureInfo.InvariantCulture,
+                   out value);
     }
 
     private Border CreateProgramFormSection(string title, params (string Label, Control Field)[] fields)
@@ -1550,7 +1935,42 @@ public sealed partial class MainPage : Page
         };
     }
 
-    private sealed record ProgramFormulaOption(string Code, string Description);
+    private sealed record ProgramFormulaOption(
+        string Code,
+        string Description,
+        IReadOnlyDictionary<string, string> Values);
+
+    private sealed record SimulatedRemission(
+        string Remission,
+        string RecipeCode,
+        string Description,
+        string Quantity,
+        string Client,
+        string Construction,
+        string Truck,
+        string Operator,
+        string Order,
+        string OrderStatus,
+        string Product,
+        string PaymentCondition,
+        string DischargeType,
+        string Dispatcher,
+        string OrderedQuantity,
+        string SuppliedQuantity,
+        string ToSupplyQuantity,
+        string Observations,
+        IReadOnlyDictionary<string, string> FormulaValues);
+
+    private enum SimulatedProcessState
+    {
+        Idle,
+        Prepared,
+        LoadReceived,
+        Paused,
+        Downloading,
+        AwaitingReport,
+        Complete
+    }
 
     private async Task LoadManualLoadRecipesAsync()
     {
@@ -7715,7 +8135,8 @@ public sealed partial class MainPage : Page
     {
         ProgramActionButton.IsEnabled =
             HasModulePermission("Carga Manual")
-            && HasActionPermission("Carga Manual", "Alta");
+            && HasActionPermission("Carga Manual", "Alta")
+            && (_simulatedProcessState is SimulatedProcessState.Idle or SimulatedProcessState.Complete);
 
         foreach (var menu in MainMenuBar.Items.OfType<MenuBarItem>())
         {
@@ -7861,10 +8282,28 @@ public sealed class MaterialRowPair(MaterialRow first, MaterialRow second)
     public MaterialRow Second { get; } = second;
 }
 
-public sealed class RemissionField(string titulo, string valor, bool editable)
+public sealed class RemissionField(string titulo, string valor, bool editable) : INotifyPropertyChanged
 {
+    private string _valor = valor;
+
+    public event PropertyChangedEventHandler? PropertyChanged;
+
     public string Titulo { get; } = titulo;
-    public string Valor { get; set; } = valor;
+    public string Valor
+    {
+        get => _valor;
+        set
+        {
+            if (_valor == value)
+            {
+                return;
+            }
+
+            _valor = value;
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(Valor)));
+        }
+    }
+
     public bool Editable { get; } = editable;
 }
 
