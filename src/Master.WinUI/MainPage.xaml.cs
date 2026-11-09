@@ -57,6 +57,8 @@ public sealed partial class MainPage : Page
     private readonly ImageConfigurationService _imageConfigurationService = new();
     private readonly DesignerCanvasStore _designerCanvasStore = new();
     private readonly DesignerCanvasState _designerCanvasState = new();
+    private readonly Dictionary<string, TextBlock> _canvasValueCaptions = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, TextBlock> _canvasValueTexts = new(StringComparer.Ordinal);
     private IReadOnlyDictionary<string, string> _dashboardMachineConfiguration =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<InventoryMaterial> _dashboardInventory = Array.Empty<InventoryMaterial>();
@@ -5384,6 +5386,8 @@ public sealed partial class MainPage : Page
         _activeCanvasResizeHandle = null;
         UpdateCanvasTransformHandles(null);
         DesignCanvas.Children.Clear();
+        _canvasValueCaptions.Clear();
+        _canvasValueTexts.Clear();
         RefreshDashboardMaterials();
         ModuleStatusText.Text = "Lienzo restablecido. Carga una imagen o agrega controles para comenzar.";
         UpdateCanvasEditMode();
@@ -5861,18 +5865,21 @@ public sealed partial class MainPage : Page
             foreach (var control in _designerCanvasState.Controls.Where(control =>
                          string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase)))
             {
-                if (!itemsByControl.TryGetValue(control.AggregateControl ?? string.Empty, out var item)
-                    || (string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
-                        && control.IsConfiguredDisabled == item.IsDisabled))
+                if (!itemsByControl.TryGetValue(control.AggregateControl ?? string.Empty, out var item))
                 {
                     continue;
                 }
 
-                control.Text = item.Caption;
-                control.IsConfiguredDisabled = item.IsDisabled;
+                if (!string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
+                    || control.IsConfiguredDisabled != item.IsDisabled)
+                {
+                    control.Text = item.Caption;
+                    control.IsConfiguredDisabled = item.IsDisabled;
+                    SetCanvasValue(control, item.IsDisabled ? "—" : "????");
+                    canvasChanged = true;
+                }
+
                 SetCanvasValueCaption(control, item.Caption);
-                SetCanvasValue(control, item.IsDisabled ? "—" : "????");
-                canvasChanged = true;
             }
 
             if (canvasChanged)
@@ -6000,18 +6007,21 @@ public sealed partial class MainPage : Page
             foreach (var control in _designerCanvasState.Controls.Where(control =>
                          string.Equals(control.Type, "CtlCemento", StringComparison.OrdinalIgnoreCase)))
             {
-                if (!itemsByControl.TryGetValue(control.CementControl ?? string.Empty, out var item)
-                    || (string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
-                        && control.IsConfiguredDisabled == item.IsDisabled))
+                if (!itemsByControl.TryGetValue(control.CementControl ?? string.Empty, out var item))
                 {
                     continue;
                 }
 
-                control.Text = item.Caption;
-                control.IsConfiguredDisabled = item.IsDisabled;
+                if (!string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
+                    || control.IsConfiguredDisabled != item.IsDisabled)
+                {
+                    control.Text = item.Caption;
+                    control.IsConfiguredDisabled = item.IsDisabled;
+                    SetCanvasValue(control, item.IsDisabled ? "—" : "????");
+                    canvasChanged = true;
+                }
+
                 SetCanvasValueCaption(control, item.Caption);
-                SetCanvasValue(control, item.IsDisabled ? "—" : "????");
-                canvasChanged = true;
             }
 
             if (canvasChanged)
@@ -6139,20 +6149,23 @@ public sealed partial class MainPage : Page
             foreach (var control in _designerCanvasState.Controls.Where(control =>
                          string.Equals(control.Type, "CtlAditivo", StringComparison.OrdinalIgnoreCase)))
             {
-                if (!itemsByControl.TryGetValue(control.AdditiveControl ?? string.Empty, out var item)
-                    || (string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
-                        && control.IsConfiguredDisabled == item.IsDisabled))
+                if (!itemsByControl.TryGetValue(control.AdditiveControl ?? string.Empty, out var item))
                 {
                     continue;
                 }
 
-                control.Text = item.Caption;
-                control.IsConfiguredDisabled = item.IsDisabled;
+                if (!string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
+                    || control.IsConfiguredDisabled != item.IsDisabled)
+                {
+                    control.Text = item.Caption;
+                    control.IsConfiguredDisabled = item.IsDisabled;
+                    SetCanvasValue(control, item.IsDisabled
+                        ? "—"
+                        : IsUnsupportedWaterValueControl(control) ? "N/D" : "????");
+                    canvasChanged = true;
+                }
+
                 SetCanvasValueCaption(control, item.Caption);
-                SetCanvasValue(control, item.IsDisabled
-                    ? "—"
-                    : IsUnsupportedWaterValueControl(control) ? "N/D" : "????");
-                canvasChanged = true;
             }
 
             if (canvasChanged)
@@ -6280,18 +6293,21 @@ public sealed partial class MainPage : Page
             foreach (var control in _designerCanvasState.Controls.Where(control =>
                          string.Equals(control.Type, "CtlAgua", StringComparison.OrdinalIgnoreCase)))
             {
-                if (!itemsByControl.TryGetValue(control.WaterControl ?? string.Empty, out var item)
-                    || (string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
-                        && control.IsConfiguredDisabled == item.IsDisabled))
+                if (!itemsByControl.TryGetValue(control.WaterControl ?? string.Empty, out var item))
                 {
                     continue;
                 }
 
-                control.Text = item.Caption;
-                control.IsConfiguredDisabled = item.IsDisabled;
+                if (!string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
+                    || control.IsConfiguredDisabled != item.IsDisabled)
+                {
+                    control.Text = item.Caption;
+                    control.IsConfiguredDisabled = item.IsDisabled;
+                    SetCanvasValue(control, item.IsDisabled ? "—" : "????");
+                    canvasChanged = true;
+                }
+
                 SetCanvasValueCaption(control, item.Caption);
-                SetCanvasValue(control, item.IsDisabled ? "—" : "????");
-                canvasChanged = true;
             }
 
             if (canvasChanged)
@@ -6419,18 +6435,21 @@ public sealed partial class MainPage : Page
             foreach (var control in _designerCanvasState.Controls.Where(control =>
                          string.Equals(control.Type, "CtlFibra", StringComparison.OrdinalIgnoreCase)))
             {
-                if (!itemsByControl.TryGetValue(control.FiberControl ?? string.Empty, out var item)
-                    || (string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
-                        && control.IsConfiguredDisabled == item.IsDisabled))
+                if (!itemsByControl.TryGetValue(control.FiberControl ?? string.Empty, out var item))
                 {
                     continue;
                 }
 
-                control.Text = item.Caption;
-                control.IsConfiguredDisabled = item.IsDisabled;
+                if (!string.Equals(control.Text, item.Caption, StringComparison.Ordinal)
+                    || control.IsConfiguredDisabled != item.IsDisabled)
+                {
+                    control.Text = item.Caption;
+                    control.IsConfiguredDisabled = item.IsDisabled;
+                    SetCanvasValue(control, item.IsDisabled ? "—" : "????");
+                    canvasChanged = true;
+                }
+
                 SetCanvasValueCaption(control, item.Caption);
-                SetCanvasValue(control, item.IsDisabled ? "—" : "????");
-                canvasChanged = true;
             }
 
             if (canvasChanged)
@@ -6957,11 +6976,21 @@ public sealed partial class MainPage : Page
         var caption = new TextBlock
         {
             Text = control.Text,
-            Width = width,
             TextAlignment = TextAlignment.Center,
             TextWrapping = TextWrapping.Wrap,
             FontSize = 12,
-            Foreground = _themeBrushes.GetBrush("#F1F5F9")
+            FontWeight = Microsoft.UI.Text.FontWeights.Bold,
+            Foreground = GetCanvasCaptionBrush(control)
+        };
+        var captionBackground = new Border
+        {
+            MaxWidth = width,
+            Padding = new Thickness(5, 2, 5, 2),
+            HorizontalAlignment = HorizontalAlignment.Center,
+            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Microsoft.UI.ColorHelper.FromArgb(210, 0, 0, 0)),
+            CornerRadius = new CornerRadius(3),
+            Child = caption
         };
         var valueText = new TextBlock
         {
@@ -6990,7 +7019,7 @@ public sealed partial class MainPage : Page
             Width = width,
             Height = height,
             Spacing = 2,
-            Children = { caption, valueBox }
+            Children = { captionBackground, valueBox }
         };
         var container = new Border
         {
@@ -7002,6 +7031,9 @@ public sealed partial class MainPage : Page
             Child = layout
         };
         var contextMenu = new MenuFlyout();
+        var colorItem = new MenuFlyoutItem { Text = "Cambiar color de etiqueta", Tag = control };
+        colorItem.Click += CanvasCaptionColor_Click;
+        contextMenu.Items.Add(colorItem);
         var removeItem = new MenuFlyoutItem { Text = "Quitar del lienzo", Tag = container };
         removeItem.Click += RemoveCanvasControl_Click;
         contextMenu.Items.Add(removeItem);
@@ -7013,27 +7045,127 @@ public sealed partial class MainPage : Page
         Canvas.SetLeft(container, control.Left);
         Canvas.SetTop(container, control.Top);
         DesignCanvas.Children.Add(container);
+        _canvasValueCaptions[control.Id] = caption;
+        _canvasValueTexts[control.Id] = valueText;
         container.IsHitTestVisible = !_isCanvasLocked;
         RefreshDashboardMaterials();
     }
 
     private void SetCanvasValueCaption(DesignerCanvasControlState control, string text)
     {
-        var container = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
-            candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
-        if (container?.Child is StackPanel layout
-            && layout.Children.OfType<TextBlock>().FirstOrDefault() is { } caption)
+        control.Text = text;
+        if (_canvasValueCaptions.TryGetValue(control.Id, out var caption))
         {
-            caption.Text = text;
+            caption.Text = control.Text;
+            caption.Foreground = GetCanvasCaptionBrush(control);
         }
+    }
+
+    private static Microsoft.UI.Xaml.Media.Brush GetCanvasCaptionBrush(DesignerCanvasControlState control)
+    {
+        if (TryParseCanvasCaptionColor(control.CaptionColor, out var color))
+        {
+            return new Microsoft.UI.Xaml.Media.SolidColorBrush(color);
+        }
+
+        return new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
+    }
+
+    private static bool TryParseCanvasCaptionColor(string? value, out Windows.UI.Color color)
+    {
+        color = Microsoft.UI.Colors.White;
+        if (value is not { Length: 7 } || value[0] != '#')
+        {
+            return false;
+        }
+
+        try
+        {
+            color = Microsoft.UI.ColorHelper.FromArgb(
+                255,
+                Convert.ToByte(value.Substring(1, 2), 16),
+                Convert.ToByte(value.Substring(3, 2), 16),
+                Convert.ToByte(value.Substring(5, 2), 16));
+            return true;
+        }
+        catch (FormatException)
+        {
+            return false;
+        }
+    }
+
+    private async void CanvasCaptionColor_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not MenuFlyoutItem { Tag: DesignerCanvasControlState control })
+        {
+            return;
+        }
+
+        if (!_canvasValueCaptions.TryGetValue(control.Id, out var caption))
+        {
+            return;
+        }
+
+        await ShowCanvasCaptionColorPickerAsync(control, caption);
+    }
+
+    private async void CanvasMessageColor_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isCanvasLocked || sender is not MenuFlyoutItem { Tag: DesignerCanvasControlState control })
+        {
+            return;
+        }
+
+        var message = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
+            candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
+        if (message?.Child is not TextBlock textBlock)
+        {
+            return;
+        }
+
+        await ShowCanvasCaptionColorPickerAsync(control, textBlock);
+    }
+
+    private async Task ShowCanvasCaptionColorPickerAsync(
+        DesignerCanvasControlState control,
+        TextBlock caption)
+    {
+        if (!TryParseCanvasCaptionColor(control.CaptionColor, out var currentColor))
+        {
+            currentColor = (caption.Foreground as Microsoft.UI.Xaml.Media.SolidColorBrush)?.Color
+                ?? Microsoft.UI.Colors.White;
+        }
+
+        var picker = new ColorPicker
+        {
+            Color = currentColor,
+            IsAlphaEnabled = false,
+            IsColorPreviewVisible = true,
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        picker.ColorChanged += (_, args) =>
+        {
+            control.CaptionColor =
+                $"#{args.NewColor.R:X2}{args.NewColor.G:X2}{args.NewColor.B:X2}";
+            caption.Foreground = GetCanvasCaptionBrush(control);
+        };
+
+        var dialog = new ContentDialog
+        {
+            Title = "Color del texto",
+            Content = picker,
+            PrimaryButtonText = "Listo",
+            DefaultButton = ContentDialogButton.Primary,
+            XamlRoot = XamlRoot
+        };
+
+        await dialog.ShowAsync();
+        await SaveDesignerCanvasStateAsync();
     }
 
     private void SetCanvasValue(DesignerCanvasControlState control, string value)
     {
-        var container = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
-            candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
-        if (container?.Child is StackPanel layout
-            && layout.Children.OfType<Border>().FirstOrDefault()?.Child is TextBlock valueText)
+        if (_canvasValueTexts.TryGetValue(control.Id, out var valueText))
         {
             valueText.Text = value;
         }
@@ -7179,7 +7311,8 @@ public sealed partial class MainPage : Page
             Width = control.Width ?? 260,
             Height = control.Height ?? 56,
             TextWrapping = TextWrapping.Wrap,
-            Foreground = GetMessageForeground(control.Format),
+            Foreground = GetMessageForeground(control),
+            FontWeight = Microsoft.UI.Text.FontWeights.Bold,
             IsHitTestVisible = false,
             VerticalAlignment = VerticalAlignment.Stretch
         };
@@ -7198,12 +7331,16 @@ public sealed partial class MainPage : Page
         {
             Width = messageLabel.Width,
             Height = messageLabel.Height,
-            Padding = new Thickness(0),
-            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent),
+            Padding = new Thickness(5, 3, 5, 3),
+            Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(
+                Microsoft.UI.ColorHelper.FromArgb(210, 0, 0, 0)),
             Tag = control,
             Child = messageLabel
         };
         var contextMenu = new MenuFlyout();
+        var colorItem = new MenuFlyoutItem { Text = "Cambiar color del mensaje", Tag = control };
+        colorItem.Click += CanvasMessageColor_Click;
+        contextMenu.Items.Add(colorItem);
         var removeItem = new MenuFlyoutItem { Text = "Quitar del lienzo", Tag = container };
         removeItem.Click += RemoveCanvasControl_Click;
         contextMenu.Items.Add(removeItem);
@@ -7755,6 +7892,8 @@ public sealed partial class MainPage : Page
         if (container.Tag is DesignerCanvasControlState control)
         {
             _designerCanvasState.Controls.RemoveAll(item => item.Id == control.Id);
+            _canvasValueCaptions.Remove(control.Id);
+            _canvasValueTexts.Remove(control.Id);
             DesignCanvas.Children.Remove(container);
             if (ReferenceEquals(_selectedCanvasMessage, container))
             {
@@ -7898,9 +8037,14 @@ public sealed partial class MainPage : Page
             : new Microsoft.UI.Xaml.Media.FontFamily(fontFamily);
     }
 
-    private Microsoft.UI.Xaml.Media.Brush GetMessageForeground(string format)
+    private Microsoft.UI.Xaml.Media.Brush GetMessageForeground(DesignerCanvasControlState control)
     {
-        var colorName = format.Split(',', StringSplitOptions.TrimEntries)
+        if (TryParseCanvasCaptionColor(control.CaptionColor, out var customColor))
+        {
+            return new Microsoft.UI.Xaml.Media.SolidColorBrush(customColor);
+        }
+
+        var colorName = control.Format.Split(',', StringSplitOptions.TrimEntries)
             .Select(part => part.Split('-', StringSplitOptions.TrimEntries).Last())
             .LastOrDefault(part => part is "Red" or "Blue" or "Green" or "Yellow" or "White" or "Black");
         var color = colorName switch
@@ -8043,6 +8187,8 @@ public sealed partial class MainPage : Page
         }
 
         _designerCanvasState.Controls.RemoveAll(item => item.Id == control.Id);
+        _canvasValueCaptions.Remove(control.Id);
+        _canvasValueTexts.Remove(control.Id);
         DesignCanvas.Children.Remove(selectedMessage);
         _selectedCanvasMessage = null;
         UpdateCanvasTransformHandles(null);

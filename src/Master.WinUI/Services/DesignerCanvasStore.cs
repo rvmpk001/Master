@@ -42,6 +42,7 @@ public sealed class DesignerCanvasStore
                 Id = control.Id,
                 Type = control.Type,
                 Text = control.Text,
+                CaptionColor = control.CaptionColor,
                 Left = control.Left,
                 Top = control.Top,
                 IsOn = control.IsOn,
@@ -145,6 +146,7 @@ public sealed class DesignerCanvasControlState
     public string Id { get; set; } = Guid.NewGuid().ToString("N");
     public string Type { get; set; } = "Etiqueta";
     public string Text { get; set; } = "Control";
+    public string? CaptionColor { get; set; }
     public double Left { get; set; }
     public double Top { get; set; }
     public bool IsOn { get; set; }
