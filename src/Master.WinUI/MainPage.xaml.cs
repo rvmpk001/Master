@@ -1351,6 +1351,7 @@ public sealed partial class MainPage : Page
             Foreground = _themeBrushes.GetBrush("#A9B8CC")
         };
         ContentDialog? programDialog = null;
+        var orderStatusRequestId = 0;
 
         recipes.SelectionChanged += (_, _) =>
         {
@@ -1376,6 +1377,55 @@ public sealed partial class MainPage : Page
             if (trucks.SelectedItem is TruckRecord selectedTruck)
             {
                 capacity.Text = selectedTruck.Capacity;
+            }
+        };
+        orders.SelectionChanged += async (_, _) =>
+        {
+            var requestId = ++orderStatusRequestId;
+            var selectedOrder = orders.SelectedItem as string;
+            orderStatus.Text = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(selectedOrder) ||
+                string.Equals(selectedOrder, "Ocasional", StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+
+            if (!int.TryParse(selectedOrder, NumberStyles.Integer, CultureInfo.InvariantCulture, out var orderNumber))
+            {
+                status.Text = $"El número de pedido «{selectedOrder}» no es válido.";
+                return;
+            }
+
+            status.Text = $"Consultando estatus del pedido {orderNumber}...";
+            try
+            {
+                var order = await _orderService.GetManualLoadOrderDetailsAsync(orderNumber);
+                if (requestId != orderStatusRequestId ||
+                    !string.Equals(orders.SelectedItem as string, selectedOrder, StringComparison.Ordinal))
+                {
+                    return;
+                }
+
+                orderStatus.Text = order?.Status ?? string.Empty;
+                if (order is null)
+                {
+                    status.Text = $"No se encontró información activa para el pedido {orderNumber}.";
+                }
+            }
+            catch (SqlException exception)
+            {
+                if (requestId == orderStatusRequestId)
+                {
+                    status.Text = $"No se pudo consultar el pedido (SQL {exception.Number}): {exception.Message}";
+                }
+            }
+            catch (InvalidOperationException exception)
+            {
+                if (requestId == orderStatusRequestId)
+                {
+                    status.Text = $"No se pudo consultar el pedido: {exception.Message}";
+                }
             }
         };
 
