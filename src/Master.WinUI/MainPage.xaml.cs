@@ -7866,27 +7866,27 @@ public sealed partial class MainPage : Page
     private sealed record AdditionalConfigurationPaletteItem(string Control, string Text);
     private sealed record AggregateConfigurationPaletteItem(string Control, string Parameter, string Material)
     {
-        public string Caption => $"{Parameter}: {Material}";
+        public string Caption => Material;
         public bool IsDisabled => Material.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);
     }
     private sealed record CementConfigurationPaletteItem(string Control, string Parameter, string Label, string Material)
     {
-        public string Caption => $"{Label}: {Material}";
+        public string Caption => Material;
         public bool IsDisabled => Material.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);
     }
     private sealed record AdditiveConfigurationPaletteItem(string Control, string Parameter, string Label, string Material)
     {
-        public string Caption => $"{Label}: {Material}";
+        public string Caption => Material;
         public bool IsDisabled => Material.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);
     }
     private sealed record WaterConfigurationPaletteItem(string Control, string Parameter, string Label, string Material)
     {
-        public string Caption => $"{Label}: {Material}";
+        public string Caption => Material;
         public bool IsDisabled => Material.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);
     }
     private sealed record FiberConfigurationPaletteItem(string Control, string Parameter, string Label, string Material)
     {
-        public string Caption => $"{Label}: {Material}";
+        public string Caption => Material;
         public bool IsDisabled => Material.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);
     }
 
