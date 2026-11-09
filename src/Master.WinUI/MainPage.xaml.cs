@@ -4682,6 +4682,7 @@ public sealed partial class MainPage : Page
 
         try
         {
+            var machineConfiguration = await _machineConfigurationService.GetConfigurationAsync();
             var inventory = await _inventoryService.GetInventoryAsync();
             var suppliers = await _inventoryService.GetSuppliersAsync();
             AggregateInventory.Clear();
@@ -4693,6 +4694,14 @@ public sealed partial class MainPage : Page
 
             foreach (var material in inventory)
             {
+                var isDisabledOption = material.Name.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);
+                if (isDisabledOption
+                    ? !HasDisabledMachineMaterial(material.Category, machineConfiguration.Values)
+                    : !IsConfiguredMachineMaterial(material, machineConfiguration.Values))
+                {
+                    continue;
+                }
+
                 var target = material.Category switch
                 {
                     "AGREGADOS" => AggregateInventory,
@@ -4714,7 +4723,12 @@ public sealed partial class MainPage : Page
                 InventorySuppliers.FirstOrDefault(supplier => supplier.Equals("PROVEEDOR GENERAL", StringComparison.OrdinalIgnoreCase))
                 ?? InventorySuppliers.FirstOrDefault();
             UpdateInventoryTypes();
-            InventoryFormStatusText.Text = $"Existencias actualizadas desde BlapaciSQL. Registros: {inventory.Count}; proveedores: {suppliers.Count}.";
+            var displayedMaterialCount = AggregateInventory.Count
+                + AdditiveInventory.Count
+                + WaterInventory.Count
+                + CementInventory.Count
+                + FiberInventory.Count;
+            InventoryFormStatusText.Text = $"Existencias actualizadas desde BlapaciSQL. Registros: {displayedMaterialCount}; proveedores: {suppliers.Count}.";
             return true;
         }
         catch (SqlException exception)
@@ -4723,6 +4737,38 @@ public sealed partial class MainPage : Page
             return false;
         }
     }
+
+    private static bool HasDisabledMachineMaterial(
+        string category,
+        IReadOnlyDictionary<string, string> configuration)
+    {
+        var (parameterPrefix, slotCount) = GetMachineMaterialParameterRange(category);
+        return Enumerable.Range(1, slotCount).Any(index =>
+            configuration.GetValueOrDefault($"{parameterPrefix}{index}")?
+                .Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    private static bool IsConfiguredMachineMaterial(
+        InventoryMaterial material,
+        IReadOnlyDictionary<string, string> configuration)
+    {
+        var (parameterPrefix, slotCount) = GetMachineMaterialParameterRange(material.Category);
+        var materialName = material.Name.Trim();
+        return Enumerable.Range(1, slotCount).Any(index =>
+            configuration.GetValueOrDefault($"{parameterPrefix}{index}")?
+                .Equals(materialName, StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    private static (string ParameterPrefix, int SlotCount) GetMachineMaterialParameterRange(string category) =>
+        category switch
+        {
+            "AGREGADOS" => ("A", 8),
+            "ADITIVOS" => ("D", 6),
+            "AGUAS" => ("G", 3),
+            "CEMENTOS" => ("C", 5),
+            "FIBRAS" => ("FI", 3),
+            _ => throw new InvalidOperationException($"Categoría de inventario no reconocida: {category}.")
+        };
 
     private void InventoryMaterial_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
