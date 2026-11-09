@@ -57,6 +57,10 @@ public sealed partial class MainPage : Page
     private readonly ImageConfigurationService _imageConfigurationService = new();
     private readonly DesignerCanvasStore _designerCanvasStore = new();
     private readonly DesignerCanvasState _designerCanvasState = new();
+    private IReadOnlyDictionary<string, string> _dashboardMachineConfiguration =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+    private IReadOnlyList<InventoryMaterial> _dashboardInventory = Array.Empty<InventoryMaterial>();
+    private bool _hasDashboardMaterialData;
     private IReadOnlyDictionary<string, AdditionalImageConfigurationRecord> _additionalImageConfigurations =
         new Dictionary<string, AdditionalImageConfigurationRecord>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, AdditionalImageConfigurationRecord> _pumpImageConfigurations =
@@ -791,26 +795,36 @@ public sealed partial class MainPage : Page
         IReadOnlyDictionary<string, string> configuration,
         IReadOnlyList<InventoryMaterial> inventory)
     {
-        var configuredMaterials = new[]
+        _dashboardMachineConfiguration = configuration;
+        _dashboardInventory = inventory;
+        _hasDashboardMaterialData = true;
+        RefreshDashboardMaterials();
+    }
+
+    private void RefreshDashboardMaterials()
+    {
+        if (!_hasDashboardMaterialData)
         {
-            ("A1", "AGREGADOS"),
-            ("A2", "AGREGADOS"),
-            ("C1", "CEMENTOS"),
-            ("D1", "ADITIVOS"),
-            ("G1", "AGUAS"),
-            ("FI1", "FIBRAS")
-        };
+            return;
+        }
 
         MaterialRows.Clear();
-        foreach (var (parameter, category) in configuredMaterials)
+        foreach (var control in _designerCanvasState.Controls)
         {
-            var name = configuration.GetValueOrDefault(parameter)?.Trim() ?? string.Empty;
+            var binding = GetDashboardMaterialBinding(control);
+            if (binding is null)
+            {
+                continue;
+            }
+
+            var (parameter, category) = binding.Value;
+            var name = _dashboardMachineConfiguration.GetValueOrDefault(parameter)?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(name))
             {
                 name = "DESHABILITADA";
             }
 
-            var material = inventory.FirstOrDefault(item =>
+            var material = _dashboardInventory.FirstOrDefault(item =>
                 item.Category.Equals(category, StringComparison.OrdinalIgnoreCase)
                 && item.Name.Trim().Equals(name, StringComparison.OrdinalIgnoreCase));
             var quantity = name.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase)
@@ -828,8 +842,65 @@ public sealed partial class MainPage : Page
     }
 
     private IEnumerable<MaterialRowPair> CreateMaterialPairs() =>
-        Enumerable.Range(0, MaterialRows.Count / 2)
-            .Select(index => new MaterialRowPair(MaterialRows[index * 2], MaterialRows[index * 2 + 1]));
+        Enumerable.Range(0, (MaterialRows.Count + 1) / 2)
+            .Select(index => new MaterialRowPair(
+                MaterialRows[index * 2],
+                index * 2 + 1 < MaterialRows.Count
+                    ? MaterialRows[index * 2 + 1]
+                    : new MaterialRow(string.Empty, string.Empty)));
+
+    private static (string Parameter, string Category)? GetDashboardMaterialBinding(
+        DesignerCanvasControlState control)
+    {
+        if (string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase)
+            && TryGetCanvasMaterialControlIndex(control.AggregateControl, "ctlAgregado", out var aggregateIndex))
+        {
+            return ($"A{aggregateIndex}", "AGREGADOS");
+        }
+
+        if (string.Equals(control.Type, "CtlCemento", StringComparison.OrdinalIgnoreCase)
+            && TryGetCanvasMaterialControlIndex(control.CementControl, "ctlCemento", out var cementIndex))
+        {
+            return ($"C{cementIndex}", "CEMENTOS");
+        }
+
+        if (string.Equals(control.Type, "CtlAditivo", StringComparison.OrdinalIgnoreCase)
+            && TryGetCanvasMaterialControlIndex(control.AdditiveControl, "ctlAditivo", out var additiveIndex))
+        {
+            return ($"D{additiveIndex}", "ADITIVOS");
+        }
+
+        if (string.Equals(control.Type, "CtlAgua", StringComparison.OrdinalIgnoreCase))
+        {
+            var waterIndex = string.Equals(control.WaterControl, "ctlAgua", StringComparison.OrdinalIgnoreCase)
+                ? 1
+                : TryGetCanvasMaterialControlIndex(control.WaterControl, "ctlAgua", out var parsedWaterIndex)
+                    ? parsedWaterIndex
+                    : 0;
+            return waterIndex > 0 ? ($"G{waterIndex}", "AGUAS") : null;
+        }
+
+        if (string.Equals(control.Type, "CtlFibra", StringComparison.OrdinalIgnoreCase)
+            && TryGetCanvasMaterialControlIndex(control.FiberControl, "ctlFibra", out var fiberIndex))
+        {
+            return ($"FI{fiberIndex}", "FIBRAS");
+        }
+
+        return null;
+    }
+
+    private static bool TryGetCanvasMaterialControlIndex(string? controlName, string prefix, out int index)
+    {
+        index = 0;
+        return controlName is not null
+            && controlName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            && int.TryParse(
+                controlName.AsSpan(prefix.Length),
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out index)
+            && index > 0;
+    }
 
     private IEnumerable<RemissionFieldPair> CreateRemissionPairs() =>
         Enumerable.Range(0, RemissionRows.Count / 2)
@@ -5267,6 +5338,7 @@ public sealed partial class MainPage : Page
         _activeCanvasResizeHandle = null;
         UpdateCanvasTransformHandles(null);
         DesignCanvas.Children.Clear();
+        RefreshDashboardMaterials();
         ModuleStatusText.Text = "Lienzo restablecido. Carga una imagen o agrega controles para comenzar.";
         UpdateCanvasEditMode();
         await SaveDesignerCanvasStateAsync();
@@ -6896,6 +6968,7 @@ public sealed partial class MainPage : Page
         Canvas.SetTop(container, control.Top);
         DesignCanvas.Children.Add(container);
         container.IsHitTestVisible = !_isCanvasLocked;
+        RefreshDashboardMaterials();
     }
 
     private void SetCanvasValueCaption(DesignerCanvasControlState control, string text)
@@ -7643,6 +7716,7 @@ public sealed partial class MainPage : Page
                 UpdateCanvasTransformHandles(null);
             }
 
+            RefreshDashboardMaterials();
             UpdateCanvasEditMode();
             await SaveDesignerCanvasStateAsync();
         }
@@ -7926,6 +8000,7 @@ public sealed partial class MainPage : Page
         DesignCanvas.Children.Remove(selectedMessage);
         _selectedCanvasMessage = null;
         UpdateCanvasTransformHandles(null);
+        RefreshDashboardMaterials();
         UpdateCanvasEditMode();
         await SaveDesignerCanvasStateAsync();
     }
