@@ -62,6 +62,7 @@ public sealed partial class MainPage : Page
     private IReadOnlyDictionary<string, string> _dashboardMachineConfiguration =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyList<InventoryMaterial> _dashboardInventory = Array.Empty<InventoryMaterial>();
+    private IReadOnlyDictionary<string, string>? _dashboardFormulaValues;
     private bool _hasDashboardMaterialData;
     private IReadOnlyDictionary<string, AdditionalImageConfigurationRecord> _additionalImageConfigurations =
         new Dictionary<string, AdditionalImageConfigurationRecord>(StringComparer.OrdinalIgnoreCase);
@@ -780,6 +781,9 @@ public sealed partial class MainPage : Page
 
     private void ApplyMachineAdjustmentValues(IReadOnlyDictionary<string, string> values)
     {
+        _dashboardMachineConfiguration = values;
+        RefreshFormulaHopperStates();
+
         for (var index = 1; index <= 8; index++)
         {
             var materialName = values.GetValueOrDefault($"A{index}");
@@ -829,9 +833,14 @@ public sealed partial class MainPage : Page
             var material = _dashboardInventory.FirstOrDefault(item =>
                 item.Category.Equals(category, StringComparison.OrdinalIgnoreCase)
                 && item.Name.Trim().Equals(name, StringComparison.OrdinalIgnoreCase));
+            var formulaQuantityField = GetDashboardFormulaQuantityField(parameter);
             var quantity = name.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase)
                 ? "0"
-                : material?.Quantity ?? "N/D";
+                : _dashboardFormulaValues is not null
+                    ? formulaQuantityField is not null
+                        ? _dashboardFormulaValues.GetValueOrDefault(formulaQuantityField, "0").Trim()
+                        : "0"
+                    : material?.Quantity ?? "N/D";
 
             MaterialRows.Add(new MaterialRow(name, quantity));
         }
@@ -842,6 +851,46 @@ public sealed partial class MainPage : Page
             MaterialRowPairs.Add(pair);
         }
     }
+
+    private static string? GetDashboardFormulaQuantityField(string parameter)
+    {
+        if (parameter.StartsWith('A') || parameter.StartsWith('C') || parameter.StartsWith('D'))
+        {
+            return $"{parameter}C";
+        }
+
+        return parameter switch
+        {
+            "G1" => "AguaC",
+            "G2" => "Agua2C",
+            "G3" => "Agua3C",
+            "FI1" => "Fibra1C",
+            "FI2" => "Fibra2C",
+            "FI3" => "Fibra3C",
+            _ => null
+        };
+    }
+
+    private void RefreshFormulaHopperStates()
+    {
+        foreach (var (fieldName, state) in _formulaMaterialStates)
+        {
+            var parameter = GetMachineMaterialParameter(fieldName);
+            var material = _dashboardMachineConfiguration.GetValueOrDefault(parameter)?.Trim();
+            state.Text = string.IsNullOrWhiteSpace(material) ? "DESHABILITADA" : material;
+        }
+    }
+
+    private static string GetMachineMaterialParameter(string formulaField) => formulaField switch
+    {
+        "Agua" => "G1",
+        "Agua2" => "G2",
+        "Agua3" => "G3",
+        "Fibra1" => "FI1",
+        "Fibra2" => "FI2",
+        "Fibra3" => "FI3",
+        _ => formulaField
+    };
 
     private IEnumerable<MaterialRowPair> CreateMaterialPairs() =>
         Enumerable.Range(0, (MaterialRows.Count + 1) / 2)
@@ -1360,6 +1409,10 @@ public sealed partial class MainPage : Page
                 description.Text = selectedRecipe.Description;
             }
 
+            _dashboardFormulaValues = (recipes.SelectedItem as ProgramFormulaOption)?.Values
+                ?? _simulatedRemission?.FormulaValues;
+            RefreshDashboardMaterials();
+
             var hasSelectedRecipe = recipes.SelectedItem is ProgramFormulaOption;
             products.IsEnabled = hasSelectedRecipe;
             paymentConditions.IsEnabled = hasSelectedRecipe;
@@ -1383,7 +1436,7 @@ public sealed partial class MainPage : Page
         {
             var requestId = ++orderStatusRequestId;
             var selectedOrder = orders.SelectedItem as string;
-            orderStatus.Text = string.Empty;
+            ClearProgramOrderFields();
 
             if (string.IsNullOrWhiteSpace(selectedOrder) ||
                 string.Equals(selectedOrder, "Ocasional", StringComparison.OrdinalIgnoreCase))
@@ -1397,7 +1450,7 @@ public sealed partial class MainPage : Page
                 return;
             }
 
-            status.Text = $"Consultando estatus del pedido {orderNumber}...";
+            status.Text = $"Consultando datos del pedido {orderNumber}...";
             try
             {
                 var order = await _orderService.GetManualLoadOrderDetailsAsync(orderNumber);
@@ -1407,11 +1460,30 @@ public sealed partial class MainPage : Page
                     return;
                 }
 
-                orderStatus.Text = order?.Status ?? string.Empty;
                 if (order is null)
                 {
                     status.Text = $"No se encontró información activa para el pedido {orderNumber}.";
+                    return;
                 }
+
+                SetProgramComboValue(
+                    recipes,
+                    order.Recipe,
+                    item => item is ProgramFormulaOption recipe ? recipe.Code : null);
+                description.Text = !string.IsNullOrWhiteSpace(order.Description)
+                    ? order.Description
+                    : (recipes.SelectedItem as ProgramFormulaOption)?.Description ?? string.Empty;
+                SetProgramComboValue(clients, order.Client, item => item is ClientRecord client ? client.Client : null);
+                SetProgramComboValue(construction, order.Construction, item => item as string);
+                orderStatus.Text = order.Status;
+                SetProgramComboValue(products, order.Product, item => item as string);
+                SetProgramComboValue(paymentConditions, order.PaymentCondition, item => item as string);
+                SetProgramComboValue(dischargeTypes, order.DischargeType, item => item as string);
+                orderedQuantity.Value = (double)(order.Quantity ?? 0);
+                suppliedQuantity.Value = (double)(order.Supplied ?? 0);
+                toSupplyQuantity.Value = (double)(order.ToSupply ?? 0);
+                observations.Text = order.Observations;
+                status.Text = $"Datos del pedido {orderNumber} cargados.";
             }
             catch (SqlException exception)
             {
@@ -1429,6 +1501,27 @@ public sealed partial class MainPage : Page
             }
         };
 
+        void ClearProgramOrderFields()
+        {
+            recipes.SelectedItem = null;
+            description.Text = string.Empty;
+            clients.SelectedItem = null;
+            clients.Text = string.Empty;
+            construction.SelectedItem = null;
+            construction.Text = string.Empty;
+            orderStatus.Text = string.Empty;
+            products.SelectedItem = null;
+            products.Text = string.Empty;
+            paymentConditions.SelectedItem = null;
+            paymentConditions.Text = string.Empty;
+            dischargeTypes.SelectedItem = null;
+            dischargeTypes.Text = string.Empty;
+            orderedQuantity.Value = 0;
+            suppliedQuantity.Value = 0;
+            toSupplyQuantity.Value = 0;
+            observations.Text = string.Empty;
+        }
+
         var programButton = new Button
         {
             Content = "Validar (prueba)",
@@ -1445,13 +1538,25 @@ public sealed partial class MainPage : Page
             programButton,
             "Valida y muestra una vista previa local. No guarda cambios ni envía órdenes al PLC.");
         ToolTipService.SetToolTip(lastLoadButton, "Carga los datos de la última descarga registrada.");
-        programButton.Click += (_, _) =>
+        programButton.Click += async (_, _) =>
         {
             var validationErrors = new List<string>();
             var selectedRecipe = recipes.SelectedItem as ProgramFormulaOption;
+            var selectedTruck = trucks.SelectedItem as TruckRecord;
+            var selectedOrder = orders.SelectedItem as string;
             if (selectedRecipe is null)
             {
                 validationErrors.Add("Selecciona una receta.");
+            }
+
+            if (string.IsNullOrWhiteSpace(selectedOrder))
+            {
+                validationErrors.Add("Selecciona un pedido.");
+            }
+
+            if (selectedTruck is null || string.IsNullOrWhiteSpace(selectedTruck.Unit))
+            {
+                validationErrors.Add("Selecciona un camión de la lista.");
             }
 
             if (!TryGetPositiveDecimal(quantity, out var validatedQuantity))
@@ -1474,6 +1579,40 @@ public sealed partial class MainPage : Page
                 return;
             }
 
+            status.Foreground = _themeBrushes.GetBrush("#A9B8CC");
+            status.Text = "Validando los materiales de la fórmula contra las tolvas...";
+            programButton.IsEnabled = false;
+            IReadOnlyDictionary<string, string> currentMachineConfiguration;
+            try
+            {
+                var machineConfiguration = await _machineConfigurationService.GetConfigurationAsync();
+                currentMachineConfiguration = machineConfiguration.Values;
+            }
+            catch (SqlException exception)
+            {
+                status.Foreground = _themeBrushes.GetBrush("#F87171");
+                status.Text = $"No se pudieron validar los materiales de las tolvas (SQL {exception.Number}): {exception.Message}";
+                return;
+            }
+            catch (InvalidOperationException exception)
+            {
+                status.Foreground = _themeBrushes.GetBrush("#F87171");
+                status.Text = $"No se pudieron validar los materiales de las tolvas: {exception.Message}";
+                return;
+            }
+            finally
+            {
+                programButton.IsEnabled = true;
+            }
+
+            if (HasFormulaMaterialMismatch(selectedRecipe!.Values, currentMachineConfiguration))
+            {
+                status.Foreground = _themeBrushes.GetBrush("#F87171");
+                status.Text =
+                    "Error de materiales: Los materiales configurados en la fórmula no corresponden a los que se encuentran actualmente en las tolvas.";
+                return;
+            }
+
             status.Foreground = _themeBrushes.GetBrush("#72D49A");
             status.Text = string.Join(
                 Environment.NewLine,
@@ -1482,9 +1621,10 @@ public sealed partial class MainPage : Page
                 $"Cantidad: {validatedQuantity.ToString(CultureInfo.CurrentCulture)}",
                 $"Cliente: {clients.Text.Trim()}",
                 $"Obra: {construction.Text.Trim()}",
-                $"Camión: {trucks.Text.Trim()}",
+                $"Camión: {selectedTruck!.Unit}",
                 $"Chofer: {operators.Text.Trim()}",
                 $"Remisión: {remissionNumber.Text.Trim()}",
+                $"Pedido: {selectedOrder}",
                 $"Pedidos / surtidos / por surtir: {validatedOrderedQuantity.ToString(CultureInfo.CurrentCulture)} / " +
                 $"{validatedSuppliedQuantity.ToString(CultureInfo.CurrentCulture)} / " +
                 $"{validatedToSupplyQuantity.ToString(CultureInfo.CurrentCulture)}",
@@ -1495,12 +1635,14 @@ public sealed partial class MainPage : Page
             RemissionRows[3].Valor = validatedQuantity.ToString(CultureInfo.CurrentCulture);
             RemissionRows[4].Valor = clients.Text.Trim();
             RemissionRows[5].Valor = construction.Text.Trim();
-            RemissionRows[6].Valor = trucks.Text.Trim();
+            RemissionRows[6].Valor = selectedTruck!.Unit;
             RemissionRows[7].Valor = orders.Text.Trim();
             RemissionPanel.IsExpanded = true;
+            _dashboardFormulaValues = selectedRecipe!.Values;
+            RefreshDashboardMaterials();
             ModuleStatusText.Text =
                 "Receta preparada para cargarse (vista de prueba; no guardada ni enviada al PLC). " +
-                "Las cantidades de materiales siguen mostrando lecturas existentes, no objetivos de receta.";
+                "La tabla Materiales muestra las cantidades de la receta seleccionada.";
             _remissionBeforeSimulation ??= RemissionRows.Select(row => row.Valor).ToArray();
             _simulatedRemission = new SimulatedRemission(
                 remissionNumber.Text.Trim(),
@@ -1509,7 +1651,7 @@ public sealed partial class MainPage : Page
                 validatedQuantity.ToString(CultureInfo.CurrentCulture),
                 clients.Text.Trim(),
                 construction.Text.Trim(),
-                trucks.Text.Trim(),
+                selectedTruck!.Unit,
                 operators.Text.Trim(),
                 orders.Text.Trim(),
                 orderStatus.Text.Trim(),
@@ -1576,6 +1718,11 @@ public sealed partial class MainPage : Page
             CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Close,
             XamlRoot = XamlRoot
+        };
+        programDialog.Closed += (_, _) =>
+        {
+            _dashboardFormulaValues = _simulatedRemission?.FormulaValues;
+            RefreshDashboardMaterials();
         };
         var dialogOperation = programDialog.ShowAsync();
 
@@ -1799,6 +1946,8 @@ public sealed partial class MainPage : Page
         _remissionBeforeSimulation = null;
         _simulatedRemission = null;
         _simulatedProcessState = SimulatedProcessState.Idle;
+        _dashboardFormulaValues = null;
+        RefreshDashboardMaterials();
         RemissionPanel.IsExpanded = true;
         ModuleStatusText.Text = "Simulación cancelada. No se guardó ni se envió ninguna orden al PLC.";
         UpdateSimulatedActionButtons();
@@ -1939,6 +2088,29 @@ public sealed partial class MainPage : Page
         yield return ("Fibra1", "Fibra1C");
         yield return ("Fibra2", "Fibra2C");
         yield return ("Fibra3", "Fibra3C");
+    }
+
+    private static bool HasFormulaMaterialMismatch(
+        IReadOnlyDictionary<string, string> formulaValues,
+        IReadOnlyDictionary<string, string> machineConfiguration)
+    {
+        foreach (var (nameField, _) in GetFormulaMaterialFields())
+        {
+            var formulaMaterial = formulaValues.GetValueOrDefault(nameField)?.Trim() ?? string.Empty;
+            var machineParameter = GetMachineMaterialParameter(nameField);
+            var hopperMaterial = machineConfiguration.GetValueOrDefault(machineParameter)?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(formulaMaterial))
+            {
+                formulaMaterial = "DESHABILITADA";
+            }
+
+            if (!formulaMaterial.Equals(hopperMaterial, StringComparison.OrdinalIgnoreCase))
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void UpdateSimulatedActionButtons()
@@ -4496,11 +4668,12 @@ public sealed partial class MainPage : Page
                 Background = _themeBrushes.GetBrush("#111B2B"),
                 Tag = materialField
             };
-            materialPicker.SelectionChanged += FormulaMaterial_SelectionChanged;
             UpdateFormulaMaterialPicker(materialPicker, materialField, values);
+            var machineParameter = GetMachineMaterialParameter(materialField);
+            var hopperMaterial = _dashboardMachineConfiguration.GetValueOrDefault(machineParameter)?.Trim();
             var materialState = new TextBlock
             {
-                Text = materialPicker.SelectedItem as string ?? "DESHABILITADA",
+                Text = string.IsNullOrWhiteSpace(hopperMaterial) ? "DESHABILITADA" : hopperMaterial,
                 Foreground = _themeBrushes.GetBrush("#22C55E"),
                 VerticalAlignment = VerticalAlignment.Center,
                 FontSize = 11,
@@ -4538,15 +4711,6 @@ public sealed partial class MainPage : Page
         };
         _formulaEditorInputs[fieldName] = input;
         return input;
-    }
-
-    private void FormulaMaterial_SelectionChanged(object sender, SelectionChangedEventArgs e)
-    {
-        if (sender is ComboBox { Tag: string fieldName } comboBox
-            && _formulaMaterialStates.TryGetValue(fieldName, out var state))
-        {
-            state.Text = comboBox.SelectedItem as string ?? "DESHABILITADA";
-        }
     }
 
     private void FormulaEditorConfigurationTab_Click(object sender, RoutedEventArgs e)
@@ -4619,9 +4783,15 @@ public sealed partial class MainPage : Page
                 _ => string.Empty
             },
             StringComparer.Ordinal);
-        var identityError = FormulaService.GetFormulaIdentityValidationError(
-            values.GetValueOrDefault("Cod_Formula", string.Empty),
-            values.GetValueOrDefault("Descripcion", string.Empty));
+        var formulaCode = values.GetValueOrDefault("Cod_Formula", string.Empty);
+        var formulaDescription = values.GetValueOrDefault("Descripcion", string.Empty);
+        var identityError = _editingFormula && _selectedFormula is { } selectedFormula
+            ? FormulaService.GetFormulaIdentityValidationErrorForUpdate(
+                selectedFormula.Values.GetValueOrDefault("Cod_Formula", string.Empty),
+                selectedFormula.Values.GetValueOrDefault("Descripcion", string.Empty),
+                formulaCode,
+                formulaDescription)
+            : FormulaService.GetFormulaIdentityValidationError(formulaCode, formulaDescription);
         if (identityError is not null)
         {
             FormulaEditorStatusText.Text = identityError;

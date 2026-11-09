@@ -93,7 +93,6 @@ public sealed class FormulaService
         IReadOnlyDictionary<string, string> values,
         CancellationToken cancellationToken = default)
     {
-        ValidateFormulaIdentity(values);
         var assignments = string.Join(", ", EditableFields.Select(field => $"[{field}] = @{field}"));
         var query = $"""
             UPDATE dbo.Formulas
@@ -104,6 +103,36 @@ public sealed class FormulaService
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
         await using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
+        const string existingIdentityQuery = """
+            SELECT [Cod_Formula], [Descripcion]
+            FROM dbo.Formulas WITH (UPDLOCK, HOLDLOCK)
+            WHERE [Id_Formula] = @Id_Formula AND ISNULL([Estatus], 'A') <> 'C';
+            """;
+        string existingCode;
+        string existingDescription;
+        await using (var identityCommand = new SqlCommand(existingIdentityQuery, connection, transaction))
+        {
+            identityCommand.Parameters.Add("@Id_Formula", System.Data.SqlDbType.Int).Value = formulaId;
+            await using var reader = await identityCommand.ExecuteReaderAsync(cancellationToken);
+            if (!await reader.ReadAsync(cancellationToken))
+            {
+                throw new InvalidOperationException("La fórmula ya no existe o fue cancelada. Actualiza la lista e inténtalo de nuevo.");
+            }
+
+            existingCode = reader.IsDBNull(0) ? string.Empty : reader.GetString(0).Trim();
+            existingDescription = reader.IsDBNull(1) ? string.Empty : reader.GetString(1).Trim();
+        }
+
+        var identityError = GetFormulaIdentityValidationErrorForUpdate(
+            existingCode,
+            existingDescription,
+            values.GetValueOrDefault("Cod_Formula") ?? string.Empty,
+            values.GetValueOrDefault("Descripcion") ?? string.Empty);
+        if (identityError is not null)
+        {
+            throw new InvalidOperationException(identityError);
+        }
+
         await EnsureFormulaCodeAvailableAsync(connection, transaction, values, formulaId, cancellationToken);
         await using var command = new SqlCommand(query, connection);
         command.Transaction = transaction;
@@ -137,6 +166,18 @@ public sealed class FormulaService
         }
 
         return null;
+    }
+
+    public static string? GetFormulaIdentityValidationErrorForUpdate(
+        string existingCode,
+        string existingDescription,
+        string code,
+        string description)
+    {
+        var identityIsUnchanged =
+            string.Equals(existingCode.Trim(), code.Trim(), StringComparison.OrdinalIgnoreCase)
+            && string.Equals(existingDescription.Trim(), description.Trim(), StringComparison.OrdinalIgnoreCase);
+        return identityIsUnchanged ? null : GetFormulaIdentityValidationError(code, description);
     }
 
     private static void ValidateFormulaIdentity(IReadOnlyDictionary<string, string> values)
