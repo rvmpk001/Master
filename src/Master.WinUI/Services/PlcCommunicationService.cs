@@ -714,6 +714,12 @@ public sealed class PlcCommunicationService
         }
 
         const string aggregatePrefix = "ctlAgregado";
+        if (control.Equals("ctlAgregados", StringComparison.OrdinalIgnoreCase))
+        {
+            tagName = "Agregados";
+            return true;
+        }
+
         if (control.StartsWith(aggregatePrefix, StringComparison.OrdinalIgnoreCase)
             && int.TryParse(
                 control.AsSpan(aggregatePrefix.Length),

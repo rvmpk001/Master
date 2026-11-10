@@ -61,7 +61,6 @@ public sealed partial class MainPage : Page
     private readonly Dictionary<string, TextBlock> _canvasValueTexts = new(StringComparer.Ordinal);
     private IReadOnlyDictionary<string, string> _dashboardMachineConfiguration =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-    private IReadOnlyList<InventoryMaterial> _dashboardInventory = Array.Empty<InventoryMaterial>();
     private IReadOnlyDictionary<string, string>? _dashboardFormulaValues;
     private bool _hasDashboardMaterialData;
     private IReadOnlyDictionary<string, AdditionalImageConfigurationRecord> _additionalImageConfigurations =
@@ -798,11 +797,9 @@ public sealed partial class MainPage : Page
     }
 
     private void LoadDashboardMaterials(
-        IReadOnlyDictionary<string, string> configuration,
-        IReadOnlyList<InventoryMaterial> inventory)
+        IReadOnlyDictionary<string, string> configuration)
     {
         _dashboardMachineConfiguration = configuration;
-        _dashboardInventory = inventory;
         _hasDashboardMaterialData = true;
         RefreshDashboardMaterials();
     }
@@ -823,24 +820,21 @@ public sealed partial class MainPage : Page
                 continue;
             }
 
-            var (parameter, category) = binding.Value;
+            var parameter = binding.Value.Parameter;
             var name = _dashboardMachineConfiguration.GetValueOrDefault(parameter)?.Trim() ?? string.Empty;
             if (string.IsNullOrWhiteSpace(name))
             {
                 name = "DESHABILITADA";
             }
 
-            var material = _dashboardInventory.FirstOrDefault(item =>
-                item.Category.Equals(category, StringComparison.OrdinalIgnoreCase)
-                && item.Name.Trim().Equals(name, StringComparison.OrdinalIgnoreCase));
             var formulaQuantityField = GetDashboardFormulaQuantityField(parameter);
+            var formulaQuantity = formulaQuantityField is not null
+                ? _dashboardFormulaValues?.GetValueOrDefault(formulaQuantityField)?.Trim()
+                : null;
             var quantity = name.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase)
-                ? "0"
-                : _dashboardFormulaValues is not null
-                    ? formulaQuantityField is not null
-                        ? _dashboardFormulaValues.GetValueOrDefault(formulaQuantityField, "0").Trim()
-                        : "0"
-                    : material?.Quantity ?? "N/D";
+                || string.IsNullOrWhiteSpace(formulaQuantity)
+                    ? "0"
+                    : formulaQuantity;
 
             MaterialRows.Add(new MaterialRow(name, quantity));
         }
@@ -6045,6 +6039,24 @@ public sealed partial class MainPage : Page
 
             var itemsByControl = new Dictionary<string, AggregateConfigurationPaletteItem>(
                 StringComparer.OrdinalIgnoreCase);
+            var totalItem = new AggregateConfigurationPaletteItem(
+                "ctlAgregados",
+                "Agregados",
+                "AGREGADOS");
+            itemsByControl.Add(totalItem.Control, totalItem);
+
+            var totalButton = new Button
+            {
+                Content = totalItem.Caption,
+                Tag = totalItem,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
+                HorizontalContentAlignment = HorizontalAlignment.Center,
+                Style = (Style)Resources["DefaultButtonStyle"]
+            };
+            ToolTipService.SetToolTip(totalButton, $"{totalItem.Control} - {totalItem.Caption}");
+            totalButton.Click += AddAggregateControl_Click;
+            AggregateControlColumn1.Children.Add(totalButton);
+
             foreach (var index in Enumerable.Range(1, 8))
             {
                 var parameter = $"A{index}";
@@ -6083,7 +6095,8 @@ public sealed partial class MainPage : Page
 
             var canvasChanged = false;
             foreach (var control in _designerCanvasState.Controls.Where(control =>
-                         string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase)))
+                         string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase)
+                         || string.Equals(control.Type, "CtlAgregados", StringComparison.OrdinalIgnoreCase)))
             {
                 if (!itemsByControl.TryGetValue(control.AggregateControl ?? string.Empty, out var item))
                 {
@@ -6149,7 +6162,9 @@ public sealed partial class MainPage : Page
         var control = new DesignerCanvasControlState
         {
             Id = Guid.NewGuid().ToString("N"),
-            Type = "CtlAgregado",
+            Type = string.Equals(item.Control, "ctlAgregados", StringComparison.OrdinalIgnoreCase)
+                ? "CtlAgregados"
+                : "CtlAgregado",
             AggregateControl = item.Control,
             Text = item.Caption,
             IsConfiguredDisabled = item.IsDisabled,
@@ -7101,6 +7116,7 @@ public sealed partial class MainPage : Page
 
         if (string.Equals(control.Type, "CtlAdicional", StringComparison.OrdinalIgnoreCase)
             || string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(control.Type, "CtlAgregados", StringComparison.OrdinalIgnoreCase)
             || string.Equals(control.Type, "CtlCemento", StringComparison.OrdinalIgnoreCase)
             || string.Equals(control.Type, "CtlAditivo", StringComparison.OrdinalIgnoreCase)
             || string.Equals(control.Type, "CtlAgua", StringComparison.OrdinalIgnoreCase)
@@ -7408,6 +7424,11 @@ public sealed partial class MainPage : Page
         if (string.Equals(control.Type, "CtlAgregado", StringComparison.OrdinalIgnoreCase))
         {
             return control.IsConfiguredDisabled ? null : control.AggregateControl;
+        }
+
+        if (string.Equals(control.Type, "CtlAgregados", StringComparison.OrdinalIgnoreCase))
+        {
+            return "ctlAgregados";
         }
 
         if (string.Equals(control.Type, "CtlFibra", StringComparison.OrdinalIgnoreCase))
@@ -8460,8 +8481,7 @@ public sealed partial class MainPage : Page
         {
             var machineConfiguration = await _machineConfigurationService.GetConfigurationAsync();
             ApplyMachineAdjustmentValues(machineConfiguration.Values);
-            var inventory = await _inventoryService.GetInventoryAsync();
-            LoadDashboardMaterials(machineConfiguration.Values, inventory);
+            LoadDashboardMaterials(machineConfiguration.Values);
             ApplyMachineDashboardOptions(new MachineDashboardOptions(
                 machineConfiguration.Values.GetValueOrDefault("MU") == "1",
                 machineConfiguration.Values.GetValueOrDefault("OS") == "1",
