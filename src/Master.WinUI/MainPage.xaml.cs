@@ -1518,7 +1518,7 @@ public sealed partial class MainPage : Page
 
         var programButton = new Button
         {
-            Content = "Validar (prueba)",
+            Content = "Programar",
             IsEnabled = false,
             Style = (Style)Resources["DefaultButtonStyle"]
         };
@@ -1622,7 +1622,7 @@ public sealed partial class MainPage : Page
                 $"Pedidos / surtidos / por surtir: {validatedOrderedQuantity.ToString(CultureInfo.CurrentCulture)} / " +
                 $"{validatedSuppliedQuantity.ToString(CultureInfo.CurrentCulture)} / " +
                 $"{validatedToSupplyQuantity.ToString(CultureInfo.CurrentCulture)}",
-                "Simulación solamente: no se guardó ni se envió ninguna orden al PLC.");
+                "Validación local solamente: no se guardó ni se envió ninguna orden al PLC.");
             RemissionRows[0].Valor = remissionNumber.Text.Trim();
             RemissionRows[1].Valor = selectedRecipe!.Code;
             RemissionRows[2].Valor = selectedRecipe.Description;
@@ -1635,7 +1635,7 @@ public sealed partial class MainPage : Page
             _dashboardFormulaValues = selectedRecipe!.Values;
             RefreshDashboardMaterials();
             ModuleStatusText.Text =
-                "Receta preparada para cargarse (vista de prueba; no guardada ni enviada al PLC). " +
+                "Receta preparada para cargarse; no se guardó ni se envió al PLC. " +
                 "La tabla Materiales muestra las cantidades de la receta seleccionada.";
             _remissionBeforeSimulation ??= RemissionRows.Select(row => row.Valor).ToArray();
             _simulatedRemission = new SimulatedRemission(
@@ -1707,7 +1707,7 @@ public sealed partial class MainPage : Page
 
         programDialog = new ContentDialog
         {
-            Title = "Programar Carga Automática — MODO PRUEBA",
+            Title = "Programar Carga Automática",
             Content = formContent,
             CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Close,
@@ -1768,7 +1768,7 @@ public sealed partial class MainPage : Page
             remissionNumber.Text = await remissionTask;
             status.Text =
                 $"Catálogos cargados: {formulaData.ActiveRows.Count} fórmulas. Pedidos disponibles: {orders.Items.Count - 1}. " +
-                "Modo de prueba: no se guardan ni se envían órdenes al PLC.";
+                "No se guardan ni se envían órdenes al PLC.";
             catalogsLoaded = true;
         }
         catch (SqlException exception)
@@ -1875,12 +1875,12 @@ public sealed partial class MainPage : Page
     {
         if (_simulatedProcessState != SimulatedProcessState.Prepared || _simulatedRemission is null)
         {
-            ModuleStatusText.Text = "Primero prepara una remisión en modo de simulación.";
+            ModuleStatusText.Text = "Primero prepara una remisión.";
             return;
         }
 
         _simulatedProcessState = SimulatedProcessState.LoadReceived;
-        ModuleStatusText.Text = "Fin de carga recibida (SIMULACIÓN LOCAL; no se accionó el PLC).";
+        ModuleStatusText.Text = "Fin de carga recibida; no se accionó el PLC.";
         UpdateSimulatedActionButtons();
     }
 
@@ -1889,14 +1889,14 @@ public sealed partial class MainPage : Page
         if (_simulatedRemission is null
             || _simulatedProcessState is not (SimulatedProcessState.LoadReceived or SimulatedProcessState.AwaitingReport))
         {
-            ModuleStatusText.Text = "La simulación requiere una remisión preparada y una carga recibida.";
+            ModuleStatusText.Text = "Se requiere una remisión preparada y una carga recibida.";
             return;
         }
 
         if (_simulatedProcessState == SimulatedProcessState.LoadReceived)
         {
             _simulatedProcessState = SimulatedProcessState.Downloading;
-            ModuleStatusText.Text = "Máquina Descargando (SIMULACIÓN LOCAL; no se accionó el PLC).";
+            ModuleStatusText.Text = "Descargando; no se accionó el PLC.";
             UpdateSimulatedActionButtons();
             await Task.Delay(TimeSpan.FromSeconds(1));
             _simulatedProcessState = SimulatedProcessState.AwaitingReport;
@@ -1910,17 +1910,17 @@ public sealed partial class MainPage : Page
         if (_simulatedProcessState == SimulatedProcessState.Paused)
         {
             _simulatedProcessState = _stateBeforePause;
-            ModuleStatusText.Text = $"Proceso reanudado ({GetSimulationStageName(_simulatedProcessState)}; SIMULACIÓN LOCAL).";
+            ModuleStatusText.Text = $"Proceso reanudado ({GetSimulationStageName(_simulatedProcessState)}); no se accionó el PLC.";
         }
         else if (_simulatedProcessState is SimulatedProcessState.Prepared or SimulatedProcessState.LoadReceived)
         {
             _stateBeforePause = _simulatedProcessState;
             _simulatedProcessState = SimulatedProcessState.Paused;
-            ModuleStatusText.Text = "Proceso pausado (SIMULACIÓN LOCAL; no se accionó el PLC).";
+            ModuleStatusText.Text = "Proceso pausado; no se accionó el PLC.";
         }
         else
         {
-            ModuleStatusText.Text = "La simulación solo permite pausar antes de iniciar la descarga.";
+            ModuleStatusText.Text = "No se puede pausar después de iniciar la descarga.";
             return;
         }
 
@@ -1943,7 +1943,7 @@ public sealed partial class MainPage : Page
         _dashboardFormulaValues = null;
         RefreshDashboardMaterials();
         RemissionPanel.IsExpanded = true;
-        ModuleStatusText.Text = "Simulación cancelada. No se guardó ni se envió ninguna orden al PLC.";
+        ModuleStatusText.Text = "Proceso cancelado. No se guardó ni se envió ninguna orden al PLC.";
         UpdateSimulatedActionButtons();
     }
 
@@ -1951,13 +1951,13 @@ public sealed partial class MainPage : Page
     {
         if (_simulatedRemission is not { } remission)
         {
-            ModuleStatusText.Text = "No hay una remisión de prueba para exportar.";
+            ModuleStatusText.Text = "No hay una remisión para exportar.";
             return;
         }
 
         if (Application.Current is not App { MainWindow: { } window })
         {
-            ModuleStatusText.Text = "No se pudo abrir el selector para guardar el PDF de prueba.";
+            ModuleStatusText.Text = "No se pudo abrir el selector para guardar el PDF.";
             return;
         }
 
@@ -1971,7 +1971,7 @@ public sealed partial class MainPage : Page
             if (file is null)
             {
                 ModuleStatusText.Text =
-                    "Descarga de prueba simulada; el guardado del PDF se canceló. Usa GUARDAR PDF (SIMULACIÓN) para reintentar.";
+                    "Se canceló el guardado del PDF. Usa DESCARGAR para reintentar; no se accionó el PLC.";
                 UpdateSimulatedActionButtons();
                 return;
             }
@@ -1980,7 +1980,7 @@ public sealed partial class MainPage : Page
             await File.WriteAllBytesAsync(file.Path, _reportExportService.BuildPdf(report));
             _simulatedProcessState = SimulatedProcessState.Complete;
             _remissionBeforeSimulation = null;
-            ModuleStatusText.Text = $"Remisión Completa (SIMULACIÓN). PDF guardado en {file.Path}";
+            ModuleStatusText.Text = $"Remisión completa. PDF guardado en {file.Path}; no se accionó el PLC.";
             RemissionPanel.IsExpanded = true;
             UpdateSimulatedActionButtons();
         }
@@ -1991,17 +1991,17 @@ public sealed partial class MainPage : Page
         }
         catch (IOException exception)
         {
-            ModuleStatusText.Text = $"No se pudo guardar el PDF de prueba: {exception.Message}";
+            ModuleStatusText.Text = $"No se pudo guardar el PDF: {exception.Message}";
             UpdateSimulatedActionButtons();
         }
         catch (UnauthorizedAccessException exception)
         {
-            ModuleStatusText.Text = $"No hay permiso para guardar el PDF de prueba: {exception.Message}";
+            ModuleStatusText.Text = $"No hay permiso para guardar el PDF: {exception.Message}";
             UpdateSimulatedActionButtons();
         }
         catch (InvalidOperationException exception)
         {
-            ModuleStatusText.Text = $"No se pudo generar el PDF de prueba: {exception.Message}";
+            ModuleStatusText.Text = $"No se pudo generar el PDF: {exception.Message}";
             UpdateSimulatedActionButtons();
         }
         catch (ArgumentException exception)
@@ -2119,14 +2119,12 @@ public sealed partial class MainPage : Page
                 : Visibility.Collapsed;
         DownloadActionButton.IsEnabled =
             _simulatedProcessState is SimulatedProcessState.LoadReceived or SimulatedProcessState.AwaitingReport;
-        DownloadActionButton.Content = _simulatedProcessState == SimulatedProcessState.AwaitingReport
-            ? "GUARDAR PDF (SIMULACIÓN)"
-            : "DESCARGAR (SIMULACIÓN)";
+        DownloadActionButton.Content = "Descargar";
         PauseActionButton.IsEnabled =
             _simulatedProcessState is SimulatedProcessState.Prepared or SimulatedProcessState.LoadReceived or SimulatedProcessState.Paused;
         PauseActionButton.Content = _simulatedProcessState == SimulatedProcessState.Paused
-            ? "REANUDAR (SIMULACIÓN)"
-            : "PAUSAR (SIMULACIÓN)";
+            ? "Reanudar"
+            : "Pausar";
         CancelActionButton.IsEnabled =
             _simulatedProcessState is SimulatedProcessState.Prepared
                 or SimulatedProcessState.LoadReceived
