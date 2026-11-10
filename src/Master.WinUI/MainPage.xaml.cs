@@ -60,6 +60,7 @@ public sealed partial class MainPage : Page
     private readonly DesignerCanvasState _designerCanvasState = new();
     private readonly Dictionary<string, TextBlock> _canvasValueCaptions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TextBlock> _canvasValueTexts = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, bool> _simulatedCanvasImageStates = new(StringComparer.Ordinal);
     private IReadOnlyDictionary<string, string> _dashboardMachineConfiguration =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, string>? _dashboardFormulaValues;
@@ -476,7 +477,8 @@ public sealed partial class MainPage : Page
             }
 
             var imageStatesChanged = false;
-            if (status.State == PlcConnectionState.Connected
+            if (_simulatedCanvasImageStates.Count == 0
+                && status.State == PlcConnectionState.Connected
                 && status.AdditionalImageValues is { } additionalImageValues)
             {
                 foreach (var control in _designerCanvasState.Controls.Where(control =>
@@ -993,9 +995,7 @@ public sealed partial class MainPage : Page
 
     private void ApplyMachineDashboardOptions(MachineDashboardOptions options)
     {
-        DownloadActionButton.Visibility = options.LoadDownloadEnabled
-            ? Visibility.Visible
-            : Visibility.Collapsed;
+        DownloadActionButton.Visibility = Visibility.Visible;
 
         HumidityPanel.Visibility = options.HumidityEnabled ? Visibility.Visible : Visibility.Collapsed;
         HumidityPanelColumn.Width = options.HumidityEnabled
@@ -1565,13 +1565,14 @@ public sealed partial class MainPage : Page
         var clients = new ComboBox
         {
             DisplayMemberPath = "Client",
-            IsEditable = true,
+            IsEditable = false,
             PlaceholderText = "Selecciona cliente",
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         var construction = new ComboBox
         {
-            IsEditable = true,
+            IsEditable = false,
+            IsEnabled = false,
             PlaceholderText = "Selecciona obra",
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
@@ -1646,10 +1647,26 @@ public sealed partial class MainPage : Page
         };
         clients.SelectionChanged += (_, _) =>
         {
-            if (clients.SelectedItem is ClientRecord selectedClient)
+            if (clients.SelectedItem is not ClientRecord selectedClient)
             {
-                construction.Text = selectedClient.Construction;
+                construction.ItemsSource = null;
+                construction.SelectedItem = null;
+                construction.Text = string.Empty;
+                construction.PlaceholderText = "Selecciona un cliente";
+                construction.IsEnabled = false;
+                return;
             }
+
+            var clientConstruction = selectedClient.Construction.Trim();
+            var constructions = string.IsNullOrWhiteSpace(clientConstruction)
+                ? Array.Empty<string>()
+                : new[] { clientConstruction };
+            construction.ItemsSource = constructions;
+            construction.SelectedItem = constructions.FirstOrDefault();
+            construction.PlaceholderText = constructions.Length > 0
+                ? "Obra del cliente"
+                : "Cliente sin obra configurada";
+            construction.IsEnabled = constructions.Length > 0;
         };
         trucks.SelectionChanged += (_, _) =>
         {
@@ -1700,7 +1717,6 @@ public sealed partial class MainPage : Page
                     ? order.Description
                     : (recipes.SelectedItem as ProgramFormulaOption)?.Description ?? string.Empty;
                 SetProgramComboValue(clients, order.Client, item => item is ClientRecord client ? client.Client : null);
-                SetProgramComboValue(construction, order.Construction, item => item as string);
                 orderStatus.Text = order.Status;
                 SetProgramComboValue(products, order.Product, item => item as string);
                 SetProgramComboValue(paymentConditions, order.PaymentCondition, item => item as string);
@@ -1775,6 +1791,18 @@ public sealed partial class MainPage : Page
                 validationErrors.Add("Selecciona una receta.");
             }
 
+            var selectedClient = clients.SelectedItem as ClientRecord;
+            if (selectedClient is null || string.IsNullOrWhiteSpace(selectedClient.Client))
+            {
+                validationErrors.Add("Selecciona un cliente.");
+            }
+
+            var selectedConstruction = construction.SelectedItem as string;
+            if (selectedClient is not null && string.IsNullOrWhiteSpace(selectedConstruction))
+            {
+                validationErrors.Add($"El cliente «{selectedClient.Client}» no tiene una obra configurada.");
+            }
+
             if (string.IsNullOrWhiteSpace(selectedOrder))
             {
                 validationErrors.Add("Selecciona un pedido.");
@@ -1801,10 +1829,12 @@ public sealed partial class MainPage : Page
             if (validationErrors.Count > 0)
             {
                 status.Foreground = _themeBrushes.GetBrush("#F87171");
-                status.Text = $"Validación fallida (modo de prueba): {string.Join(" ", validationErrors)}";
+                status.Text = string.Join(" ", validationErrors);
                 return;
             }
 
+            var validatedClient = selectedClient!;
+            var validatedConstruction = selectedConstruction!;
             status.Foreground = _themeBrushes.GetBrush("#A9B8CC");
             status.Text = "Validando los materiales de la fórmula contra las tolvas...";
             programButton.IsEnabled = false;
@@ -1845,8 +1875,8 @@ public sealed partial class MainPage : Page
                 "Validación local correcta (modo de prueba).",
                 $"Receta: {selectedRecipe!.Code} — {selectedRecipe.Description}",
                 $"Cantidad: {validatedQuantity.ToString(CultureInfo.CurrentCulture)}",
-                $"Cliente: {clients.Text.Trim()}",
-                $"Obra: {construction.Text.Trim()}",
+                $"Cliente: {validatedClient.Client}",
+                $"Obra: {validatedConstruction}",
                 $"Camión: {selectedTruck!.Unit}",
                 $"Chofer: {operators.Text.Trim()}",
                 $"Remisión: {remissionNumber.Text.Trim()}",
@@ -1859,11 +1889,12 @@ public sealed partial class MainPage : Page
             RemissionRows[1].Valor = selectedRecipe!.Code;
             RemissionRows[2].Valor = selectedRecipe.Description;
             RemissionRows[3].Valor = validatedQuantity.ToString(CultureInfo.CurrentCulture);
-            RemissionRows[4].Valor = clients.Text.Trim();
-            RemissionRows[5].Valor = construction.Text.Trim();
+            RemissionRows[4].Valor = validatedClient.Client;
+            RemissionRows[5].Valor = validatedConstruction;
             RemissionRows[6].Valor = selectedTruck!.Unit;
             RemissionRows[7].Valor = orders.Text.Trim();
             RemissionPanel.IsExpanded = true;
+            await ResetSimulatedCanvasImageStatesAsync();
             _dashboardFormulaValues = selectedRecipe!.Values;
             _simulatedCanvasReadings.Clear();
             RefreshDashboardMaterials();
@@ -1874,8 +1905,8 @@ public sealed partial class MainPage : Page
                 selectedRecipe.Code,
                 selectedRecipe.Description,
                 validatedQuantity.ToString(CultureInfo.CurrentCulture),
-                clients.Text.Trim(),
-                construction.Text.Trim(),
+                validatedClient.Client,
+                validatedConstruction,
                 selectedTruck!.Unit,
                 operators.Text.Trim(),
                 orders.Text.Trim(),
@@ -1907,8 +1938,8 @@ public sealed partial class MainPage : Page
             ("Código de receta:", (Control)recipes),
             ("Descripción:", description),
             ("Cantidad:", quantity),
-            ("Cliente:", clients),
-            ("Obra:", construction),
+            ("Cliente *:", clients),
+            ("Obra *:", construction),
             ("Camión:", trucks),
             ("Chofer:", operators),
             ("Capacidad:", capacity)));
@@ -2048,7 +2079,6 @@ public sealed partial class MainPage : Page
                     ? latest.Description
                     : recipe?.Description ?? string.Empty;
                 SetProgramComboValue(clients, latest.Client, item => item is ClientRecord client ? client.Client : null);
-                SetProgramComboValue(construction, latest.Construction, item => item as string);
                 SetProgramComboValue(trucks, latest.TruckUnit, item => item is TruckRecord truck ? truck.Unit : item as string);
                 SetProgramComboValue(operators, latest.Operator, item => item is OperatorRecord operatorRecord ? operatorRecord.Name : item as string);
                 if (trucks.SelectedItem is TruckRecord selectedTruck)
@@ -2102,7 +2132,7 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private void SimulatedLoad_Click(object sender, RoutedEventArgs e)
+    private async void SimulatedLoad_Click(object sender, RoutedEventArgs e)
     {
         if (_simulatedProcessState != SimulatedProcessState.Prepared || _simulatedRemission is null)
         {
@@ -2120,6 +2150,7 @@ public sealed partial class MainPage : Page
             return;
         }
 
+        await BeginSimulatedCanvasImageCycleAsync();
         _simulatedProcessState = SimulatedProcessState.LoadReceived;
         ModuleStatusText.Text = "Fin de carga recibida";
         UpdateSimulatedActionButtons();
@@ -2142,11 +2173,23 @@ public sealed partial class MainPage : Page
             var loadedReadings = _simulatedCanvasReadings
                 .Where(reading => !reading.Key.Equals("ctlAgregados", StringComparison.OrdinalIgnoreCase))
                 .ToDictionary(reading => reading.Key, reading => reading.Value, StringComparer.OrdinalIgnoreCase);
+            var simulatedImages = _designerCanvasState.Controls
+                .Where(IsCanvasImageControl)
+                .OrderBy(control => control.ImageControl, StringComparer.OrdinalIgnoreCase)
+                .ToArray();
             const int progressSteps = 20;
             for (var step = 1; step <= progressSteps; step++)
             {
                 await Task.Delay(TimeSpan.FromMilliseconds(100));
                 ApplySimulatedCanvasReadings(loadedReadings, (progressSteps - step) / (decimal)progressSteps);
+                var imagesToTurnOff = (int)Math.Ceiling(simulatedImages.Length * step / (double)progressSteps);
+                foreach (var control in simulatedImages.Take(imagesToTurnOff))
+                {
+                    if (_simulatedCanvasImageStates.GetValueOrDefault(control.Id))
+                    {
+                        await SetSimulatedCanvasImageStateAsync(control, false);
+                    }
+                }
             }
 
             _simulatedProcessState = SimulatedProcessState.AwaitingReport;
@@ -2179,7 +2222,7 @@ public sealed partial class MainPage : Page
         UpdateSimulatedActionButtons();
     }
 
-    private void SimulatedCancel_Click(object sender, RoutedEventArgs e)
+    private async void SimulatedCancel_Click(object sender, RoutedEventArgs e)
     {
         if (_remissionBeforeSimulation is { Length: 8 } previousValues)
         {
@@ -2193,6 +2236,7 @@ public sealed partial class MainPage : Page
         _simulatedRemission = null;
         _simulatedProcessState = SimulatedProcessState.Idle;
         _simulatedCanvasReadings.Clear();
+        await ResetSimulatedCanvasImageStatesAsync();
         _dashboardFormulaValues = null;
         RefreshDashboardMaterials();
         RemissionPanel.IsExpanded = true;
@@ -2365,13 +2409,7 @@ public sealed partial class MainPage : Page
         ProgramActionButton.IsEnabled = hasPermission
             && _simulatedProcessState is SimulatedProcessState.Idle or SimulatedProcessState.Complete;
         LoadActionButton.IsEnabled = _simulatedProcessState == SimulatedProcessState.Prepared;
-        DownloadActionButton.Visibility =
-            _simulatedProcessState is SimulatedProcessState.LoadReceived
-                or SimulatedProcessState.Downloading
-                or SimulatedProcessState.AwaitingReport
-                or SimulatedProcessState.Complete
-                ? Visibility.Visible
-                : Visibility.Collapsed;
+        DownloadActionButton.Visibility = Visibility.Visible;
         DownloadActionButton.IsEnabled =
             _simulatedProcessState is SimulatedProcessState.LoadReceived or SimulatedProcessState.AwaitingReport;
         DownloadActionButton.Content = "Descargar";
@@ -2394,6 +2432,54 @@ public sealed partial class MainPage : Page
             or SimulatedProcessState.Complete
         || (_simulatedProcessState == SimulatedProcessState.Paused
             && _stateBeforePause == SimulatedProcessState.LoadReceived);
+
+    private async Task BeginSimulatedCanvasImageCycleAsync()
+    {
+        var imageControls = _designerCanvasState.Controls
+            .Where(IsCanvasImageControl)
+            .ToArray();
+        _simulatedCanvasImageStates.Clear();
+        foreach (var control in imageControls)
+        {
+            _simulatedCanvasImageStates.Add(control.Id, true);
+        }
+
+        foreach (var control in imageControls)
+        {
+            await SetSimulatedCanvasImageStateAsync(control, true);
+        }
+    }
+
+    private async Task SetSimulatedCanvasImageStateAsync(
+        DesignerCanvasControlState control,
+        bool isOn)
+    {
+        _simulatedCanvasImageStates[control.Id] = isOn;
+        var container = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
+            candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
+        if (container?.Child is Image image)
+        {
+            await SetAdditionalImageSourceAsync(image, control, isOn);
+        }
+    }
+
+    private async Task ResetSimulatedCanvasImageStatesAsync()
+    {
+        var imageControls = _designerCanvasState.Controls
+            .Where(IsCanvasImageControl)
+            .Where(control => _simulatedCanvasImageStates.ContainsKey(control.Id))
+            .ToArray();
+        _simulatedCanvasImageStates.Clear();
+        foreach (var control in imageControls)
+        {
+            var container = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
+                candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
+            if (container?.Child is Image image)
+            {
+                await SetAdditionalImageSourceAsync(image, control, control.IsOn);
+            }
+        }
+    }
 
     private void LoadSimulatedRecipeReadings(IReadOnlyDictionary<string, string> formulaValues)
     {
@@ -7839,14 +7925,18 @@ public sealed partial class MainPage : Page
         await SetAdditionalImageSourceAsync(image, control);
     }
 
-    private async Task SetAdditionalImageSourceAsync(Image image, DesignerCanvasControlState control)
+    private async Task SetAdditionalImageSourceAsync(
+        Image image,
+        DesignerCanvasControlState control,
+        bool? isOnOverride = null)
     {
-        var path = control.IsOn ? control.ImageOnPath : control.ImageOffPath;
+        var isOn = isOnOverride ?? control.IsOn;
+        var path = isOn ? control.ImageOnPath : control.ImageOffPath;
         if (string.IsNullOrWhiteSpace(path))
         {
             image.Source = null;
             ModuleStatusText.Text =
-                $"No hay una ruta configurada para la imagen {(control.IsOn ? "On" : "Off")} de {control.ImageControl}.";
+                $"No hay una ruta configurada para la imagen {(isOn ? "On" : "Off")} de {control.ImageControl}.";
             return;
         }
 
