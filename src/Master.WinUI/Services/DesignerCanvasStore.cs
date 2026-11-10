@@ -34,6 +34,8 @@ public sealed class DesignerCanvasStore
         {
             IsLocked = state.IsLocked,
             ImagePath = state.ImagePath,
+            CanvasWidth = state.CanvasWidth,
+            CanvasHeight = state.CanvasHeight,
             MessageTextOverrides = new Dictionary<string, string>(
                 state.MessageTextOverrides,
                 StringComparer.OrdinalIgnoreCase),
@@ -137,6 +139,8 @@ public sealed class DesignerCanvasState
 {
     public bool IsLocked { get; set; }
     public string? ImagePath { get; set; }
+    public double CanvasWidth { get; set; }
+    public double CanvasHeight { get; set; }
     public Dictionary<string, string> MessageTextOverrides { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public List<DesignerCanvasControlState> Controls { get; set; } = new();
 }

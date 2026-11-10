@@ -38,6 +38,7 @@ public sealed partial class MainPage : Page
 
     private readonly DispatcherQueueTimer _clockTimer;
     private readonly DispatcherQueueTimer _plcStatusTimer;
+    private readonly DispatcherQueueTimer _canvasLayoutSaveTimer;
     private readonly ThemeBrushSet _themeBrushes = new();
     private readonly AuthenticationService _authenticationService = new();
     private readonly PlcCommunicationService _plcCommunicationService = new();
@@ -140,6 +141,7 @@ public sealed partial class MainPage : Page
     private bool _isFiberPaletteLoading;
     private bool _fiberPaletteRefreshPending;
     private bool _isCanvasLocked;
+    private bool _isDesignerCanvasLoaded;
     private bool _isPlcStatusCheckRunning;
     private PlcConnectionState? _lastPlcConnectionState;
     private string? _lastPlcStatusDetail;
@@ -286,6 +288,9 @@ public sealed partial class MainPage : Page
         _plcStatusTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
         _plcStatusTimer.Interval = TimeSpan.FromSeconds(5);
         _plcStatusTimer.Tick += PlcStatusTimer_Tick;
+        _canvasLayoutSaveTimer = DispatcherQueue.GetForCurrentThread().CreateTimer();
+        _canvasLayoutSaveTimer.Interval = TimeSpan.FromMilliseconds(350);
+        _canvasLayoutSaveTimer.Tick += CanvasLayoutSaveTimer_Tick;
     }
 
     private void AddCanvasDeleteAccelerator(Windows.System.VirtualKey key)
@@ -319,6 +324,8 @@ public sealed partial class MainPage : Page
             var savedState = await _designerCanvasStore.LoadAsync();
             _designerCanvasState.IsLocked = savedState.IsLocked;
             _designerCanvasState.ImagePath = savedState.ImagePath;
+            _designerCanvasState.CanvasWidth = savedState.CanvasWidth;
+            _designerCanvasState.CanvasHeight = savedState.CanvasHeight;
             _designerCanvasState.MessageTextOverrides = new Dictionary<string, string>(
                 savedState.MessageTextOverrides ?? new Dictionary<string, string>(),
                 StringComparer.OrdinalIgnoreCase);
@@ -341,6 +348,12 @@ public sealed partial class MainPage : Page
             {
                 _designerCanvasState.MessageTextOverrides.TryAdd(control.MessageControl!, control.Text);
             }
+
+            PrepareDesignerCanvasForViewport(
+                savedState.CanvasWidth,
+                savedState.CanvasHeight,
+                DesignCanvas.ActualWidth,
+                DesignCanvas.ActualHeight);
 
             if (!string.IsNullOrWhiteSpace(savedState.ImagePath))
             {
@@ -384,7 +397,9 @@ public sealed partial class MainPage : Page
             }
 
             _isCanvasLocked = savedState.IsLocked;
+            _isDesignerCanvasLoaded = true;
             UpdateCanvasEditMode();
+            await SaveDesignerCanvasStateAsync();
         }
         catch (IOException exception)
         {
@@ -757,6 +772,208 @@ public sealed partial class MainPage : Page
     {
         DashboardPanelsGrid.Width = Math.Max(1520, e.NewSize.Width);
         DashboardPanelsGrid.Height = e.NewSize.Height;
+    }
+
+    private void DesignCanvas_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        var width = e.NewSize.Width;
+        var height = e.NewSize.Height;
+        if (!_isDesignerCanvasLoaded
+            || width <= 0
+            || height <= 0)
+        {
+            return;
+        }
+
+        if (_designerCanvasState.CanvasWidth <= 0 || _designerCanvasState.CanvasHeight <= 0)
+        {
+            var previousSizes = _designerCanvasState.Controls.ToDictionary(
+                control => control.Id,
+                GetCanvasControlSize,
+                StringComparer.Ordinal);
+            PrepareDesignerCanvasForViewport(0, 0, width, height);
+            foreach (var control in _designerCanvasState.Controls)
+            {
+                var container = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
+                    candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
+                if (container is null || !previousSizes.TryGetValue(control.Id, out var previousSize))
+                {
+                    continue;
+                }
+
+                ResizeCanvasControlVisual(container, control, previousSize.Width, previousSize.Height);
+                Canvas.SetLeft(container, control.Left);
+                Canvas.SetTop(container, control.Top);
+            }
+
+            DesignCanvas.Clip = new Microsoft.UI.Xaml.Media.RectangleGeometry
+            {
+                Rect = new Windows.Foundation.Rect(0, 0, width, height)
+            };
+            UpdateCanvasTransformHandles(_selectedCanvasMessage);
+            _canvasLayoutSaveTimer.Stop();
+            _canvasLayoutSaveTimer.Start();
+            return;
+        }
+
+        var scaleX = width / _designerCanvasState.CanvasWidth;
+        var scaleY = height / _designerCanvasState.CanvasHeight;
+        if (!double.IsFinite(scaleX) || !double.IsFinite(scaleY) || scaleX <= 0 || scaleY <= 0)
+        {
+            return;
+        }
+
+        foreach (var control in _designerCanvasState.Controls)
+        {
+            var oldSize = GetCanvasControlSize(control);
+            var newWidth = Math.Min(width, Math.Max(1, oldSize.Width * scaleX));
+            var newHeight = Math.Min(height, Math.Max(1, oldSize.Height * scaleY));
+            control.Left = Math.Clamp(control.Left * scaleX, 0, Math.Max(0, width - newWidth));
+            control.Top = Math.Clamp(control.Top * scaleY, 0, Math.Max(0, height - newHeight));
+            control.Width = newWidth;
+            control.Height = newHeight;
+
+            var container = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
+                candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
+            if (container is not null)
+            {
+                ResizeCanvasControlVisual(container, control, oldSize.Width, oldSize.Height);
+                Canvas.SetLeft(container, control.Left);
+                Canvas.SetTop(container, control.Top);
+            }
+        }
+
+        _designerCanvasState.CanvasWidth = width;
+        _designerCanvasState.CanvasHeight = height;
+        DesignCanvas.Clip = new Microsoft.UI.Xaml.Media.RectangleGeometry
+        {
+            Rect = new Windows.Foundation.Rect(0, 0, width, height)
+        };
+        UpdateCanvasTransformHandles(_selectedCanvasMessage);
+        _canvasLayoutSaveTimer.Stop();
+        _canvasLayoutSaveTimer.Start();
+    }
+
+    private static (double Width, double Height) GetCanvasControlSize(DesignerCanvasControlState control)
+    {
+        var defaultSize = control.Type switch
+        {
+            "Mensaje" => (260d, 56d),
+            "CtlAdicional" or "CtlAgregado" or "CtlAgregados" or "CtlCemento"
+                or "CtlAditivo" or "CtlAgua" or "CtlFibra" => (180d, 54d),
+            "ImagenAdicional" or "ImagenBomba" or "ImagenValvula" => (40d, 40d),
+            _ => (190d, 56d)
+        };
+
+        return (
+            control.Width is > 0 ? control.Width.Value : defaultSize.Item1,
+            control.Height is > 0 ? control.Height.Value : defaultSize.Item2);
+    }
+
+    private static void ResizeCanvasControlVisual(
+        Border container,
+        DesignerCanvasControlState control,
+        double previousWidth,
+        double previousHeight)
+    {
+        var width = control.Width!.Value;
+        var height = control.Height!.Value;
+        var fontScale = Math.Sqrt((width / previousWidth) * (height / previousHeight));
+        container.Width = width;
+        container.Height = height;
+
+        if (string.Equals(control.Type, "Mensaje", StringComparison.OrdinalIgnoreCase)
+            && container.Child is TextBlock message)
+        {
+            message.Width = width;
+            message.Height = height;
+            message.FontSize = GetResponsiveMessageFontSize(control, width, height);
+            return;
+        }
+
+        if (IsCanvasImageControl(control) && container.Child is Image image)
+        {
+            image.Width = width;
+            image.Height = height;
+            return;
+        }
+
+        if (container.Child is not StackPanel layout)
+        {
+            return;
+        }
+
+        layout.Width = width;
+        layout.Height = height;
+        if (layout.Children.Count != 2)
+        {
+            return;
+        }
+
+        if (layout.Children[0] is Border captionBackground
+            && captionBackground.Child is TextBlock caption)
+        {
+            captionBackground.MaxWidth = width;
+            caption.FontSize = Math.Clamp(caption.FontSize * fontScale, 8, 96);
+        }
+
+        if (layout.Children[1] is Border valueBox)
+        {
+            valueBox.Width = Math.Min(80, width);
+            valueBox.MinHeight = Math.Min(22, height);
+            if (valueBox.Child is TextBlock valueText)
+            {
+                valueText.FontSize = Math.Clamp(valueText.FontSize * fontScale, 8, 96);
+            }
+        }
+    }
+
+    private void PrepareDesignerCanvasForViewport(
+        double savedWidth,
+        double savedHeight,
+        double viewportWidth,
+        double viewportHeight)
+    {
+        if (viewportWidth <= 0 || viewportHeight <= 0)
+        {
+            return;
+        }
+
+        var contentWidth = _designerCanvasState.Controls
+            .Select(control => control.Left + GetCanvasControlSize(control).Width)
+            .DefaultIfEmpty(0)
+            .Max();
+        var contentHeight = _designerCanvasState.Controls
+            .Select(control => control.Top + GetCanvasControlSize(control).Height)
+            .DefaultIfEmpty(0)
+            .Max();
+        var sourceWidth = savedWidth > 0 ? savedWidth : Math.Max(viewportWidth, contentWidth);
+        var sourceHeight = savedHeight > 0 ? savedHeight : Math.Max(viewportHeight, contentHeight);
+        var scaleX = viewportWidth / sourceWidth;
+        var scaleY = viewportHeight / sourceHeight;
+
+        foreach (var control in _designerCanvasState.Controls)
+        {
+            var oldSize = GetCanvasControlSize(control);
+            var width = Math.Min(viewportWidth, Math.Max(1, oldSize.Width * scaleX));
+            var height = Math.Min(viewportHeight, Math.Max(1, oldSize.Height * scaleY));
+            control.Left = Math.Clamp(control.Left * scaleX, 0, Math.Max(0, viewportWidth - width));
+            control.Top = Math.Clamp(control.Top * scaleY, 0, Math.Max(0, viewportHeight - height));
+            control.Width = width;
+            control.Height = height;
+        }
+
+        _designerCanvasState.CanvasWidth = viewportWidth;
+        _designerCanvasState.CanvasHeight = viewportHeight;
+    }
+
+    private void CanvasLayoutSaveTimer_Tick(DispatcherQueueTimer sender, object args)
+    {
+        sender.Stop();
+        if (_isDesignerCanvasLoaded)
+        {
+            _ = SaveDesignerCanvasStateAsync();
+        }
     }
 
     private void ApplyMachineDashboardOptions(MachineDashboardOptions options)

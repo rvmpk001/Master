@@ -130,7 +130,7 @@
                     <Border x:Name="DesignPanel" Background="{ThemeResource Palette101B2D}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1">
                         <Grid x:Name="DesignSurface" Background="{ThemeResource Palette1A2638}" AllowDrop="True" DragOver="DesignSurface_DragOver" Drop="DesignSurface_Drop" PointerPressed="DesignSurface_PointerPressed">
                             <Image x:Name="TemplateImage" Stretch="Uniform" IsHitTestVisible="False" />
-                            <Canvas x:Name="DesignCanvas" Background="Transparent" />
+                            <Canvas x:Name="DesignCanvas" Background="Transparent" SizeChanged="DesignCanvas_SizeChanged" />
 
                             <StackPanel HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8" Orientation="Horizontal" Spacing="6">
                                 <Button x:Name="CanvasResetButton" Content="Restablecer" Height="40" Padding="12,0" Click="CanvasResetButton_Click" ToolTipService.ToolTip="Vaciar el lienzo" />
