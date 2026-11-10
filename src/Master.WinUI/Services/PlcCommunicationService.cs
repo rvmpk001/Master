@@ -144,38 +144,59 @@ public sealed class PlcCommunicationService
             return PlcConnectionStatus.Unavailable(validationError);
         }
 
-        IReadOnlyDictionary<string, ushort> additionalTagAddresses =
-            new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase);
+        IReadOnlyDictionary<string, PlcReadAddress> additionalTagAddresses =
+            new Dictionary<string, PlcReadAddress>(StringComparer.OrdinalIgnoreCase);
         IReadOnlyDictionary<string, AdditionalValueTagAddress> additionalValueTagAddresses =
             new Dictionary<string, AdditionalValueTagAddress>(StringComparer.OrdinalIgnoreCase);
+        var tagMappingWarnings = new List<string>();
         if (additionalImageControls.Count > 0 || additionalValueControls.Count > 0)
         {
             try
             {
                 var tags = await _plcTagService.GetTagsAsync(cancellationToken);
-                var mappedTags = new Dictionary<string, ushort>(StringComparer.OrdinalIgnoreCase);
+                var mappedTags = new Dictionary<string, PlcReadAddress>(StringComparer.OrdinalIgnoreCase);
                 foreach (var control in additionalImageControls.Distinct(StringComparer.OrdinalIgnoreCase))
                 {
                     if (!TryGetImageTagName(control, out var tagName))
                     {
-                        return PlcConnectionStatus.Unavailable(
-                            $"El control adicional '{control}' no tiene un mapeo PLC válido.");
+                        tagMappingWarnings.Add($"El control adicional '{control}' no tiene un mapeo PLC válido.");
+                        continue;
                     }
 
-                    var tag = tags.SingleOrDefault(candidate =>
-                        candidate.Name.Equals(tagName, StringComparison.OrdinalIgnoreCase));
-                    var expectedAddressType = IsAdditionalImageControl(control) ? 2f : 1f;
-                    if (tag is null
-                        || !tag.IsEnabled
-                        || tag.AddressType != expectedAddressType
-                        || tag.PlcAddress is not >= 0)
+                    var matchingTags = tags
+                        .Where(candidate => candidate.Name.Equals(tagName, StringComparison.OrdinalIgnoreCase))
+                        .Take(2)
+                        .ToArray();
+                    if (matchingTags.Length != 1)
                     {
-                        return PlcConnectionStatus.Unavailable(
-                            $"No hay una dirección MI habilitada y válida (tipo {expectedAddressType:0}) " +
-                            $"para el tag '{tagName}' de {control}.");
+                        tagMappingWarnings.Add(matchingTags.Length == 0
+                            ? $"No existe el tag '{tagName}' requerido por {control}."
+                            : $"El tag '{tagName}' está duplicado en dbo.Tags.");
+                        continue;
                     }
 
-                    mappedTags.Add(control, (ushort)tag.PlcAddress.Value);
+                    var tag = matchingTags[0];
+                    var expectedAddressType = IsAdditionalImageControl(control) ? 2f : 1f;
+                    if (!tag.IsEnabled)
+                    {
+                        tagMappingWarnings.Add(
+                            $"El tag '{tagName}' está deshabilitado en dbo.Tags; no se lee {control}.");
+                        continue;
+                    }
+
+                    if (tag.AddressType != expectedAddressType
+                        || tag.PlcAddress is not >= 0
+                        || !TryGetReadOperand(tag.AddressType, out var imageOperand))
+                    {
+                        tagMappingWarnings.Add(
+                            $"No hay una dirección PLC válida (tipo {expectedAddressType:0}) " +
+                            $"para el tag '{tagName}' de {control}.");
+                        continue;
+                    }
+
+                    mappedTags.Add(
+                        control,
+                        new PlcReadAddress(imageOperand, (ushort)tag.PlcAddress.Value));
                 }
 
                 var mappedValueTags =
@@ -184,48 +205,45 @@ public sealed class PlcCommunicationService
                 {
                     if (!TryGetValueTagName(control, out var tagName))
                     {
-                        return PlcConnectionStatus.Unavailable(
-                            $"El control de lectura '{control}' no tiene un mapeo PLC válido.");
+                        tagMappingWarnings.Add($"El control de lectura '{control}' no tiene un mapeo PLC válido.");
+                        continue;
                     }
 
-                    var tag = tags.SingleOrDefault(candidate =>
-                        candidate.Name.Equals(tagName, StringComparison.OrdinalIgnoreCase));
-                    if (!TryGetExpectedValueTagAddressType(tagName, out var expectedAddressType))
+                    var matchingTags = tags
+                        .Where(candidate => candidate.Name.Equals(tagName, StringComparison.OrdinalIgnoreCase))
+                        .Take(2)
+                        .ToArray();
+                    if (matchingTags.Length != 1)
                     {
-                        return PlcConnectionStatus.Unavailable(
-                            $"El tag '{tagName}' usa un tipo de dirección que el lector actual de operandos MI no soporta.");
+                        tagMappingWarnings.Add(matchingTags.Length == 0
+                            ? $"No existe el tag '{tagName}' requerido por {control}."
+                            : $"El tag '{tagName}' está duplicado en dbo.Tags.");
+                        continue;
                     }
 
-                    if (tag is null
-                        || !tag.IsEnabled
-                        || tag.AddressType != expectedAddressType
-                        || tag.PlcAddress is not >= 0)
+                    var tag = matchingTags[0];
+                    if (!TryGetReadOperand(tag.AddressType, out var valueOperand))
                     {
-                        return PlcConnectionStatus.Unavailable(
-                            $"No hay una dirección MI habilitada y válida (tipo {expectedAddressType:0}) para la lectura '{tagName}'.");
+                        tagMappingWarnings.Add(
+                            $"El tipo de dirección {tag.AddressType?.ToString(CultureInfo.InvariantCulture) ?? "(vacío)"} " +
+                            $"del tag '{tagName}' no tiene una lectura implementada.");
+                        continue;
                     }
 
+                    if (tag.PlcAddress is not >= 0)
+                    {
+                        tagMappingWarnings.Add(
+                            $"No hay una dirección PLC válida para la lectura '{tagName}'.");
+                        continue;
+                    }
+
+                    // The legacy scan reads configured memory ranges regardless of en; this path is read-only.
                     mappedValueTags.Add(
                         control,
                         new AdditionalValueTagAddress(
+                            valueOperand,
                             (ushort)tag.PlcAddress.Value,
                             tag.Multiplier ?? 1));
-                }
-
-                var duplicateAddressDetails = mappedTags
-                    .Select(pair => (Control: pair.Key, Address: pair.Value))
-                    .Concat(mappedValueTags.Select(pair =>
-                        (Control: pair.Key, Address: pair.Value.Address)))
-                    .GroupBy(item => item.Address)
-                    .Where(group => group.Count() > 1)
-                    .Select(group =>
-                        $"MI{group.Key}: {string.Join(", ", group.Select(item => item.Control))}")
-                    .ToArray();
-                if (duplicateAddressDetails.Length > 0)
-                {
-                    return PlcConnectionStatus.Unavailable(
-                        "Hay controles PLC distintos con la misma dirección MI; no se pueden validar " +
-                        $"sus estados hasta corregir dbo.Tags: {string.Join("; ", duplicateAddressDetails)}.");
                 }
 
                 additionalTagAddresses = mappedTags;
@@ -245,11 +263,17 @@ public sealed class PlcCommunicationService
         await _plcOperationLock.WaitAsync(cancellationToken);
         try
         {
-            return await CheckConnectionAsync(
+            var status = await CheckConnectionAsync(
                 options,
                 cancellationToken,
                 additionalTagAddresses,
                 additionalValueTagAddresses);
+            return tagMappingWarnings.Count == 0
+                ? status
+                : status with
+                {
+                    Detail = $"{status.Detail} Mapeo parcial: {string.Join(" ", tagMappingWarnings)}"
+                };
         }
         finally
         {
@@ -301,7 +325,7 @@ public sealed class PlcCommunicationService
     private static async Task<PlcConnectionStatus> CheckConnectionAsync(
         PlcProbeOptions options,
         CancellationToken cancellationToken,
-        IReadOnlyDictionary<string, ushort>? additionalTagAddresses = null,
+        IReadOnlyDictionary<string, PlcReadAddress>? additionalTagAddresses = null,
         IReadOnlyDictionary<string, AdditionalValueTagAddress>? additionalValueTagAddresses = null)
     {
         var executablePath = Path.Combine(
@@ -336,17 +360,21 @@ public sealed class PlcCommunicationService
         process.StartInfo.ArgumentList.Add(options.Retry.ToString(CultureInfo.InvariantCulture));
         process.StartInfo.ArgumentList.Add(options.AnalogInitial.ToString(CultureInfo.InvariantCulture));
         var addressesToRead = (additionalTagAddresses is null
-                ? Enumerable.Empty<ushort>()
+                ? Enumerable.Empty<PlcReadAddress>()
                 : additionalTagAddresses.Values)
             .Concat(additionalValueTagAddresses is null
-                ? Enumerable.Empty<ushort>()
-                : additionalValueTagAddresses.Values.Select(value => value.Address))
+                ? Enumerable.Empty<PlcReadAddress>()
+                : additionalValueTagAddresses.Values.Select(value =>
+                    new PlcReadAddress(value.OperandType, value.Address)))
             .Distinct()
-            .Order()
+            .OrderBy(address => address.OperandType)
+            .ThenBy(address => address.Address)
             .ToArray();
         if (addressesToRead.Length > 0)
         {
-            process.StartInfo.ArgumentList.Add(string.Join(",", addressesToRead));
+            process.StartInfo.ArgumentList.Add(string.Join(
+                ",",
+                addressesToRead.Select(address => $"{address.OperandType}:{address.Address}")));
         }
 
         try
@@ -394,14 +422,20 @@ public sealed class PlcCommunicationService
             var outputParts = standardOutput.Trim().Split('|');
             if (process.ExitCode == 0 && outputParts[0].Equals("CONNECTED", StringComparison.Ordinal))
             {
-                var valuesByAddress = new Dictionary<ushort, double>();
+                var valuesByAddress = new Dictionary<PlcReadAddress, double>();
                 foreach (var valuePart in outputParts.Skip(1))
                 {
                     var separator = valuePart.IndexOf('=');
-                    if (separator <= 2
-                        || !valuePart.StartsWith("MI", StringComparison.Ordinal)
+                    var addressSeparator = valuePart.IndexOf(':');
+                    if (addressSeparator <= 0
+                        || separator <= addressSeparator + 1
+                        || !Enum.TryParse<PlcReadOperand>(
+                            valuePart[..addressSeparator],
+                            ignoreCase: true,
+                            out var operandType)
+                        || !Enum.IsDefined(operandType)
                         || !ushort.TryParse(
-                            valuePart.AsSpan(2, separator - 2),
+                            valuePart.AsSpan(addressSeparator + 1, separator - addressSeparator - 1),
                             NumberStyles.None,
                             CultureInfo.InvariantCulture,
                             out var address)
@@ -412,10 +446,10 @@ public sealed class PlcCommunicationService
                             out var value))
                     {
                         return PlcConnectionStatus.Unavailable(
-                            $"El auxiliar PLC devolvió un valor de imagen adicional no válido: '{valuePart}'.");
+                            $"El auxiliar PLC devolvió una lectura de tag no válida: '{valuePart}'.");
                     }
 
-                    valuesByAddress.Add(address, value);
+                    valuesByAddress.Add(new PlcReadAddress(operandType, address), value);
                 }
 
                 var additionalImageValues = new Dictionary<string, double>(StringComparer.OrdinalIgnoreCase);
@@ -426,7 +460,8 @@ public sealed class PlcCommunicationService
                         if (!valuesByAddress.TryGetValue(address, out var value))
                         {
                             return PlcConnectionStatus.Unavailable(
-                                $"El auxiliar PLC no devolvió lectura para MI{address}, requerido por {control}.");
+                                $"El auxiliar PLC no devolvió lectura para " +
+                                $"{address.OperandType}{address.Address}, requerido por {control}.");
                         }
 
                         additionalImageValues.Add(control, value);
@@ -438,10 +473,12 @@ public sealed class PlcCommunicationService
                 {
                     foreach (var (control, tagAddress) in additionalValueTagAddresses)
                     {
-                        if (!valuesByAddress.TryGetValue(tagAddress.Address, out var value))
+                        var address = new PlcReadAddress(tagAddress.OperandType, tagAddress.Address);
+                        if (!valuesByAddress.TryGetValue(address, out var value))
                         {
                             return PlcConnectionStatus.Unavailable(
-                                $"El auxiliar PLC no devolvió lectura para MI{tagAddress.Address}, requerido por {control}.");
+                                $"El auxiliar PLC no devolvió lectura para " +
+                                $"{tagAddress.OperandType}{tagAddress.Address}, requerido por {control}.");
                         }
 
                         additionalTextValues.Add(control, value * tagAddress.Multiplier);
@@ -705,27 +742,36 @@ public sealed class PlcCommunicationService
         return true;
     }
 
-    private static bool TryGetExpectedValueTagAddressType(string tagName, out float expectedAddressType)
+    private static bool TryGetReadOperand(float? addressType, out PlcReadOperand operandType)
     {
-        if (tagName.StartsWith("Aditivo", StringComparison.OrdinalIgnoreCase)
-            || tagName.StartsWith("Fibra", StringComparison.OrdinalIgnoreCase))
+        // dbo.Tags.tipoDir uses the legacy Tags.addTypes values, not the driver's enum values.
+        operandType = addressType switch
         {
-            expectedAddressType = 3;
-            return true;
-        }
-
-        if (tagName.Equals("Agua", StringComparison.OrdinalIgnoreCase)
-            || tagName.Equals("Agua2", StringComparison.OrdinalIgnoreCase))
-        {
-            expectedAddressType = 0;
-            return false;
-        }
-
-        expectedAddressType = 4;
-        return true;
+            0 => PlcReadOperand.MI,
+            1 => PlcReadOperand.MB,
+            2 => PlcReadOperand.Output,
+            3 => PlcReadOperand.MF,
+            4 => PlcReadOperand.ML,
+            _ => default
+        };
+        return addressType is >= 0 and <= 4;
     }
 
-    private readonly record struct AdditionalValueTagAddress(ushort Address, double Multiplier);
+    private readonly record struct PlcReadAddress(PlcReadOperand OperandType, ushort Address);
+
+    private readonly record struct AdditionalValueTagAddress(
+        PlcReadOperand OperandType,
+        ushort Address,
+        double Multiplier);
+
+    private enum PlcReadOperand
+    {
+        MI,
+        MB,
+        Output,
+        MF,
+        ML
+    }
 
     private readonly record struct PlcProbeOptions(
         int PlcAddress,

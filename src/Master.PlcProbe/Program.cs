@@ -21,7 +21,7 @@ internal static class Program
             return 1;
         }
 
-        if (!TryParseAdditionalMiAddresses(args, out var additionalMiAddresses, out validationError))
+        if (!TryParseAdditionalReadRequests(args, out var additionalReadRequests, out validationError))
         {
             Console.Error.WriteLine($"ERROR|InvalidSettings|{validationError}");
             return 1;
@@ -53,11 +53,12 @@ internal static class Program
             }
             else
             {
-                var requests = new ReadWriteRequest[additionalMiAddresses.Length + 1];
+                var requests = new ReadWriteRequest[additionalReadRequests.Length + 1];
                 requests[0] = new ReadOperands(1, OperandTypes.MI, settings.AnalogInitial);
-                for (var index = 0; index < additionalMiAddresses.Length; index++)
+                for (var index = 0; index < additionalReadRequests.Length; index++)
                 {
-                    requests[index + 1] = new ReadOperands(1, OperandTypes.MI, additionalMiAddresses[index]);
+                    var readRequest = additionalReadRequests[index];
+                    requests[index + 1] = new ReadOperands(1, readRequest.OperandType, readRequest.Address);
                 }
 
                 plc.ReadWrite(ref requests);
@@ -68,13 +69,15 @@ internal static class Program
                 }
                 else
                 {
-                    var values = new List<string>(additionalMiAddresses.Length);
-                    for (var index = 0; index < additionalMiAddresses.Length; index++)
+                    var values = new List<string>(additionalReadRequests.Length);
+                    for (var index = 0; index < additionalReadRequests.Length; index++)
                     {
+                        var readRequest = additionalReadRequests[index];
                         if (requests[index + 1].ResponseValues is not Array { Length: > 0 } response)
                         {
                             errorMessage =
-                                $"ERROR|NoResponse|El PLC no devolvió una lectura de MI{additionalMiAddresses[index]}.";
+                                $"ERROR|NoResponse|El PLC no devolvió una lectura de " +
+                                $"{readRequest.OperandType}{readRequest.Address}.";
                             break;
                         }
 
@@ -82,13 +85,15 @@ internal static class Program
                         if (rawValue is null)
                         {
                             errorMessage =
-                                $"ERROR|NoResponse|El PLC devolvió un valor vacío para MI{additionalMiAddresses[index]}.";
+                                $"ERROR|NoResponse|El PLC devolvió un valor vacío para " +
+                                $"{readRequest.OperandType}{readRequest.Address}.";
                             break;
                         }
 
                         var value = Convert.ToDouble(rawValue, CultureInfo.InvariantCulture);
                         values.Add(
-                            $"MI{additionalMiAddresses[index]}={value.ToString("R", CultureInfo.InvariantCulture)}");
+                            $"{readRequest.OperandType}:{readRequest.Address}=" +
+                            value.ToString("R", CultureInfo.InvariantCulture));
                     }
 
                     if (string.IsNullOrEmpty(errorMessage))
@@ -143,41 +148,83 @@ internal static class Program
         return exitCode;
     }
 
-    private static bool TryParseAdditionalMiAddresses(
+    private static bool TryParseAdditionalReadRequests(
         IReadOnlyList<string> args,
-        out ushort[] addresses,
+        out PlcReadRequest[] readRequests,
         out string error)
     {
-        addresses = Array.Empty<ushort>();
+        readRequests = Array.Empty<PlcReadRequest>();
         error = string.Empty;
         if (args.Count == 9)
         {
             return true;
         }
 
-        var parsedAddresses = new List<ushort>();
-        foreach (var addressText in args[9].Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
+        var parsedRequests = new List<PlcReadRequest>();
+        foreach (var requestText in args[9].Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries))
         {
-            if (!ushort.TryParse(addressText, NumberStyles.None, CultureInfo.InvariantCulture, out var address))
+            var parts = requestText.Split(':');
+            var operandType = OperandTypes.MI;
+            var addressText = requestText;
+            if (parts.Length == 2)
             {
-                error = $"La dirección adicional '{addressText}' no es una dirección MI válida.";
+                if (!Enum.TryParse(parts[0], ignoreCase: true, out operandType)
+                    || !Enum.IsDefined(typeof(OperandTypes), operandType)
+                    || operandType is not (OperandTypes.MI or OperandTypes.MB
+                        or OperandTypes.MF or OperandTypes.ML or OperandTypes.Output))
+                {
+                    error = $"El tipo de operando '{parts[0]}' no es compatible con una lectura PLC.";
+                    return false;
+                }
+
+                addressText = parts[1];
+            }
+            else if (parts.Length != 1)
+            {
+                error = $"La lectura adicional '{requestText}' debe tener el formato TIPO:DIRECCIÓN.";
                 return false;
             }
 
-            if (!parsedAddresses.Contains(address))
+            if (!ushort.TryParse(addressText, NumberStyles.None, CultureInfo.InvariantCulture, out var address))
             {
-                parsedAddresses.Add(address);
+                error = $"La dirección adicional '{addressText}' no es válida.";
+                return false;
+            }
+
+            var readRequest = new PlcReadRequest(operandType, address);
+            if (!parsedRequests.Contains(readRequest))
+            {
+                parsedRequests.Add(readRequest);
             }
         }
 
-        if (parsedAddresses.Count == 0)
+        if (parsedRequests.Count == 0)
         {
-            error = "Debe indicarse al menos una dirección MI adicional.";
+            error = "Debe indicarse al menos una lectura adicional.";
             return false;
         }
 
-        addresses = parsedAddresses.ToArray();
+        readRequests = parsedRequests.ToArray();
         return true;
+    }
+
+    private readonly struct PlcReadRequest : IEquatable<PlcReadRequest>
+    {
+        public PlcReadRequest(OperandTypes operandType, ushort address)
+        {
+            OperandType = operandType;
+            Address = address;
+        }
+
+        public OperandTypes OperandType { get; }
+        public ushort Address { get; }
+
+        public bool Equals(PlcReadRequest other) =>
+            OperandType == other.OperandType && Address == other.Address;
+
+        public override bool Equals(object? obj) => obj is PlcReadRequest other && Equals(other);
+
+        public override int GetHashCode() => ((int)OperandType * 397) ^ Address;
     }
 
     private static bool TryParseSettings(

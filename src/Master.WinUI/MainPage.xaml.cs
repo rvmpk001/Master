@@ -7430,8 +7430,7 @@ public sealed partial class MainPage : Page
     {
         return string.Equals(control.Type, "CtlAgua", StringComparison.OrdinalIgnoreCase)
             && !control.IsConfiguredDisabled
-            && (string.Equals(control.WaterControl, "ctlAgua", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(control.WaterControl, "ctlAgua2", StringComparison.OrdinalIgnoreCase));
+            && string.Equals(control.WaterControl, "ctlAgua2", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsCanvasPlcImageControl(DesignerCanvasControlState control)
