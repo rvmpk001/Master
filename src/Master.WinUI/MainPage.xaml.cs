@@ -64,6 +64,8 @@ public sealed partial class MainPage : Page
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, string>? _dashboardFormulaValues;
     private bool _hasDashboardMaterialData;
+    private readonly Dictionary<string, decimal> _simulatedCanvasReadings =
+        new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, AdditionalImageConfigurationRecord> _additionalImageConfigurations =
         new Dictionary<string, AdditionalImageConfigurationRecord>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, AdditionalImageConfigurationRecord> _pumpImageConfigurations =
@@ -511,12 +513,24 @@ public sealed partial class MainPage : Page
             var additionalTextValues = status.State == PlcConnectionState.Connected
                 ? status.AdditionalTextValues
                 : null;
+            var useSimulatedReadings = IsSimulatedReadingsActive;
             foreach (var control in _designerCanvasState.Controls.Where(control =>
                          GetCanvasValueControlName(control) is not null))
             {
                 var controlName = GetCanvasValueControlName(control);
-                if (controlName is not null
-                    && additionalTextValues is not null
+                if (controlName is null)
+                {
+                    continue;
+                }
+
+                if (useSimulatedReadings
+                    && _simulatedCanvasReadings.TryGetValue(controlName, out var simulatedValue))
+                {
+                    SetCanvasValue(control, simulatedValue.ToString("0.##", CultureInfo.CurrentCulture));
+                    continue;
+                }
+
+                if (additionalTextValues is not null
                     && additionalTextValues.TryGetValue(controlName, out var value))
                 {
                     SetCanvasValue(control, value.ToString("0.##", CultureInfo.CurrentCulture));
@@ -547,7 +561,8 @@ public sealed partial class MainPage : Page
             };
 
             SetSystemStatus(message, color, status.Detail);
-            if (_lastPlcConnectionState != status.State || _lastPlcStatusDetail != status.Detail)
+            if ((_lastPlcConnectionState != status.State || _lastPlcStatusDetail != status.Detail)
+                && _simulatedProcessState == SimulatedProcessState.Idle)
             {
                 ModuleStatusText.Text = $"Estado PLC: {status.Detail}";
                 _lastPlcConnectionState = status.State;
@@ -1850,10 +1865,9 @@ public sealed partial class MainPage : Page
             RemissionRows[7].Valor = orders.Text.Trim();
             RemissionPanel.IsExpanded = true;
             _dashboardFormulaValues = selectedRecipe!.Values;
+            _simulatedCanvasReadings.Clear();
             RefreshDashboardMaterials();
-            ModuleStatusText.Text =
-                "Receta preparada para cargarse; no se guardó ni se envió al PLC. " +
-                "La tabla Materiales muestra las cantidades de la receta seleccionada.";
+            ModuleStatusText.Text = "Receta preparada para cargarse";
             _remissionBeforeSimulation ??= RemissionRows.Select(row => row.Valor).ToArray();
             _simulatedRemission = new SimulatedRemission(
                 remissionNumber.Text.Trim(),
@@ -2096,8 +2110,18 @@ public sealed partial class MainPage : Page
             return;
         }
 
+        try
+        {
+            LoadSimulatedRecipeReadings(_simulatedRemission.FormulaValues);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ModuleStatusText.Text = $"No se pudo simular la carga: {exception.Message}";
+            return;
+        }
+
         _simulatedProcessState = SimulatedProcessState.LoadReceived;
-        ModuleStatusText.Text = "Fin de carga recibida; no se accionó el PLC.";
+        ModuleStatusText.Text = "Fin de carga recibida";
         UpdateSimulatedActionButtons();
     }
 
@@ -2113,9 +2137,18 @@ public sealed partial class MainPage : Page
         if (_simulatedProcessState == SimulatedProcessState.LoadReceived)
         {
             _simulatedProcessState = SimulatedProcessState.Downloading;
-            ModuleStatusText.Text = "Descargando; no se accionó el PLC.";
+            ModuleStatusText.Text = "Maquina Descargando";
             UpdateSimulatedActionButtons();
-            await Task.Delay(TimeSpan.FromSeconds(1));
+            var loadedReadings = _simulatedCanvasReadings
+                .Where(reading => !reading.Key.Equals("ctlAgregados", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(reading => reading.Key, reading => reading.Value, StringComparer.OrdinalIgnoreCase);
+            const int progressSteps = 20;
+            for (var step = 1; step <= progressSteps; step++)
+            {
+                await Task.Delay(TimeSpan.FromMilliseconds(100));
+                ApplySimulatedCanvasReadings(loadedReadings, (progressSteps - step) / (decimal)progressSteps);
+            }
+
             _simulatedProcessState = SimulatedProcessState.AwaitingReport;
         }
 
@@ -2127,13 +2160,15 @@ public sealed partial class MainPage : Page
         if (_simulatedProcessState == SimulatedProcessState.Paused)
         {
             _simulatedProcessState = _stateBeforePause;
-            ModuleStatusText.Text = $"Proceso reanudado ({GetSimulationStageName(_simulatedProcessState)}); no se accionó el PLC.";
+            ModuleStatusText.Text = _simulatedProcessState == SimulatedProcessState.Prepared
+                ? "Receta preparada para cargarse"
+                : "Fin de carga recibida";
         }
         else if (_simulatedProcessState is SimulatedProcessState.Prepared or SimulatedProcessState.LoadReceived)
         {
             _stateBeforePause = _simulatedProcessState;
             _simulatedProcessState = SimulatedProcessState.Paused;
-            ModuleStatusText.Text = "Proceso pausado; no se accionó el PLC.";
+            ModuleStatusText.Text = "Sistema en pausa";
         }
         else
         {
@@ -2157,10 +2192,11 @@ public sealed partial class MainPage : Page
         _remissionBeforeSimulation = null;
         _simulatedRemission = null;
         _simulatedProcessState = SimulatedProcessState.Idle;
+        _simulatedCanvasReadings.Clear();
         _dashboardFormulaValues = null;
         RefreshDashboardMaterials();
         RemissionPanel.IsExpanded = true;
-        ModuleStatusText.Text = "Proceso cancelado. No se guardó ni se envió ninguna orden al PLC.";
+        ModuleStatusText.Text = "Proceso cancelado";
         UpdateSimulatedActionButtons();
     }
 
@@ -2187,8 +2223,7 @@ public sealed partial class MainPage : Page
             var file = await picker.PickSaveFileAsync();
             if (file is null)
             {
-                ModuleStatusText.Text =
-                    "Se canceló el guardado del PDF. Usa DESCARGAR para reintentar; no se accionó el PLC.";
+                ModuleStatusText.Text = "Se canceló el guardado del PDF. Usa DESCARGAR para reintentar.";
                 UpdateSimulatedActionButtons();
                 return;
             }
@@ -2197,7 +2232,7 @@ public sealed partial class MainPage : Page
             await File.WriteAllBytesAsync(file.Path, _reportExportService.BuildPdf(report));
             _simulatedProcessState = SimulatedProcessState.Complete;
             _remissionBeforeSimulation = null;
-            ModuleStatusText.Text = $"Remisión completa. PDF guardado en {file.Path}; no se accionó el PLC.";
+            ModuleStatusText.Text = "Remision Completa";
             RemissionPanel.IsExpanded = true;
             UpdateSimulatedActionButtons();
         }
@@ -2331,7 +2366,10 @@ public sealed partial class MainPage : Page
             && _simulatedProcessState is SimulatedProcessState.Idle or SimulatedProcessState.Complete;
         LoadActionButton.IsEnabled = _simulatedProcessState == SimulatedProcessState.Prepared;
         DownloadActionButton.Visibility =
-            _simulatedProcessState is SimulatedProcessState.LoadReceived or SimulatedProcessState.AwaitingReport
+            _simulatedProcessState is SimulatedProcessState.LoadReceived
+                or SimulatedProcessState.Downloading
+                or SimulatedProcessState.AwaitingReport
+                or SimulatedProcessState.Complete
                 ? Visibility.Visible
                 : Visibility.Collapsed;
         DownloadActionButton.IsEnabled =
@@ -2349,13 +2387,104 @@ public sealed partial class MainPage : Page
                 or SimulatedProcessState.AwaitingReport;
     }
 
-    private static string GetSimulationStageName(SimulatedProcessState state) =>
-        state switch
+    private bool IsSimulatedReadingsActive =>
+        _simulatedProcessState is SimulatedProcessState.LoadReceived
+            or SimulatedProcessState.Downloading
+            or SimulatedProcessState.AwaitingReport
+            or SimulatedProcessState.Complete
+        || (_simulatedProcessState == SimulatedProcessState.Paused
+            && _stateBeforePause == SimulatedProcessState.LoadReceived);
+
+    private void LoadSimulatedRecipeReadings(IReadOnlyDictionary<string, string> formulaValues)
+    {
+        var readings = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+        foreach (var control in _designerCanvasState.Controls)
         {
-            SimulatedProcessState.Prepared => "remisión preparada",
-            SimulatedProcessState.LoadReceived => "carga recibida",
-            _ => "proceso"
-        };
+            var controlName = GetCanvasValueControlName(control);
+            var binding = GetDashboardMaterialBinding(control);
+            if (controlName is null || binding is null)
+            {
+                continue;
+            }
+
+            var (parameter, _) = binding.Value;
+            var materialName = _dashboardMachineConfiguration.GetValueOrDefault(parameter)?.Trim();
+            if (string.IsNullOrWhiteSpace(materialName)
+                || materialName.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase)
+                || readings.ContainsKey(controlName))
+            {
+                continue;
+            }
+
+            var quantityField = GetDashboardFormulaQuantityField(parameter);
+            var rawQuantity = quantityField is null
+                ? null
+                : formulaValues.GetValueOrDefault(quantityField)?.Trim();
+            if (!TryParseSimulatedQuantity(rawQuantity, out var quantity))
+            {
+                throw new InvalidOperationException(
+                    $"No se pudo simular la lectura de {materialName}: la cantidad '{rawQuantity}' no es válida.");
+            }
+
+            readings.Add(controlName, quantity);
+        }
+
+        ApplySimulatedCanvasReadings(
+            readings.Where(reading => !reading.Key.Equals("ctlAgregados", StringComparison.OrdinalIgnoreCase))
+                .ToDictionary(reading => reading.Key, reading => reading.Value, StringComparer.OrdinalIgnoreCase),
+            1m);
+    }
+
+    private void ApplySimulatedCanvasReadings(
+        IReadOnlyDictionary<string, decimal> loadedReadings,
+        decimal remainingFraction)
+    {
+        _simulatedCanvasReadings.Clear();
+        decimal total = 0;
+        foreach (var (controlName, loadedValue) in loadedReadings)
+        {
+            var remainingValue = loadedValue * remainingFraction;
+            _simulatedCanvasReadings[controlName] = remainingValue;
+            total += remainingValue;
+        }
+
+        if (_designerCanvasState.Controls.Any(control =>
+                string.Equals(GetCanvasValueControlName(control), "ctlAgregados", StringComparison.OrdinalIgnoreCase)))
+        {
+            _simulatedCanvasReadings["ctlAgregados"] = total;
+        }
+
+        foreach (var control in _designerCanvasState.Controls)
+        {
+            var controlName = GetCanvasValueControlName(control);
+            if (controlName is not null
+                && _simulatedCanvasReadings.TryGetValue(controlName, out var value))
+            {
+                SetCanvasValue(control, value.ToString("0.##", CultureInfo.CurrentCulture));
+            }
+        }
+    }
+
+    private static bool TryParseSimulatedQuantity(string? text, out decimal quantity)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            quantity = 0;
+            return true;
+        }
+
+        return (decimal.TryParse(
+                    text,
+                    NumberStyles.Number,
+                    CultureInfo.CurrentCulture,
+                    out quantity)
+                || decimal.TryParse(
+                    text,
+                    NumberStyles.Number,
+                    CultureInfo.InvariantCulture,
+                    out quantity))
+            && quantity >= 0;
+    }
 
     private static string SanitizeFileName(string fileName)
     {
