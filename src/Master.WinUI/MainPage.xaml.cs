@@ -5428,13 +5428,8 @@ public sealed partial class MainPage : Page
 
         if (InventoryMaterialComboBox.SelectedItem is not ComboBoxItem { Content: string category })
         {
-            InventoryAdditionalFieldsPanel.Visibility = Visibility.Visible;
             return;
         }
-
-        InventoryAdditionalFieldsPanel.Visibility = category is "CEMENTOS" or "AGUAS" or "ADITIVOS" or "FIBRAS"
-            ? Visibility.Collapsed
-            : Visibility.Visible;
 
         var materials = category switch
         {
@@ -5767,9 +5762,8 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        var requiresAdditionalFields = category is not ("CEMENTOS" or "AGUAS" or "ADITIVOS" or "FIBRAS");
         var supplier = InventorySupplierComboBox.SelectedItem as string ?? string.Empty;
-        if (requiresAdditionalFields && supplier.Length == 0)
+        if (supplier.Length == 0)
         {
             InventoryFormStatusText.Text = "Selecciona un proveedor.";
             return;
