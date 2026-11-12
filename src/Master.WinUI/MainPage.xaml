@@ -1509,6 +1509,7 @@
                         <RowDefinition Height="32" />
                         <RowDefinition Height="42" />
                         <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
                     <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="5,5,0,0" Padding="12,2">
                         <TextBlock Text="Carga Manual" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="14" VerticalAlignment="Center" />
@@ -1561,7 +1562,7 @@
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
                                         <TextBlock Text="PEDIDO:" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
-                                        <ComboBox x:Name="ManualLoadOrderComboBox" Grid.Column="1" PlaceholderText="Selecciona pedido" ItemsSource="{x:Bind ManualLoadOrderNumbers}" SelectedIndex="0" SelectionChanged="ManualLoadOrder_SelectionChanged" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                        <ComboBox x:Name="ManualLoadOrderComboBox" Grid.Column="1" PlaceholderText="Selecciona pedido" ItemsSource="{x:Bind ManualLoadOrderNumbers}" SelectionChanged="ManualLoadOrder_SelectionChanged" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                     </Grid>
                                     <Border Grid.Row="2" Grid.ColumnSpan="2" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="10" Background="{ThemeResource Palette172337}">
                                         <Grid ColumnSpacing="14">
@@ -1571,8 +1572,8 @@
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
                                             <StackPanel Spacing="8">
-                                                <TextBox x:Name="ManualLoadA1TextBox" Header="CANTIDAD GRAVA *" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadA2TextBox" Header="CANTIDAD ARENA *" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadA1TextBox" Header="CANTIDAD GRAVA" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadA2TextBox" Header="CANTIDAD ARENA" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                                 <TextBox x:Name="ManualLoadA3TextBox" Header="CANTIDAD AGREGADO 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                                 <TextBox x:Name="ManualLoadA4TextBox" Header="CANTIDAD AGREGADO 4" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                                 <TextBox x:Name="ManualLoadA5TextBox" Header="CANTIDAD AGREGADO 5" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
@@ -1581,18 +1582,18 @@
                                                 <TextBox x:Name="ManualLoadA8TextBox" Header="CANTIDAD AGREGADO 8" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" Spacing="8">
-                                                <TextBox x:Name="ManualLoadC1TextBox" Header="CANTIDAD CEMENTO *" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadC1TextBox" Header="CANTIDAD CEMENTO" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                                 <TextBox x:Name="ManualLoadC2TextBox" Header="CANTIDAD CEMENTO 2" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                                 <TextBox x:Name="ManualLoadC3TextBox" Header="CANTIDAD CEMENTO 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                                 <TextBox x:Name="ManualLoadC4TextBox" Header="CANTIDAD CEMENTO 4" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                                 <TextBox x:Name="ManualLoadC5TextBox" Header="CANTIDAD CEMENTO 5" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadWater1TextBox" Header="CANTIDAD AGUA 1 *" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadWater1TextBox" Header="CANTIDAD AGUA 1" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                                 <TextBox x:Name="ManualLoadWater2TextBox" Header="CANTIDAD AGUA 2" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                                 <TextBox x:Name="ManualLoadWater3TextBox" Header="CANTIDAD AGUA 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             </StackPanel>
                                             <StackPanel Grid.Column="2" Spacing="8">
-                                                <TextBox x:Name="ManualLoadD1TextBox" Header="CANTIDAD ADITIVO 1 *" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadD2TextBox" Header="CANTIDAD ADITIVO 2 *" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadD1TextBox" Header="CANTIDAD ADITIVO 1" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                                <TextBox x:Name="ManualLoadD2TextBox" Header="CANTIDAD ADITIVO 2" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                                 <TextBox x:Name="ManualLoadD3TextBox" Header="CANTIDAD ADITIVO 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                                 <TextBox x:Name="ManualLoadD4TextBox" Header="CANTIDAD ADITIVO 4" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                                 <TextBox x:Name="ManualLoadD5TextBox" Header="CANTIDAD ADITIVO 5" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
@@ -1646,6 +1647,7 @@
                             </ScrollViewer>
                         </TabViewItem>
                     </TabView>
+                    <InfoBar x:Name="ManualLoadStatusInfoBar" Grid.Row="3" Margin="12,0,12,8" IsOpen="False" IsClosable="True" />
                 </Grid>
             </Border>
         </Grid>

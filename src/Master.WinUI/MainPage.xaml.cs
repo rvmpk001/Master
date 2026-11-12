@@ -199,7 +199,7 @@ public sealed partial class MainPage : Page
     public ObservableCollection<ClientRecord> OrderClients { get; } = new();
     public ObservableCollection<OrderRecipe> OrderRecipes { get; } = new();
     public ObservableCollection<OrderRecipe> ManualLoadRecipes { get; } = new();
-    public ObservableCollection<string> ManualLoadOrderNumbers { get; } = new() { "Ocasional" };
+    public ObservableCollection<string> ManualLoadOrderNumbers { get; } = new();
     public ObservableCollection<string> ManualLoadConstructionOptions { get; } = new();
     public ObservableCollection<OperatorRecord> ManualLoadOperators { get; } = new();
     public ObservableCollection<TruckRecord> ManualLoadTrucks { get; } = new();
@@ -225,6 +225,7 @@ public sealed partial class MainPage : Page
         }
 
         InitializeComponent();
+        UpdateManualLoadMaterialInputs(null);
         AddCanvasDeleteAccelerator(Windows.System.VirtualKey.Delete);
         AddCanvasDeleteAccelerator(Windows.System.VirtualKey.Back);
         ApplyTheme(LoadSavedTheme(), persist: false);
@@ -2713,7 +2714,7 @@ public sealed partial class MainPage : Page
         ManualLoadOrderComboBox.IsEnabled = false;
         ManualLoadOrderNumbers.Clear();
         ManualLoadOrderNumbers.Add("Ocasional");
-        ManualLoadOrderComboBox.SelectedItem = "Ocasional";
+        ManualLoadOrderComboBox.SelectedItem = null;
         try
         {
             var recipes = await _orderService.GetRecipesAsync();
@@ -2785,7 +2786,7 @@ public sealed partial class MainPage : Page
                 ManualLoadOrderNumbers.Add(orderNumber);
             }
 
-            ManualLoadOrderComboBox.SelectedItem = "Ocasional";
+            ManualLoadOrderComboBox.SelectedItem = null;
             ManualLoadRemissionTextBox.Text = nextRemission;
             ManualLoadStatusText.Text = $"Fórmulas: {ManualLoadRecipes.Count}. Pedidos activos: {orderNumbers.Count}.";
         }
@@ -2802,9 +2803,59 @@ public sealed partial class MainPage : Page
 
     private void ManualLoadRecipe_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (ManualLoadRecipeComboBox.SelectedItem is OrderRecipe recipe)
+        var recipe = ManualLoadRecipeComboBox.SelectedItem as OrderRecipe;
+        if (recipe is not null)
         {
             ManualLoadDescriptionTextBox.Text = recipe.Description;
+        }
+
+        ResetManualLoadMaterialInputs();
+        UpdateManualLoadMaterialInputs(recipe);
+        SetManualLoadRequiredFieldHighlight(new HashSet<string>(StringComparer.Ordinal));
+    }
+
+    private void UpdateManualLoadMaterialInputs(OrderRecipe? recipe)
+    {
+        foreach (var (_, slot, input) in GetManualLoadMaterialInputs())
+        {
+            input.IsEnabled = recipe?.MaterialSlots.Contains(slot) == true;
+        }
+    }
+
+    private (string Column, string Slot, TextBox Input)[] GetManualLoadMaterialInputs() =>
+    [
+        ("A1C", "A1", ManualLoadA1TextBox),
+        ("A2C", "A2", ManualLoadA2TextBox),
+        ("A3C", "A3", ManualLoadA3TextBox),
+        ("A4C", "A4", ManualLoadA4TextBox),
+        ("A5C", "A5", ManualLoadA5TextBox),
+        ("A6C", "A6", ManualLoadA6TextBox),
+        ("A7C", "A7", ManualLoadA7TextBox),
+        ("A8C", "A8", ManualLoadA8TextBox),
+        ("C1C", "C1", ManualLoadC1TextBox),
+        ("C2C", "C2", ManualLoadC2TextBox),
+        ("C3C", "C3", ManualLoadC3TextBox),
+        ("C4C", "C4", ManualLoadC4TextBox),
+        ("C5C", "C5", ManualLoadC5TextBox),
+        ("D1C", "D1", ManualLoadD1TextBox),
+        ("D2C", "D2", ManualLoadD2TextBox),
+        ("D3C", "D3", ManualLoadD3TextBox),
+        ("D4C", "D4", ManualLoadD4TextBox),
+        ("D5C", "D5", ManualLoadD5TextBox),
+        ("D6C", "D6", ManualLoadD6TextBox),
+        ("Agua", "Agua", ManualLoadWater1TextBox),
+        ("Agua2", "Agua2", ManualLoadWater2TextBox),
+        ("Agua3", "Agua3", ManualLoadWater3TextBox),
+        ("FI1C", "Fibra1", ManualLoadFI1TextBox),
+        ("FI2C", "Fibra2", ManualLoadFI2TextBox),
+        ("FI3C", "Fibra3", ManualLoadFI3TextBox)
+    ];
+
+    private void ResetManualLoadMaterialInputs()
+    {
+        foreach (var (_, _, input) in GetManualLoadMaterialInputs())
+        {
+            input.Text = string.Empty;
         }
     }
 
@@ -2923,6 +2974,7 @@ public sealed partial class MainPage : Page
         ManualLoadQuantityNumberBox.Value = 0;
         ManualLoadRecipeComboBox.SelectedItem = null;
         ManualLoadRecipeComboBox.Text = string.Empty;
+        ResetManualLoadMaterialInputs();
         ManualLoadDescriptionTextBox.Text = string.Empty;
         ManualLoadRemissionClientComboBox.SelectedItem = null;
         ManualLoadRemissionClientComboBox.Text = string.Empty;
@@ -2942,6 +2994,8 @@ public sealed partial class MainPage : Page
 
     private async void SaveManualLoad_Click(object sender, RoutedEventArgs e)
     {
+        ManualLoadStatusInfoBar.IsOpen = false;
+
         if (!await RefreshCurrentUserPermissionsAsync())
         {
             ManualLoadSaveButton.IsEnabled = false;
@@ -2956,13 +3010,28 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        var recipeCode = ManualLoadRecipeComboBox.Text.Trim();
-        if (string.IsNullOrWhiteSpace(recipeCode))
+        if (ManualLoadRecipeComboBox.SelectedItem is not OrderRecipe selectedRecipe)
         {
-            ManualLoadStatusText.Text = "El código de receta es obligatorio.";
+            SetFormStatus(
+                ManualLoadStatusInfoBar,
+                "Selecciona un código de receta para continuar.",
+                InfoBarSeverity.Error);
             ManualLoadRecipeComboBox.Focus(FocusState.Programmatic);
             return;
         }
+
+        if (ManualLoadOrderComboBox.SelectedItem is not string selectedOrderOption ||
+            string.IsNullOrWhiteSpace(selectedOrderOption))
+        {
+            SetFormStatus(
+                ManualLoadStatusInfoBar,
+                "Selecciona un pedido o la opción Ocasional para continuar.",
+                InfoBarSeverity.Error);
+            ManualLoadOrderComboBox.Focus(FocusState.Programmatic);
+            return;
+        }
+
+        var recipeCode = selectedRecipe.Code.Trim();
 
         if (!double.IsFinite(ManualLoadQuantityNumberBox.Value) ||
             ManualLoadQuantityNumberBox.Value <= 0 ||
@@ -2972,7 +3041,10 @@ public sealed partial class MainPage : Page
                 CultureInfo.InvariantCulture,
                 out var quantity))
         {
-            ManualLoadStatusText.Text = "La cantidad debe ser un número mayor que cero.";
+            SetFormStatus(
+                ManualLoadStatusInfoBar,
+                "La cantidad a cargar debe ser mayor a cero.",
+                InfoBarSeverity.Error);
             ManualLoadQuantityNumberBox.Focus(FocusState.Programmatic);
             return;
         }
@@ -2985,46 +3057,12 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        var materialFields = new (string Column, TextBox Input)[]
-        {
-            ("A1C", ManualLoadA1TextBox),
-            ("A2C", ManualLoadA2TextBox),
-            ("A3C", ManualLoadA3TextBox),
-            ("A4C", ManualLoadA4TextBox),
-            ("A5C", ManualLoadA5TextBox),
-            ("A6C", ManualLoadA6TextBox),
-            ("A7C", ManualLoadA7TextBox),
-            ("A8C", ManualLoadA8TextBox),
-            ("C1C", ManualLoadC1TextBox),
-            ("C2C", ManualLoadC2TextBox),
-            ("C3C", ManualLoadC3TextBox),
-            ("C4C", ManualLoadC4TextBox),
-            ("C5C", ManualLoadC5TextBox),
-            ("D1C", ManualLoadD1TextBox),
-            ("D2C", ManualLoadD2TextBox),
-            ("D3C", ManualLoadD3TextBox),
-            ("D4C", ManualLoadD4TextBox),
-            ("D5C", ManualLoadD5TextBox),
-            ("D6C", ManualLoadD6TextBox),
-            ("Agua", ManualLoadWater1TextBox),
-            ("Agua2", ManualLoadWater2TextBox),
-            ("Agua3", ManualLoadWater3TextBox),
-            ("FI1C", ManualLoadFI1TextBox),
-            ("FI2C", ManualLoadFI2TextBox),
-            ("FI3C", ManualLoadFI3TextBox)
-        };
+        var materialFields = GetManualLoadMaterialInputs();
         var materialQuantities = new Dictionary<string, string?>(StringComparer.Ordinal);
-        var requiredMaterialFields = new HashSet<string>(StringComparer.Ordinal)
-        {
-            "A1C",
-            "A2C",
-            "C1C",
-            "Agua",
-            "D1C",
-            "D2C"
-        };
-        var invalidRequiredMaterialFields = materialFields
-            .Where(field => requiredMaterialFields.Contains(field.Column))
+        var activeMaterialFields = materialFields
+            .Where(field => selectedRecipe?.MaterialSlots.Contains(field.Slot) == true)
+            .ToArray();
+        var invalidRequiredMaterialFields = activeMaterialFields
             .Where(field =>
                 !decimal.TryParse(field.Input.Text.Trim(), NumberStyles.Number, CultureInfo.CurrentCulture, out var value) ||
                 value <= 0)
@@ -3033,14 +3071,21 @@ public sealed partial class MainPage : Page
         SetManualLoadRequiredFieldHighlight(invalidRequiredMaterialFields);
         if (invalidRequiredMaterialFields.Count > 0)
         {
-            var firstInvalidField = materialFields.First(field => invalidRequiredMaterialFields.Contains(field.Column)).Input;
-            ManualLoadStatusText.Text = $"{firstInvalidField.Header} es obligatorio y debe ser mayor que cero.";
-            firstInvalidField.Focus(FocusState.Programmatic);
+            SetFormStatus(
+                ManualLoadStatusInfoBar,
+                "Todos los campos de materiales habilitados deben tener una cantidad mayor a cero.",
+                InfoBarSeverity.Error);
             return;
         }
 
-        foreach (var (column, input) in materialFields)
+        foreach (var (column, slot, input) in materialFields)
         {
+            if (selectedRecipe?.MaterialSlots.Contains(slot) != true)
+            {
+                materialQuantities[column] = null;
+                continue;
+            }
+
             var value = input.Text.Trim();
             if (string.IsNullOrEmpty(value))
             {
@@ -3083,6 +3128,7 @@ public sealed partial class MainPage : Page
                 recipeCode,
                 quantity,
                 materialQuantities,
+                activeMaterialFields.Select(field => field.Column).ToHashSet(StringComparer.Ordinal),
                 ManualLoadRemissionDischargeComboBox.Text,
                 orderNumber,
                 (ManualLoadRemissionClientComboBox.SelectedItem as ClientRecord)?.Client
@@ -3100,6 +3146,10 @@ public sealed partial class MainPage : Page
 
             ManualLoadRemissionTextBox.Text = remission;
             ManualLoadStatusText.Text = $"Carga de la remisión {remission} guardada correctamente.";
+            SetFormStatus(
+                ManualLoadStatusInfoBar,
+                $"Carga de la remisión {remission} guardada correctamente.",
+                InfoBarSeverity.Success);
             ModuleStatusText.Text = $"Carga manual de la remisión {remission} guardada en BlapaciSQL.";
             SetManualLoadRequiredFieldHighlight(new HashSet<string>(StringComparer.Ordinal));
         }
@@ -3109,7 +3159,7 @@ public sealed partial class MainPage : Page
         }
         catch (InvalidOperationException exception)
         {
-            ManualLoadStatusText.Text = exception.Message;
+            SetFormStatus(ManualLoadStatusInfoBar, exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -3136,15 +3186,7 @@ public sealed partial class MainPage : Page
     {
         var normalBrush = _themeBrushes.GetBrush("#40516A");
         var errorBrush = _themeBrushes.GetBrush("#EF4444");
-        foreach (var (column, input) in new (string Column, TextBox Input)[]
-        {
-            ("A1C", ManualLoadA1TextBox),
-            ("A2C", ManualLoadA2TextBox),
-            ("C1C", ManualLoadC1TextBox),
-            ("Agua", ManualLoadWater1TextBox),
-            ("D1C", ManualLoadD1TextBox),
-            ("D2C", ManualLoadD2TextBox)
-        })
+        foreach (var (column, _, input) in GetManualLoadMaterialInputs())
         {
             var isInvalid = invalidFields.Contains(column);
             input.BorderBrush = isInvalid ? errorBrush : normalBrush;

@@ -262,6 +262,7 @@ public sealed class OrderService
         string recipeCode,
         decimal quantity,
         IReadOnlyDictionary<string, string?> materialQuantities,
+        IReadOnlySet<string> requiredMaterialFields,
         string? dischargeType,
         int? orderNumber,
         string? client,
@@ -287,17 +288,37 @@ public sealed class OrderService
             throw new InvalidOperationException("La cantidad de carga debe ser mayor que cero.");
         }
 
-        var requiredMaterialFields = new Dictionary<string, string>(StringComparer.Ordinal)
+        var materialFieldNames = new Dictionary<string, string>(StringComparer.Ordinal)
         {
             ["A1C"] = "Cantidad grava",
             ["A2C"] = "Cantidad arena",
+            ["A3C"] = "Cantidad agregado 3",
+            ["A4C"] = "Cantidad agregado 4",
+            ["A5C"] = "Cantidad agregado 5",
+            ["A6C"] = "Cantidad agregado 6",
+            ["A7C"] = "Cantidad agregado 7",
+            ["A8C"] = "Cantidad agregado 8",
             ["C1C"] = "Cantidad cemento",
-            ["Agua"] = "Cantidad agua 1",
+            ["C2C"] = "Cantidad cemento 2",
+            ["C3C"] = "Cantidad cemento 3",
+            ["C4C"] = "Cantidad cemento 4",
+            ["C5C"] = "Cantidad cemento 5",
             ["D1C"] = "Cantidad aditivo 1",
-            ["D2C"] = "Cantidad aditivo 2"
+            ["D2C"] = "Cantidad aditivo 2",
+            ["D3C"] = "Cantidad aditivo 3",
+            ["D4C"] = "Cantidad aditivo 4",
+            ["D5C"] = "Cantidad aditivo 5",
+            ["D6C"] = "Cantidad aditivo 6",
+            ["Agua"] = "Cantidad agua 1",
+            ["Agua2"] = "Cantidad agua 2",
+            ["Agua3"] = "Cantidad agua 3",
+            ["FI1C"] = "Cantidad fibra 1",
+            ["FI2C"] = "Cantidad fibra 2",
+            ["FI3C"] = "Cantidad fibra 3"
         };
-        foreach (var (column, fieldName) in requiredMaterialFields)
+        foreach (var column in requiredMaterialFields)
         {
+            var fieldName = materialFieldNames.TryGetValue(column, out var name) ? name : column;
             if (!materialQuantities.TryGetValue(column, out var value) ||
                 !decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var materialQuantity) ||
                 materialQuantity <= 0)
@@ -635,8 +656,20 @@ public sealed class OrderService
 
     public async Task<IReadOnlyList<OrderRecipe>> GetRecipesAsync(CancellationToken cancellationToken = default)
     {
-        const string query = """
-            SELECT Cod_Formula, MAX(Descripcion) AS Descripcion
+        var materialSlots = new[]
+        {
+            "A1", "A2", "A3", "A4", "A5", "A6", "A7", "A8",
+            "C1", "C2", "C3", "C4", "C5",
+            "D1", "D2", "D3", "D4", "D5", "D6",
+            "Agua", "Agua2", "Agua3",
+            "Fibra1", "Fibra2", "Fibra3"
+        };
+        var materialAvailabilityColumns = string.Join(
+            ", ",
+            materialSlots.Select(slot =>
+                $"MAX(CASE WHEN NULLIF(LTRIM(RTRIM([{slot}])), '') IS NOT NULL AND UPPER(LTRIM(RTRIM([{slot}]))) <> N'DESHABILITADA' THEN 1 ELSE 0 END) AS [Has_{slot}]"));
+        var query = $"""
+            SELECT Cod_Formula, MAX(Descripcion) AS Descripcion, {materialAvailabilityColumns}
             FROM dbo.Formulas
             WHERE NULLIF(LTRIM(RTRIM(Cod_Formula)), '') IS NOT NULL
               AND ISNULL(Estatus, 'A') <> 'C'
@@ -651,9 +684,19 @@ public sealed class OrderService
         var recipes = new List<OrderRecipe>();
         while (await reader.ReadAsync(cancellationToken))
         {
+            var enabledMaterialSlots = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            for (var index = 0; index < materialSlots.Length; index++)
+            {
+                if (Convert.ToInt32(reader.GetValue(index + 2), CultureInfo.InvariantCulture) == 1)
+                {
+                    enabledMaterialSlots.Add(materialSlots[index]);
+                }
+            }
+
             recipes.Add(new OrderRecipe(
                 Convert.ToString(reader.GetValue(0), CultureInfo.CurrentCulture)?.Trim() ?? string.Empty,
-                reader.IsDBNull(1) ? string.Empty : Convert.ToString(reader.GetValue(1), CultureInfo.CurrentCulture)?.Trim() ?? string.Empty));
+                reader.IsDBNull(1) ? string.Empty : Convert.ToString(reader.GetValue(1), CultureInfo.CurrentCulture)?.Trim() ?? string.Empty,
+                enabledMaterialSlots));
         }
 
         return recipes;
@@ -759,10 +802,12 @@ public sealed class OrderService
         reader[name] is DBNull ? null : Convert.ToDecimal(reader[name], CultureInfo.InvariantCulture);
 }
 
-public sealed class OrderRecipe(string code, string description)
+public sealed class OrderRecipe(string code, string description, IReadOnlySet<string>? materialSlots = null)
 {
     public string Code { get; set; } = code;
     public string Description { get; set; } = description;
+    public IReadOnlySet<string> MaterialSlots { get; set; } =
+        materialSlots ?? new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed record ManualLoadOrderDetails(
