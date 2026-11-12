@@ -78,6 +78,7 @@ public sealed partial class MachineConfigurationView : UserControl
     {
         _theme = theme;
         RequestedTheme = theme;
+        StatusInfoBarStyler.Apply(StatusInfoBar, theme);
         foreach (var (color, brush) in _themeBrushes)
         {
             brush.Color = ParseColor(ResolveThemeColor(color, theme));
@@ -703,6 +704,7 @@ public sealed partial class MachineConfigurationView : UserControl
     {
         StatusInfoBar.Message = message;
         StatusInfoBar.Severity = severity;
+        StatusInfoBarStyler.Apply(StatusInfoBar, RequestedTheme);
         StatusInfoBar.IsOpen = true;
     }
 

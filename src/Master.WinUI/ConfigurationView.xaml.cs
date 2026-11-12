@@ -149,6 +149,7 @@ public sealed partial class ConfigurationView : UserControl
     public event EventHandler? AccessPermissionsSaved;
     public event EventHandler? AdditionalConfigurationSaved;
     public event EventHandler<string>? PlantNameSaved;
+    public event Action<IReadOnlyCollection<MessageConfigurationUpdate>>? MessagesSaved;
     public Func<int, bool>? CanSaveConfigurationTab { get; set; }
     public Func<bool>? CanEditDesignerCanvas { get; set; }
     public Func<string, bool>? HasProfileModuleAccess { get; set; }
@@ -164,6 +165,7 @@ public sealed partial class ConfigurationView : UserControl
     {
         RequestedTheme = theme;
         _themeBrushes.ApplyTheme(theme);
+        StatusInfoBarStyler.Apply(StatusInfoBar, theme);
     }
 
     public void ShowBackupToolsOnly(bool backupToolsOnly)
@@ -3105,6 +3107,7 @@ public sealed partial class ConfigurationView : UserControl
                         field.Value.Format)).ToArray();
                 await _messageConfigurationService.SaveMessagesAsync(updates);
                 ShowStatus("Mensajes y formatos guardados en dbo.Mensajes.", InfoBarSeverity.Success);
+                MessagesSaved?.Invoke(updates);
             }
             else if (_selectedConfigurationTab == 8)
             {
@@ -3378,6 +3381,7 @@ public sealed partial class ConfigurationView : UserControl
     {
         StatusInfoBar.Message = message;
         StatusInfoBar.Severity = severity;
+        StatusInfoBarStyler.Apply(StatusInfoBar, RequestedTheme);
         StatusInfoBar.IsOpen = true;
     }
 }

@@ -35,6 +35,12 @@ public sealed partial class SecurityView : UserControl
         await LoadUsersAsync();
     }
 
+    public void ApplyTheme(ElementTheme theme)
+    {
+        RequestedTheme = theme;
+        StatusInfoBarStyler.Apply(StatusInfoBar, theme);
+    }
+
     private async Task<bool> LoadUsersAsync()
     {
         try
@@ -126,6 +132,7 @@ public sealed partial class SecurityView : UserControl
             PrimaryButtonText = "Borrar",
             CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Close,
+            RequestedTheme = RequestedTheme,
             XamlRoot = XamlRoot
         };
         if (await dialog.ShowAsync() != ContentDialogResult.Primary)
@@ -205,6 +212,7 @@ public sealed partial class SecurityView : UserControl
                 PrimaryButtonText = "Guardar",
                 CloseButtonText = "Cancelar",
                 DefaultButton = ContentDialogButton.Primary,
+                RequestedTheme = RequestedTheme,
                 XamlRoot = XamlRoot
             };
             if (await dialog.ShowAsync() != ContentDialogResult.Primary)
@@ -322,6 +330,7 @@ public sealed partial class SecurityView : UserControl
     {
         StatusInfoBar.Message = message;
         StatusInfoBar.Severity = severity;
+        StatusInfoBarStyler.Apply(StatusInfoBar, RequestedTheme);
         StatusInfoBar.IsOpen = true;
     }
 

@@ -51,11 +51,8 @@
                 Background="{ThemeResource Palette26364D}"
                 Foreground="{ThemeResource PaletteF1F5F9}"
                 BorderBrush="{ThemeResource Palette40516A}"
+                Content="Agregar"
                 ToolTipService.ToolTip="Los accesos del nuevo usuario se asignan en Configuración, Accesos.">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <SymbolIcon Symbol="Add" />
-                    <TextBlock Text="Agregar" VerticalAlignment="Center" />
-                </StackPanel>
             </Button>
             <Button
                 x:Name="EditUserButton"
@@ -63,11 +60,8 @@
                 Background="{ThemeResource Palette26364D}"
                 Foreground="{ThemeResource PaletteF1F5F9}"
                 BorderBrush="{ThemeResource Palette40516A}"
+                Content="Editar"
                 ToolTipService.ToolTip="Editar usuarios requiere una operación de seguridad autorizada.">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <SymbolIcon Symbol="Edit" />
-                    <TextBlock Text="Editar" VerticalAlignment="Center" />
-                </StackPanel>
             </Button>
             <Button
                 x:Name="DeleteUserButton"
@@ -75,11 +69,8 @@
                 Background="{ThemeResource Palette26364D}"
                 Foreground="{ThemeResource PaletteF1F5F9}"
                 BorderBrush="{ThemeResource Palette40516A}"
+                Content="Borrar"
                 ToolTipService.ToolTip="Borrar usuarios requiere una operación de seguridad autorizada.">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <SymbolIcon Symbol="Delete" />
-                    <TextBlock Text="Borrar" VerticalAlignment="Center" />
-                </StackPanel>
             </Button>
         </StackPanel>
 

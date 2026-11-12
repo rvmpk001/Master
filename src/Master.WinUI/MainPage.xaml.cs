@@ -249,6 +249,8 @@ public sealed partial class MainPage : Page
         };
         ConfigurationView.AdditionalConfigurationSaved += async (_, _) =>
             await RefreshConfiguredAdditionalPaletteAsync();
+        ConfigurationView.MessagesSaved += async updates =>
+            await ApplySavedMessagesToCanvasAsync(updates);
         Loaded += MainPage_Loaded;
         Unloaded += MainPage_Unloaded;
         ConfigurationView.CloseRequested += (_, _) =>
@@ -505,6 +507,7 @@ public sealed partial class MainPage : Page
                         await SetAdditionalImageSourceAsync(image, control);
                     }
                 }
+
             }
 
             if (imageStatesChanged)
@@ -676,9 +679,22 @@ public sealed partial class MainPage : Page
     {
         RequestedTheme = theme;
         _themeBrushes.ApplyTheme(theme);
+        UpdateInventoryStatusStyle();
         ConfigurationView.ApplyTheme(theme);
         MachineConfigurationView.ApplyTheme(theme);
-        SecurityView.RequestedTheme = theme;
+        SecurityView.ApplyTheme(theme);
+        StatusInfoBarStyler.Apply(SupplierEditorStatusInfoBar, theme);
+        StatusInfoBarStyler.Apply(SupplierFormStatusInfoBar, theme);
+        StatusInfoBarStyler.Apply(FormulaEditorStatusInfoBar, theme);
+        StatusInfoBarStyler.Apply(FormulaFormStatusInfoBar, theme);
+        StatusInfoBarStyler.Apply(ClientFormStatusInfoBar, theme);
+        StatusInfoBarStyler.Apply(ClientEditorStatusInfoBar, theme);
+        StatusInfoBarStyler.Apply(TruckEditorStatusInfoBar, theme);
+        StatusInfoBarStyler.Apply(OperatorEditorStatusInfoBar, theme);
+        StatusInfoBarStyler.Apply(OrderEditorStatusInfoBar, theme);
+        StatusInfoBarStyler.Apply(OrderFormStatusInfoBar, theme);
+        StatusInfoBarStyler.Apply(LoginErrorInfoBar, theme);
+        StatusInfoBarStyler.Apply(TruckFormStatusInfoBar, theme);
         DarkThemeMenuItem.IsChecked = theme == ElementTheme.Dark;
         LightThemeMenuItem.IsChecked = theme == ElementTheme.Light;
 
@@ -1620,12 +1636,8 @@ public sealed partial class MainPage : Page
         var suppliedQuantity = new NumberBox { Value = 0, Minimum = 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
         var toSupplyQuantity = new NumberBox { Value = 0, Minimum = 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
         var observations = new TextBox { AcceptsReturn = true, Height = 72, TextWrapping = TextWrapping.Wrap };
-        var status = new TextBlock
-        {
-            Text = "Cargando catálogos...",
-            TextWrapping = TextWrapping.Wrap,
-            Foreground = _themeBrushes.GetBrush("#A9B8CC")
-        };
+        var status = new InfoBar { IsOpen = false, IsClosable = false };
+        SetProgramStatus("Cargando catálogos...", InfoBarSeverity.Informational);
         ContentDialog? programDialog = null;
         var orderStatusRequestId = 0;
 
@@ -1689,11 +1701,11 @@ public sealed partial class MainPage : Page
 
             if (!int.TryParse(selectedOrder, NumberStyles.Integer, CultureInfo.InvariantCulture, out var orderNumber))
             {
-                status.Text = $"El número de pedido «{selectedOrder}» no es válido.";
+                SetProgramStatus($"El número de pedido «{selectedOrder}» no es válido.", InfoBarSeverity.Error);
                 return;
             }
 
-            status.Text = $"Consultando datos del pedido {orderNumber}...";
+            SetProgramStatus($"Consultando datos del pedido {orderNumber}...", InfoBarSeverity.Informational);
             try
             {
                 var order = await _orderService.GetManualLoadOrderDetailsAsync(orderNumber);
@@ -1705,7 +1717,7 @@ public sealed partial class MainPage : Page
 
                 if (order is null)
                 {
-                    status.Text = $"No se encontró información activa para el pedido {orderNumber}.";
+                    SetProgramStatus($"No se encontró información activa para el pedido {orderNumber}.", InfoBarSeverity.Warning);
                     return;
                 }
 
@@ -1725,20 +1737,20 @@ public sealed partial class MainPage : Page
                 suppliedQuantity.Value = (double)(order.Supplied ?? 0);
                 toSupplyQuantity.Value = (double)(order.ToSupply ?? 0);
                 observations.Text = order.Observations;
-                status.Text = $"Datos del pedido {orderNumber} cargados.";
+                SetProgramStatus($"Datos del pedido {orderNumber} cargados.", InfoBarSeverity.Success);
             }
             catch (SqlException exception)
             {
                 if (requestId == orderStatusRequestId)
                 {
-                    status.Text = $"No se pudo consultar el pedido (SQL {exception.Number}): {exception.Message}";
+                    SetProgramStatus($"No se pudo consultar el pedido (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
                 }
             }
             catch (InvalidOperationException exception)
             {
                 if (requestId == orderStatusRequestId)
                 {
-                    status.Text = $"No se pudo consultar el pedido: {exception.Message}";
+                    SetProgramStatus($"No se pudo consultar el pedido: {exception.Message}", InfoBarSeverity.Error);
                 }
             }
         };
@@ -1828,15 +1840,13 @@ public sealed partial class MainPage : Page
 
             if (validationErrors.Count > 0)
             {
-                status.Foreground = _themeBrushes.GetBrush("#F87171");
-                status.Text = string.Join(" ", validationErrors);
+                SetProgramStatus(string.Join(" ", validationErrors), InfoBarSeverity.Error);
                 return;
             }
 
             var validatedClient = selectedClient!;
             var validatedConstruction = selectedConstruction!;
-            status.Foreground = _themeBrushes.GetBrush("#A9B8CC");
-            status.Text = "Validando los materiales de la fórmula contra las tolvas...";
+            SetProgramStatus("Validando los materiales de la fórmula contra las tolvas...", InfoBarSeverity.Informational);
             programButton.IsEnabled = false;
             IReadOnlyDictionary<string, string> currentMachineConfiguration;
             try
@@ -1846,14 +1856,12 @@ public sealed partial class MainPage : Page
             }
             catch (SqlException exception)
             {
-                status.Foreground = _themeBrushes.GetBrush("#F87171");
-                status.Text = $"No se pudieron validar los materiales de las tolvas (SQL {exception.Number}): {exception.Message}";
+                SetProgramStatus($"No se pudieron validar los materiales de las tolvas (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
                 return;
             }
             catch (InvalidOperationException exception)
             {
-                status.Foreground = _themeBrushes.GetBrush("#F87171");
-                status.Text = $"No se pudieron validar los materiales de las tolvas: {exception.Message}";
+                SetProgramStatus($"No se pudieron validar los materiales de las tolvas: {exception.Message}", InfoBarSeverity.Error);
                 return;
             }
             finally
@@ -1863,14 +1871,13 @@ public sealed partial class MainPage : Page
 
             if (HasFormulaMaterialMismatch(selectedRecipe!.Values, currentMachineConfiguration))
             {
-                status.Foreground = _themeBrushes.GetBrush("#F87171");
-                status.Text =
-                    "Error de materiales: Los materiales configurados en la fórmula no corresponden a los que se encuentran actualmente en las tolvas.";
+                SetProgramStatus(
+                    "Error de materiales: Los materiales configurados en la fórmula no corresponden a los que se encuentran actualmente en las tolvas.",
+                    InfoBarSeverity.Error);
                 return;
             }
 
-            status.Foreground = _themeBrushes.GetBrush("#72D49A");
-            status.Text = string.Join(
+            SetProgramStatus(string.Join(
                 Environment.NewLine,
                 "Validación local correcta (modo de prueba).",
                 $"Receta: {selectedRecipe!.Code} — {selectedRecipe.Description}",
@@ -1884,7 +1891,8 @@ public sealed partial class MainPage : Page
                 $"Pedidos / surtidos / por surtir: {validatedOrderedQuantity.ToString(CultureInfo.CurrentCulture)} / " +
                 $"{validatedSuppliedQuantity.ToString(CultureInfo.CurrentCulture)} / " +
                 $"{validatedToSupplyQuantity.ToString(CultureInfo.CurrentCulture)}",
-                "Validación local solamente: no se guardó ni se envió ninguna orden al PLC.");
+                "Validación local solamente: no se guardó ni se envió ninguna orden al PLC."),
+                InfoBarSeverity.Success);
             RemissionRows[0].Valor = remissionNumber.Text.Trim();
             RemissionRows[1].Valor = selectedRecipe!.Code;
             RemissionRows[2].Valor = selectedRecipe.Description;
@@ -1973,6 +1981,7 @@ public sealed partial class MainPage : Page
             Content = formContent,
             CloseButtonText = "Cancelar",
             DefaultButton = ContentDialogButton.Close,
+            RequestedTheme = RequestedTheme,
             XamlRoot = XamlRoot
         };
         programDialog.Closed += (_, _) =>
@@ -2028,18 +2037,19 @@ public sealed partial class MainPage : Page
             paymentConditions.ItemsSource = await paymentConditionsTask;
             dischargeTypes.ItemsSource = await dischargeTypesTask;
             remissionNumber.Text = await remissionTask;
-            status.Text =
+            SetProgramStatus(
                 $"Catálogos cargados: {formulaData.ActiveRows.Count} fórmulas. Pedidos disponibles: {orders.Items.Count - 1}. " +
-                "No se guardan ni se envían órdenes al PLC.";
+                "No se guardan ni se envían órdenes al PLC.",
+                InfoBarSeverity.Informational);
             catalogsLoaded = true;
         }
         catch (SqlException exception)
         {
-            status.Text = $"No se pudieron cargar los catálogos (SQL {exception.Number}): {exception.Message}";
+            SetProgramStatus($"No se pudieron cargar los catálogos (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            status.Text = $"No se pudieron cargar los catálogos: {exception.Message}";
+            SetProgramStatus($"No se pudieron cargar los catálogos: {exception.Message}", InfoBarSeverity.Error);
         }
 
         programButton.IsEnabled = catalogsLoaded;
@@ -2049,13 +2059,13 @@ public sealed partial class MainPage : Page
         async Task LoadLatestDownloadAsync()
         {
             lastLoadButton.IsEnabled = false;
-            status.Text = "Consultando la última descarga registrada...";
+            SetProgramStatus("Consultando la última descarga registrada...", InfoBarSeverity.Informational);
             try
             {
                 var latest = await _orderService.GetLatestDownloadAsync();
                 if (latest is null)
                 {
-                    status.Text = "No hay registros en la tabla Descarga.";
+                    SetProgramStatus("No hay registros en la tabla Descarga.", InfoBarSeverity.Warning);
                     return;
                 }
 
@@ -2115,20 +2125,25 @@ public sealed partial class MainPage : Page
 
                 observations.Text = latest.Observations;
                 var date = latest.Date?.ToString("dd/MM/yyyy HH:mm:ss", CultureInfo.CurrentCulture) ?? "fecha no disponible";
-                status.Text = $"Datos cargados desde la última descarga ({date}, remisión {latest.Remission}).";
+                SetProgramStatus($"Datos cargados desde la última descarga ({date}, remisión {latest.Remission}).", InfoBarSeverity.Success);
             }
             catch (SqlException exception)
             {
-                status.Text = $"No se pudo consultar la última descarga (SQL {exception.Number}): {exception.Message}";
+                SetProgramStatus($"No se pudo consultar la última descarga (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
             }
             catch (InvalidOperationException exception)
             {
-                status.Text = $"No se pudo cargar la última descarga: {exception.Message}";
+                SetProgramStatus($"No se pudo cargar la última descarga: {exception.Message}", InfoBarSeverity.Error);
             }
             finally
             {
                 lastLoadButton.IsEnabled = true;
             }
+        }
+
+        void SetProgramStatus(string message, InfoBarSeverity severity)
+        {
+            SetFormStatus(status, message, severity);
         }
     }
 
@@ -3139,7 +3154,7 @@ public sealed partial class MainPage : Page
 
     private async Task LoadOrdersAsync()
     {
-        OrderFormStatusText.Text = "Consultando pedidos en BlapaciSQL...";
+        SetFormStatus(OrderFormStatusInfoBar, "Consultando pedidos en BlapaciSQL...", InfoBarSeverity.Informational);
         try
         {
             var clientData = await _clientService.GetClientsAsync();
@@ -3200,11 +3215,17 @@ public sealed partial class MainPage : Page
             OrderActiveTabButton.Content = $"Activos (A,P) ({ActiveOrders.Count})";
             OrderCompletedTabButton.Content = $"Terminados (T) ({CompletedOrders.Count})";
             OrderCancelledTabButton.Content = $"Cancelados (C) ({CancelledOrders.Count})";
-            OrderFormStatusText.Text = $"Pedidos cargados: {ActiveOrders.Count} activos, {CompletedOrders.Count} terminados y {CancelledOrders.Count} cancelados. Clientes disponibles: {OrderClients.Count}.";
+            SetFormStatus(
+                OrderFormStatusInfoBar,
+                $"Pedidos cargados: {ActiveOrders.Count} activos, {CompletedOrders.Count} terminados y {CancelledOrders.Count} cancelados. Clientes disponibles: {OrderClients.Count}.",
+                InfoBarSeverity.Informational);
         }
         catch (SqlException exception)
         {
-            OrderFormStatusText.Text = $"No se pudieron consultar los pedidos en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(
+                OrderFormStatusInfoBar,
+                $"No se pudieron consultar los pedidos en BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
     }
 
@@ -3286,7 +3307,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedOrder is null || !_showingActiveOrders)
         {
-            OrderFormStatusText.Text = "Selecciona un pedido activo para editar.";
+            SetFormStatus(OrderFormStatusInfoBar, "Selecciona un pedido activo para editar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -3302,7 +3323,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedOrder is null)
         {
-            OrderFormStatusText.Text = "Selecciona un pedido para visualizar.";
+            SetFormStatus(OrderFormStatusInfoBar, "Selecciona un pedido para visualizar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -3318,7 +3339,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedOrder is null || !_showingActiveOrders)
         {
-            OrderFormStatusText.Text = "Selecciona un pedido activo para cancelar.";
+            SetFormStatus(OrderFormStatusInfoBar, "Selecciona un pedido activo para cancelar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -3338,20 +3359,23 @@ public sealed partial class MainPage : Page
         }
 
         CancelOrderButton.IsEnabled = false;
-        OrderFormStatusText.Text = $"Cancelando pedido {order.Number} en BlapaciSQL...";
+        SetFormStatus(OrderFormStatusInfoBar, $"Cancelando pedido {order.Number} en BlapaciSQL...", InfoBarSeverity.Informational);
         try
         {
             await _orderService.CancelOrderAsync(order.Id);
             await LoadOrdersAsync();
-            OrderFormStatusText.Text = $"Pedido {order.Number} cancelado correctamente.";
+            SetFormStatus(OrderFormStatusInfoBar, $"Pedido {order.Number} cancelado correctamente.", InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
-            OrderFormStatusText.Text = $"No se pudo cancelar el pedido en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(
+                OrderFormStatusInfoBar,
+                $"No se pudo cancelar el pedido en BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            OrderFormStatusText.Text = exception.Message;
+            SetFormStatus(OrderFormStatusInfoBar, exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -3374,7 +3398,7 @@ public sealed partial class MainPage : Page
 
         if (!AddOrderButton.IsEnabled)
         {
-            OrderFormStatusText.Text = "El formulario solo se puede abrir desde la pestaña de pedidos activos.";
+            SetFormStatus(OrderFormStatusInfoBar, "El formulario solo se puede abrir desde la pestaña de pedidos activos.", InfoBarSeverity.Error);
             return;
         }
 
@@ -3403,7 +3427,7 @@ public sealed partial class MainPage : Page
         OrderProductComboBox.SelectedItem = null;
         OrderPaymentConditionsComboBox.SelectedItem = null;
         OrderObservationsTextBox.Text = string.Empty;
-        OrderEditorStatusText.Text = string.Empty;
+        OrderEditorStatusInfoBar.IsOpen = false;
         _editingOrder = false;
         SetOrderEditorReadOnly(false);
         OrderEditorTitleText.Text = "Agregar Pedido";
@@ -3422,27 +3446,30 @@ public sealed partial class MainPage : Page
 
         if (_selectedOrder is null || !_showingCancelledOrders)
         {
-            OrderFormStatusText.Text = "Selecciona un pedido cancelado para restaurarlo.";
+            SetFormStatus(OrderFormStatusInfoBar, "Selecciona un pedido cancelado para restaurarlo.", InfoBarSeverity.Error);
             return;
         }
 
         var order = _selectedOrder;
         AddOrderButton.IsEnabled = false;
-        OrderFormStatusText.Text = $"Restaurando pedido {order.Number}...";
+        SetFormStatus(OrderFormStatusInfoBar, $"Restaurando pedido {order.Number}...", InfoBarSeverity.Informational);
         try
         {
             await _orderService.RestoreOrderAsync(order.Id);
             await LoadOrdersAsync();
             ShowActiveOrders();
-            OrderFormStatusText.Text = $"El pedido {order.Number} se restauró y está activo.";
+            SetFormStatus(OrderFormStatusInfoBar, $"El pedido {order.Number} se restauró y está activo.", InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
-            OrderFormStatusText.Text = $"No se pudo restaurar el pedido en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(
+                OrderFormStatusInfoBar,
+                $"No se pudo restaurar el pedido en BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            OrderFormStatusText.Text = exception.Message;
+            SetFormStatus(OrderFormStatusInfoBar, exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -3481,7 +3508,7 @@ public sealed partial class MainPage : Page
         OrderProductComboBox.SelectedItem = FindOption(OrderProducts, order.Product);
         OrderPaymentConditionsComboBox.SelectedItem = FindOption(OrderPaymentConditions, order.PaymentCondition);
         OrderObservationsTextBox.Text = order.Observations;
-        OrderEditorStatusText.Text = string.Empty;
+        OrderEditorStatusInfoBar.IsOpen = false;
         SetOrderEditorReadOnly(readOnly);
         OrderEditorOverlay.Visibility = Visibility.Visible;
     }
@@ -3523,7 +3550,7 @@ public sealed partial class MainPage : Page
 
         if (OrderClientComboBox.SelectedItem is not ClientRecord client)
         {
-            OrderEditorStatusText.Text = "Selecciona un cliente.";
+            SetFormStatus(OrderEditorStatusInfoBar, "Selecciona un cliente.", InfoBarSeverity.Error);
             OrderClientComboBox.Focus(FocusState.Programmatic);
             return;
         }
@@ -3531,14 +3558,14 @@ public sealed partial class MainPage : Page
         var authorizedBy = OrderAuthorizedByTextBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(authorizedBy))
         {
-            OrderEditorStatusText.Text = "El campo Autoriza Pedido es obligatorio.";
+            SetFormStatus(OrderEditorStatusInfoBar, "El campo Autoriza Pedido es obligatorio.", InfoBarSeverity.Error);
             OrderAuthorizedByTextBox.Focus(FocusState.Programmatic);
             return;
         }
 
         if (authorizedBy.Length > 255)
         {
-            OrderEditorStatusText.Text = "Autoriza Pedido no puede superar 255 caracteres.";
+            SetFormStatus(OrderEditorStatusInfoBar, "Autoriza Pedido no puede superar 255 caracteres.", InfoBarSeverity.Error);
             OrderAuthorizedByTextBox.Focus(FocusState.Programmatic);
             return;
         }
@@ -3546,7 +3573,7 @@ public sealed partial class MainPage : Page
         var phone = OrderPhoneTextBox.Text.Trim();
         if (!string.IsNullOrEmpty(phone) && (!SupplierDataValidator.IsValidPhone(phone) || phone.Length > 50))
         {
-            OrderEditorStatusText.Text = "El teléfono debe tener entre 7 y 15 dígitos; permite +, espacios, guiones y paréntesis, con un máximo de 50 caracteres.";
+            SetFormStatus(OrderEditorStatusInfoBar, "El teléfono debe tener entre 7 y 15 dígitos; permite +, espacios, guiones y paréntesis, con un máximo de 50 caracteres.", InfoBarSeverity.Error);
             OrderPhoneTextBox.Focus(FocusState.Programmatic);
             return;
         }
@@ -3554,7 +3581,7 @@ public sealed partial class MainPage : Page
         var email = OrderEmailTextBox.Text.Trim();
         if (!string.IsNullOrEmpty(email) && (!SupplierDataValidator.IsValidEmail(email) || email.Length > 80))
         {
-            OrderEditorStatusText.Text = "Escribe un correo válido (por ejemplo, nombre@dominio.com) de máximo 80 caracteres.";
+            SetFormStatus(OrderEditorStatusInfoBar, "Escribe un correo válido (por ejemplo, nombre@dominio.com) de máximo 80 caracteres.", InfoBarSeverity.Error);
             OrderEmailTextBox.Focus(FocusState.Programmatic);
             return;
         }
@@ -3562,28 +3589,28 @@ public sealed partial class MainPage : Page
         if (!decimal.TryParse(OrderQuantityTextBox.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out var quantity) ||
             quantity <= 0)
         {
-            OrderEditorStatusText.Text = "La cantidad debe ser un número mayor que cero.";
+            SetFormStatus(OrderEditorStatusInfoBar, "La cantidad debe ser un número mayor que cero.", InfoBarSeverity.Error);
             OrderQuantityTextBox.Focus(FocusState.Programmatic);
             return;
         }
 
         if (OrderRecipeComboBox.SelectedItem is not OrderRecipe recipe)
         {
-            OrderEditorStatusText.Text = "Selecciona una receta.";
+            SetFormStatus(OrderEditorStatusInfoBar, "Selecciona una receta.", InfoBarSeverity.Error);
             OrderRecipeComboBox.Focus(FocusState.Programmatic);
             return;
         }
 
         if (OrderDischargeTypeComboBox.SelectedItem is not string dischargeType)
         {
-            OrderEditorStatusText.Text = "Selecciona el tipo de descarga.";
+            SetFormStatus(OrderEditorStatusInfoBar, "Selecciona el tipo de descarga.", InfoBarSeverity.Error);
             OrderDischargeTypeComboBox.Focus(FocusState.Programmatic);
             return;
         }
 
         if (OrderProductComboBox.SelectedItem is not string product)
         {
-            OrderEditorStatusText.Text = "Selecciona un producto.";
+            SetFormStatus(OrderEditorStatusInfoBar, "Selecciona un producto.", InfoBarSeverity.Error);
             OrderProductComboBox.Focus(FocusState.Programmatic);
             return;
         }
@@ -3591,20 +3618,20 @@ public sealed partial class MainPage : Page
         if (!decimal.TryParse(OrderShippingTextBox.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out var shipping) ||
             shipping < 0)
         {
-            OrderEditorStatusText.Text = "El envío debe ser un número igual o mayor que cero.";
+            SetFormStatus(OrderEditorStatusInfoBar, "El envío debe ser un número igual o mayor que cero.", InfoBarSeverity.Error);
             OrderShippingTextBox.Focus(FocusState.Programmatic);
             return;
         }
 
         if (!double.IsFinite(OrderIntervalNumberBox.Value) || OrderIntervalNumberBox.Value < 0)
         {
-            OrderEditorStatusText.Text = "El intervalo debe ser un número igual o mayor que cero.";
+            SetFormStatus(OrderEditorStatusInfoBar, "El intervalo debe ser un número igual o mayor que cero.", InfoBarSeverity.Error);
             OrderIntervalNumberBox.Focus(FocusState.Programmatic);
             return;
         }
 
         OrderEditorSaveButton.IsEnabled = false;
-        OrderEditorStatusText.Text = "Guardando pedido en BlapaciSQL...";
+        SetFormStatus(OrderEditorStatusInfoBar, "Guardando pedido en BlapaciSQL...", InfoBarSeverity.Informational);
         try
         {
             var construction = OrderConstructionComboBox.Text.Trim();
@@ -3662,21 +3689,24 @@ public sealed partial class MainPage : Page
             OrderNumberTextBox.Text = orderNumber.ToString(CultureInfo.InvariantCulture);
             OrderEditorOverlay.Visibility = Visibility.Collapsed;
             await LoadOrdersAsync();
-            OrderFormStatusText.Text = _editingOrder
-                ? $"Pedido {orderNumber} actualizado correctamente."
-                : $"Pedido {orderNumber} guardado correctamente.";
+            SetFormStatus(
+                OrderFormStatusInfoBar,
+                _editingOrder
+                    ? $"Pedido {orderNumber} actualizado correctamente."
+                    : $"Pedido {orderNumber} guardado correctamente.",
+                InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
-            OrderEditorStatusText.Text = $"No se pudo guardar el pedido en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(OrderEditorStatusInfoBar, $"No se pudo guardar el pedido en BlapaciSQL (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            OrderEditorStatusText.Text = exception.Message;
+            SetFormStatus(OrderEditorStatusInfoBar, exception.Message, InfoBarSeverity.Error);
         }
         catch (ArgumentOutOfRangeException exception)
         {
-            OrderEditorStatusText.Text = $"Revisa la fecha, hora o intervalo: {exception.Message}";
+            SetFormStatus(OrderEditorStatusInfoBar, $"Revisa la fecha, hora o intervalo: {exception.Message}", InfoBarSeverity.Error);
         }
         finally
         {
@@ -3718,7 +3748,7 @@ public sealed partial class MainPage : Page
 
     private async Task LoadTrucksAsync()
     {
-        TruckFormStatusText.Text = "Consultando camiones y operadores en BlapaciSQL...";
+        SetFormStatus(TruckFormStatusInfoBar, "Consultando camiones y operadores en BlapaciSQL...", InfoBarSeverity.Informational);
         try
         {
             var trucks = await _truckService.GetTrucksAsync();
@@ -3740,11 +3770,14 @@ public sealed partial class MainPage : Page
                 OperatorRecords.Add(operatorRecord);
             }
 
-            TruckFormStatusText.Text = $"Camiones: {trucks.Trucks.Count}; operadores: {operators.Operators.Count}.";
+            SetFormStatus(TruckFormStatusInfoBar, $"Camiones: {trucks.Trucks.Count}; operadores: {operators.Operators.Count}.", InfoBarSeverity.Informational);
         }
         catch (SqlException exception)
         {
-            TruckFormStatusText.Text = $"No se pudieron consultar camiones u operadores en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(
+                TruckFormStatusInfoBar,
+                $"No se pudieron consultar camiones u operadores en BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
     }
 
@@ -3784,7 +3817,7 @@ public sealed partial class MainPage : Page
 
         if (TruckTablePanel.Visibility != Visibility.Visible)
         {
-            TruckFormStatusText.Text = "Selecciona una pestaña para agregar un registro.";
+            SetFormStatus(TruckFormStatusInfoBar, "Selecciona una pestaña para agregar un registro.", InfoBarSeverity.Error);
             return;
         }
 
@@ -3823,7 +3856,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedOperator is null)
         {
-            TruckFormStatusText.Text = "Selecciona un operador para editar.";
+            SetFormStatus(TruckFormStatusInfoBar, "Selecciona un operador para editar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -3839,7 +3872,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedOperator is null)
         {
-            TruckFormStatusText.Text = "Selecciona un operador para visualizar.";
+            SetFormStatus(TruckFormStatusInfoBar, "Selecciona un operador para visualizar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -3859,7 +3892,7 @@ public sealed partial class MainPage : Page
         OperatorInitialsTextBox.Text = operatorRecord?.Initials ?? string.Empty;
         OperatorNameTextBox.IsReadOnly = readOnly;
         OperatorInitialsTextBox.IsReadOnly = readOnly;
-        OperatorEditorStatusText.Text = string.Empty;
+        OperatorEditorStatusInfoBar.IsOpen = false;
         OperatorEditorOverlay.Visibility = Visibility.Visible;
         if (!readOnly)
         {
@@ -3878,20 +3911,20 @@ public sealed partial class MainPage : Page
         var initials = OperatorInitialsTextBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
-            OperatorEditorStatusText.Text = "El nombre del operador es obligatorio.";
+            SetFormStatus(OperatorEditorStatusInfoBar, "El nombre del operador es obligatorio.", InfoBarSeverity.Error);
             OperatorNameTextBox.Focus(FocusState.Programmatic);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(initials))
         {
-            OperatorEditorStatusText.Text = "Las iniciales del operador son obligatorias.";
+            SetFormStatus(OperatorEditorStatusInfoBar, "Las iniciales del operador son obligatorias.", InfoBarSeverity.Error);
             OperatorInitialsTextBox.Focus(FocusState.Programmatic);
             return;
         }
 
         OperatorEditorSaveButton.IsEnabled = false;
-        OperatorEditorStatusText.Text = "Guardando operador en BlapaciSQL...";
+        SetFormStatus(OperatorEditorStatusInfoBar, "Guardando operador en BlapaciSQL...", InfoBarSeverity.Informational);
         try
         {
             if (_editingOperator && _selectedOperator is not null)
@@ -3905,17 +3938,20 @@ public sealed partial class MainPage : Page
 
             OperatorEditorOverlay.Visibility = Visibility.Collapsed;
             await LoadTrucksAsync();
-            TruckFormStatusText.Text = _editingOperator
-                ? $"Operador {name} actualizado correctamente."
-                : $"Operador {name} guardado correctamente.";
+            SetFormStatus(
+                TruckFormStatusInfoBar,
+                _editingOperator
+                    ? $"Operador {name} actualizado correctamente."
+                    : $"Operador {name} guardado correctamente.",
+                InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
-            OperatorEditorStatusText.Text = $"No se pudo guardar el operador en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(OperatorEditorStatusInfoBar, $"No se pudo guardar el operador en BlapaciSQL (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            OperatorEditorStatusText.Text = exception.Message;
+            SetFormStatus(OperatorEditorStatusInfoBar, exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -3934,7 +3970,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedOperator is null)
         {
-            TruckFormStatusText.Text = "Selecciona un operador para borrar.";
+            SetFormStatus(TruckFormStatusInfoBar, "Selecciona un operador para borrar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -3958,15 +3994,18 @@ public sealed partial class MainPage : Page
         {
             await _truckService.DeleteOperatorAsync(operatorRecord.Id);
             await LoadTrucksAsync();
-            TruckFormStatusText.Text = $"Operador {operatorRecord.Name} borrado correctamente.";
+            SetFormStatus(TruckFormStatusInfoBar, $"Operador {operatorRecord.Name} borrado correctamente.", InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
-            TruckFormStatusText.Text = $"No se pudo borrar el operador en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(
+                TruckFormStatusInfoBar,
+                $"No se pudo borrar el operador en BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            TruckFormStatusText.Text = exception.Message;
+            SetFormStatus(TruckFormStatusInfoBar, exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -4001,7 +4040,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedTruck is null)
         {
-            TruckFormStatusText.Text = "Selecciona un camión para editar.";
+            SetFormStatus(TruckFormStatusInfoBar, "Selecciona un camión para editar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -4017,7 +4056,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedTruck is null)
         {
-            TruckFormStatusText.Text = "Selecciona un camión para visualizar.";
+            SetFormStatus(TruckFormStatusInfoBar, "Selecciona un camión para visualizar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -4046,7 +4085,7 @@ public sealed partial class MainPage : Page
         TruckPlatesTextBox.IsReadOnly = readOnly;
         TruckUnitTextBox.IsReadOnly = readOnly;
         TruckCapacityTextBox.IsReadOnly = readOnly;
-        TruckEditorStatusText.Text = string.Empty;
+        TruckEditorStatusInfoBar.IsOpen = false;
         TruckEditorOverlay.Visibility = Visibility.Visible;
         if (!readOnly)
         {
@@ -4077,7 +4116,7 @@ public sealed partial class MainPage : Page
         var selectedOperator = TruckOperatorComboBox.SelectedItem as OperatorRecord;
         if (selectedOperator is null && (!_editingTruck || _selectedTruck is null))
         {
-            TruckEditorStatusText.Text = "Selecciona un operador.";
+            SetFormStatus(TruckEditorStatusInfoBar, "Selecciona un operador.", InfoBarSeverity.Error);
             TruckOperatorComboBox.Focus(FocusState.Programmatic);
             return;
         }
@@ -4086,14 +4125,14 @@ public sealed partial class MainPage : Page
         var unit = TruckUnitTextBox.Text.Trim();
         if (string.IsNullOrWhiteSpace(plates))
         {
-            TruckEditorStatusText.Text = "El número de placas es obligatorio.";
+            SetFormStatus(TruckEditorStatusInfoBar, "El número de placas es obligatorio.", InfoBarSeverity.Error);
             TruckPlatesTextBox.Focus(FocusState.Programmatic);
             return;
         }
 
         if (string.IsNullOrWhiteSpace(unit))
         {
-            TruckEditorStatusText.Text = "La unidad es obligatoria.";
+            SetFormStatus(TruckEditorStatusInfoBar, "La unidad es obligatoria.", InfoBarSeverity.Error);
             TruckUnitTextBox.Focus(FocusState.Programmatic);
             return;
         }
@@ -4101,20 +4140,20 @@ public sealed partial class MainPage : Page
         if (!decimal.TryParse(TruckCapacityTextBox.Text.Trim(), NumberStyles.Number, CultureInfo.CurrentCulture, out var capacity)
             && !decimal.TryParse(TruckCapacityTextBox.Text.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out capacity))
         {
-            TruckEditorStatusText.Text = "La capacidad debe ser un número válido.";
+            SetFormStatus(TruckEditorStatusInfoBar, "La capacidad debe ser un número válido.", InfoBarSeverity.Error);
             TruckCapacityTextBox.Focus(FocusState.Programmatic);
             return;
         }
 
         if (capacity <= 0)
         {
-            TruckEditorStatusText.Text = "La capacidad debe ser mayor que cero.";
+            SetFormStatus(TruckEditorStatusInfoBar, "La capacidad debe ser mayor que cero.", InfoBarSeverity.Error);
             TruckCapacityTextBox.Focus(FocusState.Programmatic);
             return;
         }
 
         TruckEditorSaveButton.IsEnabled = false;
-        TruckEditorStatusText.Text = "Guardando camión en BlapaciSQL...";
+        SetFormStatus(TruckEditorStatusInfoBar, "Guardando camión en BlapaciSQL...", InfoBarSeverity.Informational);
         try
         {
             var initials = selectedOperator?.Initials ?? _selectedTruck!.Initials;
@@ -4130,17 +4169,20 @@ public sealed partial class MainPage : Page
 
             TruckEditorOverlay.Visibility = Visibility.Collapsed;
             await LoadTrucksAsync();
-            TruckFormStatusText.Text = _editingTruck
-                ? $"Camión {unit} actualizado correctamente."
-                : $"Camión {unit} guardado correctamente.";
+            SetFormStatus(
+                TruckFormStatusInfoBar,
+                _editingTruck
+                    ? $"Camión {unit} actualizado correctamente."
+                    : $"Camión {unit} guardado correctamente.",
+                InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
-            TruckEditorStatusText.Text = $"No se pudo guardar el camión en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(TruckEditorStatusInfoBar, $"No se pudo guardar el camión en BlapaciSQL (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            TruckEditorStatusText.Text = exception.Message;
+            SetFormStatus(TruckEditorStatusInfoBar, exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -4159,7 +4201,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedTruck is null)
         {
-            TruckFormStatusText.Text = "Selecciona un camión para borrar.";
+            SetFormStatus(TruckFormStatusInfoBar, "Selecciona un camión para borrar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -4183,15 +4225,18 @@ public sealed partial class MainPage : Page
         {
             await _truckService.DeleteTruckAsync(truck.Id);
             await LoadTrucksAsync();
-            TruckFormStatusText.Text = $"Camión {truck.Unit} borrado correctamente.";
+            SetFormStatus(TruckFormStatusInfoBar, $"Camión {truck.Unit} borrado correctamente.", InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
-            TruckFormStatusText.Text = $"No se pudo borrar el camión en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(
+                TruckFormStatusInfoBar,
+                $"No se pudo borrar el camión en BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            TruckFormStatusText.Text = exception.Message;
+            SetFormStatus(TruckFormStatusInfoBar, exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -4201,7 +4246,7 @@ public sealed partial class MainPage : Page
 
     private async Task LoadClientsAsync()
     {
-        ClientFormStatusText.Text = "Consultando clientes en BlapaciSQL...";
+        SetFormStatus(ClientFormStatusInfoBar, "Consultando clientes en BlapaciSQL...", InfoBarSeverity.Informational);
         try
         {
             var data = await _clientService.GetClientsAsync();
@@ -4217,11 +4262,14 @@ public sealed partial class MainPage : Page
                 ClientRecords.Add(client);
             }
 
-            ClientFormStatusText.Text = $"Clientes cargados desde BlapaciSQL: {data.Clients.Count}.";
+            SetFormStatus(ClientFormStatusInfoBar, $"Clientes cargados desde BlapaciSQL: {data.Clients.Count}.", InfoBarSeverity.Informational);
         }
         catch (SqlException exception)
         {
-            ClientFormStatusText.Text = $"No se pudieron consultar los clientes en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(
+                ClientFormStatusInfoBar,
+                $"No se pudieron consultar los clientes en BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
     }
 
@@ -4255,7 +4303,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedClient is null)
         {
-            ClientFormStatusText.Text = "Selecciona un cliente para editar.";
+            SetFormStatus(ClientFormStatusInfoBar, "Selecciona un cliente para editar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -4271,7 +4319,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedClient is null)
         {
-            ClientFormStatusText.Text = "Selecciona un cliente para visualizar.";
+            SetFormStatus(ClientFormStatusInfoBar, "Selecciona un cliente para visualizar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -4313,7 +4361,7 @@ public sealed partial class MainPage : Page
         ClientConstructionTextBox.IsReadOnly = readOnly;
         ClientEmailTextBox.IsReadOnly = readOnly;
         ClientWebsiteTextBox.IsReadOnly = readOnly;
-        ClientEditorStatusText.Text = string.Empty;
+        ClientEditorStatusInfoBar.IsOpen = false;
         ClientEditorOverlay.Visibility = Visibility.Visible;
         if (!readOnly)
         {
@@ -4350,7 +4398,7 @@ public sealed partial class MainPage : Page
         var validationError = ClientDataValidator.Validate(clientDetails);
         if (validationError is not null)
         {
-            ClientEditorStatusText.Text = validationError.Message;
+            SetFormStatus(ClientEditorStatusInfoBar, validationError.Message, InfoBarSeverity.Error);
             GetClientTextBox(validationError.Field).Focus(FocusState.Programmatic);
             return;
         }
@@ -4358,7 +4406,7 @@ public sealed partial class MainPage : Page
         var client = clientDetails.Client.Trim();
 
         ClientEditorSaveButton.IsEnabled = false;
-        ClientEditorStatusText.Text = "Guardando cliente en BlapaciSQL...";
+        SetFormStatus(ClientEditorStatusInfoBar, "Guardando cliente en BlapaciSQL...", InfoBarSeverity.Informational);
         try
         {
             if (_editingClient && _selectedClient is not null)
@@ -4381,17 +4429,20 @@ public sealed partial class MainPage : Page
 
             ClientEditorOverlay.Visibility = Visibility.Collapsed;
             await LoadClientsAsync();
-            ClientFormStatusText.Text = _editingClient
-                ? $"Cliente {client} actualizado correctamente."
-                : $"Cliente {client} guardado correctamente.";
+            SetFormStatus(
+                ClientFormStatusInfoBar,
+                _editingClient
+                    ? $"Cliente {client} actualizado correctamente."
+                    : $"Cliente {client} guardado correctamente.",
+                InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
-            ClientEditorStatusText.Text = $"No se pudo guardar el cliente en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(ClientEditorStatusInfoBar, $"No se pudo guardar el cliente en BlapaciSQL (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            ClientEditorStatusText.Text = exception.Message;
+            SetFormStatus(ClientEditorStatusInfoBar, exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -4428,7 +4479,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedClient is null)
         {
-            ClientFormStatusText.Text = "Selecciona un cliente para borrar.";
+            SetFormStatus(ClientFormStatusInfoBar, "Selecciona un cliente para borrar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -4452,15 +4503,18 @@ public sealed partial class MainPage : Page
         {
             await _clientService.DeleteClientAsync(client.Id);
             await LoadClientsAsync();
-            ClientFormStatusText.Text = $"Cliente {client.Client} borrado correctamente.";
+            SetFormStatus(ClientFormStatusInfoBar, $"Cliente {client.Client} borrado correctamente.", InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
-            ClientFormStatusText.Text = $"No se pudo borrar el cliente en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(
+                ClientFormStatusInfoBar,
+                $"No se pudo borrar el cliente en BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            ClientFormStatusText.Text = exception.Message;
+            SetFormStatus(ClientFormStatusInfoBar, exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -4470,7 +4524,7 @@ public sealed partial class MainPage : Page
 
     private async Task LoadSuppliersAsync()
     {
-        SupplierFormStatusText.Text = "Consultando proveedores en BlapaciSQL...";
+        SetFormStatus(SupplierFormStatusInfoBar, "Consultando proveedores en BlapaciSQL...", InfoBarSeverity.Informational);
         try
         {
             var data = await _supplierService.GetSuppliersAsync();
@@ -4486,11 +4540,14 @@ public sealed partial class MainPage : Page
                 SupplierRecords.Add(supplier);
             }
 
-            SupplierFormStatusText.Text = $"Proveedores cargados desde BlapaciSQL: {data.Suppliers.Count}.";
+            SetFormStatus(SupplierFormStatusInfoBar, $"Proveedores cargados desde BlapaciSQL: {data.Suppliers.Count}.", InfoBarSeverity.Informational);
         }
         catch (SqlException exception)
         {
-            SupplierFormStatusText.Text = $"No se pudieron consultar los proveedores en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(
+                SupplierFormStatusInfoBar,
+                $"No se pudieron consultar los proveedores en BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
     }
 
@@ -4524,7 +4581,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedSupplier is null)
         {
-            SupplierFormStatusText.Text = "Selecciona un proveedor para editar.";
+            SetFormStatus(SupplierFormStatusInfoBar, "Selecciona un proveedor para editar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -4540,7 +4597,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedSupplier is null)
         {
-            SupplierFormStatusText.Text = "Selecciona un proveedor para visualizar.";
+            SetFormStatus(SupplierFormStatusInfoBar, "Selecciona un proveedor para visualizar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -4578,7 +4635,7 @@ public sealed partial class MainPage : Page
         SupplierContactTextBox.IsReadOnly = readOnly;
         SupplierEmailTextBox.IsReadOnly = readOnly;
         SupplierWebsiteTextBox.IsReadOnly = readOnly;
-        SupplierEditorStatusText.Text = string.Empty;
+        SupplierEditorStatusInfoBar.IsOpen = false;
         SupplierEditorOverlay.Visibility = Visibility.Visible;
         if (!readOnly)
         {
@@ -4613,7 +4670,7 @@ public sealed partial class MainPage : Page
         var validationError = SupplierDataValidator.Validate(supplier);
         if (validationError is not null)
         {
-            SupplierEditorStatusText.Text = validationError.Message;
+            SetSupplierEditorStatus(validationError.Message, InfoBarSeverity.Error);
             GetSupplierTextBox(validationError.Field).Focus(FocusState.Programmatic);
             return;
         }
@@ -4621,7 +4678,7 @@ public sealed partial class MainPage : Page
         var supplierName = supplier.Supplier.Trim();
 
         SupplierEditorSaveButton.IsEnabled = false;
-        SupplierEditorStatusText.Text = "Guardando proveedor en BlapaciSQL...";
+        SetSupplierEditorStatus("Guardando proveedor en BlapaciSQL...", InfoBarSeverity.Informational);
         try
         {
             if (_editingSupplier && _selectedSupplier is not null)
@@ -4637,17 +4694,22 @@ public sealed partial class MainPage : Page
 
             SupplierEditorOverlay.Visibility = Visibility.Collapsed;
             await LoadSuppliersAsync();
-            SupplierFormStatusText.Text = _editingSupplier
-                ? $"Proveedor {supplierName} actualizado correctamente."
-                : $"Proveedor {supplierName} guardado correctamente.";
+            SetFormStatus(
+                SupplierFormStatusInfoBar,
+                _editingSupplier
+                    ? $"Proveedor {supplierName} actualizado correctamente."
+                    : $"Proveedor {supplierName} guardado correctamente.",
+                InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
-            SupplierEditorStatusText.Text = $"No se pudo guardar el proveedor en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetSupplierEditorStatus(
+                $"No se pudo guardar el proveedor en BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            SupplierEditorStatusText.Text = exception.Message;
+            SetSupplierEditorStatus(exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -4655,6 +4717,19 @@ public sealed partial class MainPage : Page
                 "Proveedores",
                 _editingSupplier ? "Editar" : "Alta");
         }
+    }
+
+    private void SetSupplierEditorStatus(string message, InfoBarSeverity severity)
+    {
+        SetFormStatus(SupplierEditorStatusInfoBar, message, severity);
+    }
+
+    private void SetFormStatus(InfoBar infoBar, string message, InfoBarSeverity severity)
+    {
+        infoBar.Message = message;
+        infoBar.Severity = severity;
+        StatusInfoBarStyler.Apply(infoBar, RequestedTheme);
+        infoBar.IsOpen = true;
     }
 
     private TextBox GetSupplierTextBox(SupplierField field) => field switch
@@ -4682,7 +4757,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedSupplier is null)
         {
-            SupplierFormStatusText.Text = "Selecciona un proveedor para borrar.";
+            SetFormStatus(SupplierFormStatusInfoBar, "Selecciona un proveedor para borrar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -4706,15 +4781,18 @@ public sealed partial class MainPage : Page
         {
             await _supplierService.DeleteSupplierAsync(supplier.Id);
             await LoadSuppliersAsync();
-            SupplierFormStatusText.Text = $"Proveedor {supplier.Supplier} borrado correctamente.";
+            SetFormStatus(SupplierFormStatusInfoBar, $"Proveedor {supplier.Supplier} borrado correctamente.", InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
-            SupplierFormStatusText.Text = $"No se pudo borrar el proveedor en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(
+                SupplierFormStatusInfoBar,
+                $"No se pudo borrar el proveedor en BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            SupplierFormStatusText.Text = exception.Message;
+            SetFormStatus(SupplierFormStatusInfoBar, exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -4724,7 +4802,7 @@ public sealed partial class MainPage : Page
 
     private async Task LoadFormulasAsync()
     {
-        FormulaFormStatusText.Text = "Consultando fórmulas en BlapaciSQL...";
+        SetFormStatus(FormulaFormStatusInfoBar, "Consultando fórmulas en BlapaciSQL...", InfoBarSeverity.Informational);
 
         try
         {
@@ -4751,11 +4829,17 @@ public sealed partial class MainPage : Page
             ShowActiveFormulas();
             FormulaActiveTabButton.Content = $"Fórmulas Activas ({ActiveFormulaRows.Count})";
             FormulaCancelledTabButton.Content = $"Fórmulas Canceladas ({CancelledFormulaRows.Count})";
-            FormulaFormStatusText.Text = $"Fórmulas cargadas desde BlapaciSQL: {data.ActiveRows.Count} activas y {data.CancelledRows.Count} canceladas. Desplázate horizontalmente para ver todos los campos.";
+            SetFormStatus(
+                FormulaFormStatusInfoBar,
+                $"Fórmulas cargadas desde BlapaciSQL: {data.ActiveRows.Count} activas y {data.CancelledRows.Count} canceladas. Desplázate horizontalmente para ver todos los campos.",
+                InfoBarSeverity.Informational);
         }
         catch (SqlException exception)
         {
-            FormulaFormStatusText.Text = $"No se pudieron consultar las fórmulas en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(
+                FormulaFormStatusInfoBar,
+                $"No se pudieron consultar las fórmulas en BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
     }
 
@@ -4821,7 +4905,10 @@ public sealed partial class MainPage : Page
         _selectedFormulaBorder = border;
         border.Background = _themeBrushes.GetBrush("#005EA7");
         UpdateFormulaActionButtons();
-        FormulaFormStatusText.Text = $"Fórmula seleccionada: {formula.Values.GetValueOrDefault("Cod_Formula", string.Empty)} (ID {formula.Id}).";
+        SetFormStatus(
+            FormulaFormStatusInfoBar,
+            $"Fórmula seleccionada: {formula.Values.GetValueOrDefault("Cod_Formula", string.Empty)} (ID {formula.Id}).",
+            InfoBarSeverity.Informational);
         e.Handled = true;
     }
 
@@ -4881,28 +4968,31 @@ public sealed partial class MainPage : Page
 
         if (_selectedFormula is null || !_showingCancelledFormulas)
         {
-            FormulaFormStatusText.Text = "Selecciona una fórmula cancelada para restaurarla.";
+            SetFormStatus(FormulaFormStatusInfoBar, "Selecciona una fórmula cancelada para restaurarla.", InfoBarSeverity.Error);
             return;
         }
 
         var formula = _selectedFormula;
         var code = formula.Values.GetValueOrDefault("Cod_Formula", string.Empty);
         FormulaAddRestoreButton.IsEnabled = false;
-        FormulaFormStatusText.Text = $"Restaurando fórmula {code}...";
+        SetFormStatus(FormulaFormStatusInfoBar, $"Restaurando fórmula {code}...", InfoBarSeverity.Informational);
         try
         {
             await _formulaService.RestoreFormulaAsync(formula.Id);
             await LoadFormulasAsync();
             ShowActiveFormulas();
-            FormulaFormStatusText.Text = $"La fórmula {code} se restauró y está activa.";
+            SetFormStatus(FormulaFormStatusInfoBar, $"La fórmula {code} se restauró y está activa.", InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
-            FormulaFormStatusText.Text = $"No se pudo restaurar la fórmula (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(
+                FormulaFormStatusInfoBar,
+                $"No se pudo restaurar la fórmula (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            FormulaFormStatusText.Text = exception.Message;
+            SetFormStatus(FormulaFormStatusInfoBar, exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -4919,7 +5009,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedFormula is null || _showingCancelledFormulas)
         {
-            FormulaFormStatusText.Text = "Selecciona una fórmula activa para editar.";
+            SetFormStatus(FormulaFormStatusInfoBar, "Selecciona una fórmula activa para editar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -4938,7 +5028,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedFormula is null)
         {
-            FormulaFormStatusText.Text = "Selecciona una fórmula para visualizar.";
+            SetFormStatus(FormulaFormStatusInfoBar, "Selecciona una fórmula para visualizar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -4950,11 +5040,13 @@ public sealed partial class MainPage : Page
 
     private async Task OpenFormulaEditorAsync(IReadOnlyDictionary<string, string> values)
     {
-        FormulaEditorStatusText.Text = "Cargando materiales...";
+        SetFormStatus(FormulaEditorStatusInfoBar, "Cargando materiales...", InfoBarSeverity.Informational);
         FormulaEditorSaveButton.IsEnabled = false;
         FormulaEditorOverlay.Visibility = Visibility.Visible;
         try
         {
+            var machineConfiguration = await _machineConfigurationService.GetConfigurationAsync();
+            _dashboardMachineConfiguration = machineConfiguration.Values;
             var inventory = await _inventoryService.GetInventoryAsync();
             _formulaMaterialOptions.Clear();
             _formulaMaterialOptions["A"] = inventory.Where(item => item.Category == "AGREGADOS").Select(item => item.Name).ToArray();
@@ -4963,20 +5055,48 @@ public sealed partial class MainPage : Page
             _formulaMaterialOptions["Agua"] = inventory.Where(item => item.Category == "AGUAS").Select(item => item.Name).ToArray();
             _formulaMaterialOptions["Fibra"] = inventory.Where(item => item.Category == "FIBRAS").Select(item => item.Name).ToArray();
 
-            BuildFormulaEditor(values);
+            var editorValues = values;
+            if (!_editingFormula && !_viewingFormula)
+            {
+                var newFormulaValues = values.ToDictionary(pair => pair.Key, pair => pair.Value, StringComparer.Ordinal);
+                SetNewFormulaMaterialValues(newFormulaValues, machineConfiguration.Values);
+                editorValues = newFormulaValues;
+            }
+
+            BuildFormulaEditor(editorValues);
             foreach (var control in _formulaEditorInputs.Values)
             {
                 control.IsEnabled = !_viewingFormula;
             }
 
             FormulaEditorSaveButton.Visibility = _viewingFormula ? Visibility.Collapsed : Visibility.Visible;
-            FormulaEditorStatusText.Text = string.Empty;
+            FormulaEditorStatusInfoBar.IsOpen = false;
             FormulaEditorSaveButton.IsEnabled = !_viewingFormula
                 && HasActionPermission("Fórmulas", _editingFormula ? "Editar" : "Alta");
         }
         catch (SqlException exception)
         {
-            FormulaEditorStatusText.Text = $"No se pudieron cargar los materiales desde BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(
+                FormulaEditorStatusInfoBar,
+                $"No se pudieron cargar la configuración de tolvas o los materiales desde BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
+        }
+    }
+
+    private static void SetNewFormulaMaterialValues(
+        IDictionary<string, string> values,
+        IReadOnlyDictionary<string, string> machineConfiguration)
+    {
+        var formulaMaterialFields = Enumerable.Range(1, 8).Select(index => $"A{index}")
+            .Concat(Enumerable.Range(1, 5).Select(index => $"C{index}"))
+            .Concat(Enumerable.Range(1, 6).Select(index => $"D{index}"))
+            .Concat(new[] { "Agua", "Agua2", "Agua3", "Fibra1", "Fibra2", "Fibra3" });
+
+        foreach (var field in formulaMaterialFields)
+        {
+            values[field] = machineConfiguration.GetValueOrDefault(GetMachineMaterialParameter(field)) is { Length: > 0 } material
+                ? material
+                : "Deshabilitada";
         }
     }
 
@@ -5093,6 +5213,7 @@ public sealed partial class MainPage : Page
                 Tag = materialField
             };
             UpdateFormulaMaterialPicker(materialPicker, materialField, values);
+            materialPicker.SelectionChanged += FormulaMaterialPicker_SelectionChanged;
             var machineParameter = GetMachineMaterialParameter(materialField);
             var hopperMaterial = _dashboardMachineConfiguration.GetValueOrDefault(machineParameter)?.Trim();
             var materialState = new TextBlock
@@ -5119,6 +5240,74 @@ public sealed partial class MainPage : Page
         }
 
         return group;
+    }
+
+    private void FormulaMaterialPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_viewingFormula || sender is not ComboBox)
+        {
+            return;
+        }
+
+        var mismatchMessage = GetFormulaMaterialMismatchMessage();
+        if (mismatchMessage is not null)
+        {
+            SetFormStatus(
+                FormulaEditorStatusInfoBar,
+                mismatchMessage,
+                InfoBarSeverity.Error);
+        }
+        else if (FormulaEditorStatusInfoBar.Severity == InfoBarSeverity.Error
+                 && FormulaEditorStatusInfoBar.Message.StartsWith(
+                     "El material seleccionado no coincide con el configurado en la tolva:",
+                     StringComparison.Ordinal))
+        {
+            FormulaEditorStatusInfoBar.IsOpen = false;
+        }
+    }
+
+    private string? GetFormulaMaterialMismatchMessage()
+    {
+        var mismatches = _formulaEditorInputs
+            .Where(pair => pair.Value is ComboBox)
+            .Select(pair =>
+            {
+                var selectedMaterial = ((ComboBox)pair.Value).SelectedItem as string;
+                var configuredMaterial = _dashboardMachineConfiguration
+                    .GetValueOrDefault(GetMachineMaterialParameter(pair.Key))?.Trim();
+                selectedMaterial = string.IsNullOrWhiteSpace(selectedMaterial) ? "DESHABILITADA" : selectedMaterial.Trim();
+                configuredMaterial = string.IsNullOrWhiteSpace(configuredMaterial) ? "DESHABILITADA" : configuredMaterial;
+                return (Field: pair.Key, Selected: selectedMaterial, Configured: configuredMaterial);
+            })
+            .Where(item => !item.Selected.Equals(item.Configured, StringComparison.OrdinalIgnoreCase))
+            .ToArray();
+
+        return mismatches.Length == 0
+            ? null
+            : $"El material seleccionado no coincide con el configurado en la tolva: {string.Join(
+                "; ",
+                mismatches.Select(item =>
+                    $"{GetFormulaMaterialDisplayName(item.Field)}: «{item.Selected}» (tolva: «{item.Configured}»)"))}.";
+    }
+
+    private static string GetFormulaMaterialDisplayName(string fieldName)
+    {
+        var materialName = fieldName switch
+        {
+            var field when field.StartsWith("Agua", StringComparison.Ordinal) => "Agua",
+            var field when field.StartsWith('A') => "Agregado",
+            var field when field.StartsWith('C') => "Cemento",
+            var field when field.StartsWith('D') => "Aditivo",
+            _ => "Fibra"
+        };
+        var slot = fieldName switch
+        {
+            "Agua" => "1",
+            var field when field.StartsWith("Agua", StringComparison.Ordinal) => field["Agua".Length..],
+            var field when field.StartsWith("Fibra", StringComparison.Ordinal) => field["Fibra".Length..],
+            _ => fieldName[1..]
+        };
+        return $"{materialName} {slot}";
     }
 
     private static StackPanel GetFormulaGroupContent(StackPanel group) => (StackPanel)group.Tag;
@@ -5209,16 +5398,10 @@ public sealed partial class MainPage : Page
             StringComparer.Ordinal);
         var formulaCode = values.GetValueOrDefault("Cod_Formula", string.Empty);
         var formulaDescription = values.GetValueOrDefault("Descripcion", string.Empty);
-        var identityError = _editingFormula && _selectedFormula is { } selectedFormula
-            ? FormulaService.GetFormulaIdentityValidationErrorForUpdate(
-                selectedFormula.Values.GetValueOrDefault("Cod_Formula", string.Empty),
-                selectedFormula.Values.GetValueOrDefault("Descripcion", string.Empty),
-                formulaCode,
-                formulaDescription)
-            : FormulaService.GetFormulaIdentityValidationError(formulaCode, formulaDescription);
+        var identityError = FormulaService.GetFormulaIdentityValidationError(formulaCode, formulaDescription);
         if (identityError is not null)
         {
-            FormulaEditorStatusText.Text = identityError;
+            SetFormStatus(FormulaEditorStatusInfoBar, identityError, InfoBarSeverity.Error);
             var invalidField = identityError.StartsWith("El código", StringComparison.Ordinal)
                 ? "Cod_Formula"
                 : "Descripcion";
@@ -5230,15 +5413,29 @@ public sealed partial class MainPage : Page
             return;
         }
 
+        var quantityError = FormulaService.GetFormulaMaterialQuantityValidationError(values);
+        if (quantityError is not null)
+        {
+            SetFormStatus(FormulaEditorStatusInfoBar, quantityError, InfoBarSeverity.Error);
+            return;
+        }
+
+        var materialMismatch = GetFormulaMaterialMismatchMessage();
+        if (materialMismatch is not null)
+        {
+            SetFormStatus(FormulaEditorStatusInfoBar, materialMismatch, InfoBarSeverity.Error);
+            return;
+        }
+
         FormulaEditorSaveButton.IsEnabled = false;
-        FormulaEditorStatusText.Text = "Guardando fórmula en BlapaciSQL...";
+        SetFormStatus(FormulaEditorStatusInfoBar, "Guardando fórmula en BlapaciSQL...", InfoBarSeverity.Informational);
         try
         {
             if (_editingFormula)
             {
                 if (_selectedFormula is null)
                 {
-                    FormulaEditorStatusText.Text = "Selecciona una fórmula activa para editar.";
+                    SetFormStatus(FormulaEditorStatusInfoBar, "Selecciona una fórmula activa para editar.", InfoBarSeverity.Error);
                     return;
                 }
 
@@ -5251,17 +5448,20 @@ public sealed partial class MainPage : Page
 
             FormulaEditorOverlay.Visibility = Visibility.Collapsed;
             await LoadFormulasAsync();
-            FormulaFormStatusText.Text = _editingFormula
-                ? "Fórmula actualizada correctamente."
-                : "Fórmula agregada correctamente.";
+            SetFormStatus(
+                FormulaFormStatusInfoBar,
+                _editingFormula
+                    ? "Fórmula actualizada correctamente."
+                    : "Fórmula agregada correctamente.",
+                InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
-            FormulaEditorStatusText.Text = $"No se pudo guardar la fórmula (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(FormulaEditorStatusInfoBar, $"No se pudo guardar la fórmula (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            FormulaEditorStatusText.Text = exception.Message;
+            SetFormStatus(FormulaEditorStatusInfoBar, exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -5280,7 +5480,7 @@ public sealed partial class MainPage : Page
 
         if (_selectedFormula is null || _showingCancelledFormulas)
         {
-            FormulaFormStatusText.Text = "Selecciona una fórmula activa para borrar.";
+            SetFormStatus(FormulaFormStatusInfoBar, "Selecciona una fórmula activa para borrar.", InfoBarSeverity.Error);
             return;
         }
 
@@ -5306,15 +5506,18 @@ public sealed partial class MainPage : Page
         {
             await _formulaService.CancelFormulaAsync(_selectedFormula.Id, _authenticatedUsername);
             await LoadFormulasAsync();
-            FormulaFormStatusText.Text = $"La fórmula {code} se movió a Fórmulas Canceladas.";
+            SetFormStatus(FormulaFormStatusInfoBar, $"La fórmula {code} se movió a Fórmulas Canceladas.", InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
-            FormulaFormStatusText.Text = $"No se pudo borrar la fórmula (SQL {exception.Number}): {exception.Message}";
+            SetFormStatus(
+                FormulaFormStatusInfoBar,
+                $"No se pudo borrar la fórmula (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            FormulaFormStatusText.Text = exception.Message;
+            SetFormStatus(FormulaFormStatusInfoBar, exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -5324,7 +5527,7 @@ public sealed partial class MainPage : Page
 
     private async Task<bool> LoadInventoryAsync()
     {
-        InventoryFormStatusText.Text = "Consultando existencias en BlapaciSQL...";
+        SetInventoryStatus("Consultando existencias en BlapaciSQL...", InfoBarSeverity.Informational);
 
         try
         {
@@ -5374,14 +5577,31 @@ public sealed partial class MainPage : Page
                 + WaterInventory.Count
                 + CementInventory.Count
                 + FiberInventory.Count;
-            InventoryFormStatusText.Text = $"Existencias actualizadas desde BlapaciSQL. Registros: {displayedMaterialCount}; proveedores: {suppliers.Count}.";
+            SetInventoryStatus(
+                $"Existencias actualizadas desde BlapaciSQL. Registros: {displayedMaterialCount}; proveedores: {suppliers.Count}.",
+                InfoBarSeverity.Success);
             return true;
         }
         catch (SqlException exception)
         {
-            InventoryFormStatusText.Text = $"No se pudieron cargar las existencias o los proveedores desde BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetInventoryStatus(
+                $"No se pudieron cargar las existencias o los proveedores desde BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
             return false;
         }
+    }
+
+    private void SetInventoryStatus(string message, InfoBarSeverity severity)
+    {
+        InventoryFormStatusInfoBar.Message = message;
+        InventoryFormStatusInfoBar.Severity = severity;
+        UpdateInventoryStatusStyle();
+        InventoryFormStatusInfoBar.IsOpen = true;
+    }
+
+    private void UpdateInventoryStatusStyle()
+    {
+        StatusInfoBarStyler.Apply(InventoryFormStatusInfoBar, RequestedTheme);
     }
 
     private static bool HasDisabledMachineMaterial(
@@ -5448,7 +5668,9 @@ public sealed partial class MainPage : Page
 
         if (SelectedInventoryMaterials.Count == 0)
         {
-            InventoryFormStatusText.Text = $"No hay materiales disponibles para {category}. Actualiza las existencias e inténtalo de nuevo.";
+            SetInventoryStatus(
+                $"No hay materiales disponibles para {category}. Actualiza las existencias e inténtalo de nuevo.",
+                InfoBarSeverity.Warning);
         }
     }
 
@@ -5721,9 +5943,11 @@ public sealed partial class MainPage : Page
 
         InventorySaveButton.IsEnabled = operation is not null
             && HasActionPermission(operation, "Alta");
-        InventoryFormStatusText.Text = operation is null
-            ? "Selecciona Entradas para agregar o Salidas para quitar existencias."
-            : $"{operation}: completa los datos y pulsa Guardar para registrar el movimiento.";
+        SetInventoryStatus(
+            operation is null
+                ? "Selecciona Entradas para agregar o Salidas para quitar existencias."
+                : $"{operation}: completa los datos y pulsa Guardar para registrar el movimiento.",
+            InfoBarSeverity.Informational);
     }
 
     private async void SaveInventory_Click(object sender, RoutedEventArgs e)
@@ -5738,40 +5962,40 @@ public sealed partial class MainPage : Page
 
         if (isEntry == isExit)
         {
-            InventoryFormStatusText.Text = "Selecciona Entradas para agregar o Salidas para quitar existencias.";
+            SetInventoryStatus("Selecciona Entradas para agregar o Salidas para quitar existencias.", InfoBarSeverity.Warning);
             return;
         }
 
         if (InventoryMaterialComboBox.SelectedItem is not ComboBoxItem { Content: string category }
             || InventoryTypeComboBox.SelectedItem is not InventoryMaterial material)
         {
-            InventoryFormStatusText.Text = "Selecciona el material y el tipo que deseas registrar.";
+            SetInventoryStatus("Selecciona el material y el tipo que deseas registrar.", InfoBarSeverity.Warning);
             return;
         }
 
         if (!decimal.TryParse(InventoryQuantityTextBox.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out var quantity)
             && !decimal.TryParse(InventoryQuantityTextBox.Text, NumberStyles.Number, CultureInfo.InvariantCulture, out quantity))
         {
-            InventoryFormStatusText.Text = "Ingresa una cantidad numérica válida.";
+            SetInventoryStatus("Ingresa una cantidad numérica válida.", InfoBarSeverity.Warning);
             return;
         }
 
         if (quantity <= 0)
         {
-            InventoryFormStatusText.Text = "La cantidad debe ser mayor que cero.";
+            SetInventoryStatus("La cantidad debe ser mayor que cero.", InfoBarSeverity.Warning);
             return;
         }
 
         var supplier = InventorySupplierComboBox.SelectedItem as string ?? string.Empty;
         if (supplier.Length == 0)
         {
-            InventoryFormStatusText.Text = "Selecciona un proveedor.";
+            SetInventoryStatus("Selecciona un proveedor.", InfoBarSeverity.Warning);
             return;
         }
 
         if (_authenticatedUsername.Length is 0 or > 10)
         {
-            InventoryFormStatusText.Text = "El usuario no es válido para registrar movimientos (máximo 10 caracteres).";
+            SetInventoryStatus("El usuario no es válido para registrar movimientos (máximo 10 caracteres).", InfoBarSeverity.Warning);
             return;
         }
 
@@ -5779,12 +6003,12 @@ public sealed partial class MainPage : Page
         var invoice = InventoryInvoiceTextBox.Text.Trim();
         if (origin.Length > 50 || invoice.Length > 50 || supplier.Length > 50)
         {
-            InventoryFormStatusText.Text = "Proveedor, origen y factura deben tener como máximo 50 caracteres.";
+            SetInventoryStatus("Proveedor, origen y factura deben tener como máximo 50 caracteres.", InfoBarSeverity.Warning);
             return;
         }
 
         InventorySaveButton.IsEnabled = false;
-        InventoryFormStatusText.Text = "Guardando el movimiento en BlapaciSQL...";
+        SetInventoryStatus("Guardando el movimiento en BlapaciSQL...", InfoBarSeverity.Informational);
 
         try
         {
@@ -5801,24 +6025,30 @@ public sealed partial class MainPage : Page
             InventoryQuantityTextBox.Text = "0.0";
             if (await LoadInventoryAsync())
             {
-                InventoryFormStatusText.Text = $"{(isExit ? "Salida" : "Entrada")} de {material.Name} guardada correctamente. Existencia actualizada.";
+                SetInventoryStatus(
+                    $"{(isExit ? "Salida" : "Entrada")} de {material.Name} guardada correctamente. Existencia actualizada.",
+                    InfoBarSeverity.Success);
             }
             else
             {
-                InventoryFormStatusText.Text = $"Movimiento guardado, pero no se pudo actualizar la vista. {InventoryFormStatusText.Text}";
+                SetInventoryStatus(
+                    $"Movimiento guardado, pero no se pudo actualizar la vista. {InventoryFormStatusInfoBar.Message}",
+                    InfoBarSeverity.Warning);
             }
         }
         catch (SqlException exception)
         {
-            InventoryFormStatusText.Text = $"No se pudo guardar el movimiento en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
+            SetInventoryStatus(
+                $"No se pudo guardar el movimiento en BlapaciSQL (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            InventoryFormStatusText.Text = exception.Message;
+            SetInventoryStatus(exception.Message, InfoBarSeverity.Error);
         }
         catch (OverflowException)
         {
-            InventoryFormStatusText.Text = "La cantidad excede el valor numérico que puede almacenarse en el inventario.";
+            SetInventoryStatus("La cantidad excede el valor numérico que puede almacenarse en el inventario.", InfoBarSeverity.Error);
         }
         finally
         {
@@ -7525,6 +7755,51 @@ public sealed partial class MainPage : Page
             : message.Text;
     }
 
+    private async Task ApplySavedMessagesToCanvasAsync(
+        IReadOnlyCollection<MessageConfigurationUpdate> updates)
+    {
+        foreach (var update in updates)
+        {
+            _designerCanvasState.MessageTextOverrides[update.Control] = update.Message;
+            foreach (var control in _designerCanvasState.Controls.Where(control =>
+                         string.Equals(control.MessageControl, update.Control, StringComparison.OrdinalIgnoreCase)))
+            {
+                control.Text = update.Message;
+                control.Format = update.Format;
+                if (DesignCanvas.Children.OfType<Border>().FirstOrDefault(container =>
+                        ReferenceEquals(container.Tag, control)) is { Child: TextBlock messageLabel } container)
+                {
+                    messageLabel.Text = control.Text;
+                    messageLabel.Foreground = GetMessageForeground(control);
+                    messageLabel.FontSize = GetResponsiveMessageFontSize(
+                        control,
+                        messageLabel.Width,
+                        messageLabel.Height);
+                    var fontFamily = GetMessageFontFamily(control.Format);
+                    if (fontFamily is null)
+                    {
+                        messageLabel.ClearValue(TextBlock.FontFamilyProperty);
+                    }
+                    else
+                    {
+                        messageLabel.FontFamily = fontFamily;
+                    }
+                }
+            }
+
+            foreach (var button in MessageControlPalette.Children.OfType<Button>())
+            {
+                if (button.Tag is MessageConfigurationRecord message
+                    && string.Equals(message.Control, update.Control, StringComparison.OrdinalIgnoreCase))
+                {
+                    button.Tag = message with { Text = update.Message, Format = update.Format };
+                }
+            }
+        }
+
+        await SaveDesignerCanvasStateAsync();
+    }
+
     private static string GetDefaultMessageText(string? control)
     {
         return string.IsNullOrWhiteSpace(control) ? "Mensaje" : control.Trim();
@@ -8757,7 +9032,7 @@ public sealed partial class MainPage : Page
         LoginButton.IsEnabled = false;
         LoginProgress.IsActive = true;
         LoginProgress.Visibility = Visibility.Visible;
-        LoginErrorText.Visibility = Visibility.Collapsed;
+        LoginErrorInfoBar.IsOpen = false;
 
         try
         {
@@ -8940,8 +9215,7 @@ public sealed partial class MainPage : Page
 
     private void ShowLoginError(string message)
     {
-        LoginErrorText.Text = message;
-        LoginErrorText.Visibility = Visibility.Visible;
+        SetFormStatus(LoginErrorInfoBar, message, InfoBarSeverity.Error);
     }
 
     private async Task<bool> RefreshCurrentUserPermissionsAsync()

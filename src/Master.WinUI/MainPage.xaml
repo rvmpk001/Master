@@ -680,7 +680,12 @@
                                             </StackPanel>
                                         </StackPanel>
                                     </StackPanel>
-                                    <TextBlock x:Name="InventoryFormStatusText" Text="La consulta y captura requieren conexión autorizada al inventario." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                                    <InfoBar
+                                        x:Name="InventoryFormStatusInfoBar"
+                                        IsOpen="True"
+                                        IsClosable="True"
+                                        Severity="Informational"
+                                        Message="La consulta y captura requieren conexión autorizada al inventario." />
                                 </StackPanel>
                             </Border>
                     </Grid>
@@ -808,7 +813,14 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
-                    <TextBlock x:Name="FormulaFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando fórmulas..." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                    <InfoBar
+                        x:Name="FormulaFormStatusInfoBar"
+                        Grid.Row="4"
+                        Margin="12,0,12,8"
+                        IsOpen="True"
+                        IsClosable="True"
+                        Severity="Informational"
+                        Message="Consultando fórmulas..." />
                 </Grid>
             </Border>
         </Grid>
@@ -840,7 +852,7 @@
                         </StackPanel>
                     </ScrollViewer>
                     <StackPanel Grid.Row="4" Padding="12,0,12,8">
-                        <TextBlock x:Name="FormulaEditorStatusText" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                        <InfoBar x:Name="FormulaEditorStatusInfoBar" IsOpen="False" IsClosable="True" />
                     </StackPanel>
                 </Grid>
             </Border>
@@ -913,7 +925,14 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
-                    <TextBlock x:Name="SupplierFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando proveedores..." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                    <InfoBar
+                        x:Name="SupplierFormStatusInfoBar"
+                        Grid.Row="4"
+                        Margin="12,0,12,8"
+                        IsOpen="True"
+                        IsClosable="True"
+                        Severity="Informational"
+                        Message="Consultando proveedores..." />
                 </Grid>
             </Border>
         </Grid>
@@ -975,7 +994,12 @@
                             <TextBox x:Name="SupplierWebsiteTextBox" Grid.Row="10" Grid.Column="1" MaxLength="80" />
                         </Grid>
                     </ScrollViewer>
-                    <TextBlock x:Name="SupplierEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                    <InfoBar
+                        x:Name="SupplierEditorStatusInfoBar"
+                        Grid.Row="4"
+                        Margin="12,0,12,8"
+                        IsOpen="False"
+                        IsClosable="True" />
                 </Grid>
             </Border>
         </Grid>
@@ -1047,7 +1071,14 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
-                    <TextBlock x:Name="ClientFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando clientes..." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                    <InfoBar
+                        x:Name="ClientFormStatusInfoBar"
+                        Grid.Row="4"
+                        Margin="12,0,12,8"
+                        IsOpen="True"
+                        IsClosable="True"
+                        Severity="Informational"
+                        Message="Consultando clientes..." />
                 </Grid>
             </Border>
         </Grid>
@@ -1114,7 +1145,7 @@
                             <TextBox x:Name="ClientWebsiteTextBox" Grid.Row="12" Grid.Column="1" MaxLength="80" />
                         </Grid>
                     </ScrollViewer>
-                    <TextBlock x:Name="ClientEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                    <InfoBar x:Name="ClientEditorStatusInfoBar" Grid.Row="4" Margin="12,0,12,8" IsOpen="False" IsClosable="True" />
                 </Grid>
             </Border>
         </Grid>
@@ -1207,7 +1238,14 @@
                             </Grid>
                         </ScrollViewer>
                     </Border>
-                    <TextBlock x:Name="TruckFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando camiones..." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                    <InfoBar
+                        x:Name="TruckFormStatusInfoBar"
+                        Grid.Row="4"
+                        Margin="12,0,12,8"
+                        IsOpen="True"
+                        IsClosable="True"
+                        Severity="Informational"
+                        Message="Consultando camiones..." />
                 </Grid>
             </Border>
         </Grid>
@@ -1257,7 +1295,7 @@
                             </StackPanel>
                         </Grid>
                     </ScrollViewer>
-                    <TextBlock x:Name="TruckEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                    <InfoBar x:Name="TruckEditorStatusInfoBar" Grid.Row="4" Margin="12,0,12,8" IsOpen="False" IsClosable="True" />
                 </Grid>
             </Border>
         </Grid>
@@ -1295,7 +1333,7 @@
                         <TextBlock Grid.Row="1" Text="Iniciales Operador:" VerticalAlignment="Center" />
                         <TextBox x:Name="OperatorInitialsTextBox" Grid.Row="1" Grid.Column="1" Width="120" HorizontalAlignment="Left" MaxLength="50" />
                     </Grid>
-                    <TextBlock x:Name="OperatorEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                    <InfoBar x:Name="OperatorEditorStatusInfoBar" Grid.Row="4" Margin="12,0,12,8" IsOpen="False" IsClosable="True" />
                 </Grid>
             </Border>
         </Grid>
@@ -1372,7 +1410,7 @@
                             </StackPanel>
                         </ScrollViewer>
                     </Border>
-                    <TextBlock x:Name="OrderFormStatusText" Grid.Row="4" Margin="12,0,12,8" Text="Consultando pedidos..." Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                    <InfoBar x:Name="OrderFormStatusInfoBar" Grid.Row="4" Margin="12,0,12,8" IsOpen="False" IsClosable="True" />
                 </Grid>
             </Border>
         </Grid>
@@ -1460,7 +1498,7 @@
                             <TextBox x:Name="OrderNumberTextBox" Grid.Row="14" Grid.Column="3" HorizontalAlignment="Stretch" IsReadOnly="True" />
                         </Grid>
                     </ScrollViewer>
-                    <TextBlock x:Name="OrderEditorStatusText" Grid.Row="4" Margin="12,0,12,8" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                    <InfoBar x:Name="OrderEditorStatusInfoBar" Grid.Row="4" Margin="12,0,12,8" IsOpen="False" IsClosable="True" />
                 </Grid>
             </Border>
         </Grid>
@@ -1650,7 +1688,7 @@
                     <TextBlock Text="SISTEMA BLAPACI" FontSize="26" FontWeight="Bold" Foreground="{ThemeResource PaletteE6EDF7}" />
                     <TextBox x:Name="UsernameTextBox" Header="Usuario" MaxLength="15" Foreground="{ThemeResource PaletteF1F5F9}" KeyDown="LoginInput_KeyDown" />
                     <PasswordBox x:Name="PasswordInput" Header="Contraseña" MaxLength="15" Foreground="{ThemeResource PaletteF1F5F9}" KeyDown="LoginInput_KeyDown" />
-                    <TextBlock x:Name="LoginErrorText" Visibility="Collapsed" Foreground="{ThemeResource PaletteFF8A80}" TextWrapping="WrapWholeWords" />
+                    <InfoBar x:Name="LoginErrorInfoBar" IsOpen="False" IsClosable="False" />
                     <ProgressRing x:Name="LoginProgress" IsActive="False" Visibility="Collapsed" Width="28" Height="28" HorizontalAlignment="Center" />
                     <Button x:Name="LoginButton" Content="Ingresar" Click="LoginButton_Click" HorizontalAlignment="Stretch" Padding="12,10" Style="{StaticResource DefaultButtonStyle}" />
                 </StackPanel>

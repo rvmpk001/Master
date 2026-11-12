@@ -27,6 +27,7 @@ public sealed class ThemeBrushSet
             ["#0058A0"] = "#CFE4FF",
             ["#005EA7"] = "#CFE4FF",
             ["#22C55E"] = "#16803A",
+            ["#1C5C34"] = "#B8E6C0",
             ["#FFBE5A"] = "#805B12",
             ["#72D49A"] = "#137A45"
         };

@@ -67,6 +67,7 @@ public sealed class FormulaService
         CancellationToken cancellationToken = default)
     {
         ValidateFormulaIdentity(values);
+        ValidateMaterialQuantities(values);
         var columns = string.Join(", ", EditableFields.Select(field => $"[{field}]"));
         var parameters = string.Join(", ", EditableFields.Select(field => $"@{field}"));
         var query = $"""
@@ -104,28 +105,20 @@ public sealed class FormulaService
         await connection.OpenAsync(cancellationToken);
         await using var transaction = connection.BeginTransaction(IsolationLevel.Serializable);
         const string existingIdentityQuery = """
-            SELECT [Cod_Formula], [Descripcion]
+            SELECT 1
             FROM dbo.Formulas WITH (UPDLOCK, HOLDLOCK)
             WHERE [Id_Formula] = @Id_Formula AND ISNULL([Estatus], 'A') <> 'C';
             """;
-        string existingCode;
-        string existingDescription;
         await using (var identityCommand = new SqlCommand(existingIdentityQuery, connection, transaction))
         {
             identityCommand.Parameters.Add("@Id_Formula", System.Data.SqlDbType.Int).Value = formulaId;
-            await using var reader = await identityCommand.ExecuteReaderAsync(cancellationToken);
-            if (!await reader.ReadAsync(cancellationToken))
+            if (await identityCommand.ExecuteScalarAsync(cancellationToken) is null)
             {
                 throw new InvalidOperationException("La fórmula ya no existe o fue cancelada. Actualiza la lista e inténtalo de nuevo.");
             }
-
-            existingCode = reader.IsDBNull(0) ? string.Empty : reader.GetString(0).Trim();
-            existingDescription = reader.IsDBNull(1) ? string.Empty : reader.GetString(1).Trim();
         }
 
-        var identityError = GetFormulaIdentityValidationErrorForUpdate(
-            existingCode,
-            existingDescription,
+        var identityError = GetFormulaIdentityValidationError(
             values.GetValueOrDefault("Cod_Formula") ?? string.Empty,
             values.GetValueOrDefault("Descripcion") ?? string.Empty);
         if (identityError is not null)
@@ -133,6 +126,7 @@ public sealed class FormulaService
             throw new InvalidOperationException(identityError);
         }
 
+        ValidateMaterialQuantities(values);
         await EnsureFormulaCodeAvailableAsync(connection, transaction, values, formulaId, cancellationToken);
         await using var command = new SqlCommand(query, connection);
         command.Transaction = transaction;
@@ -158,26 +152,28 @@ public sealed class FormulaService
             return "La descripción de fórmula es obligatoria.";
         }
 
-        var codeWordCount = code.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
-        var descriptionWordCount = description.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Length;
-        if (descriptionWordCount <= codeWordCount)
+        if (description.Trim().Length <= code.Trim().Length)
         {
-            return "La descripción debe contener más palabras que el código.";
+            return "La descripción debe tener más caracteres que el código de fórmula.";
         }
 
         return null;
     }
 
-    public static string? GetFormulaIdentityValidationErrorForUpdate(
-        string existingCode,
-        string existingDescription,
-        string code,
-        string description)
+    public static string? GetFormulaMaterialQuantityValidationError(IReadOnlyDictionary<string, string> values)
     {
-        var identityIsUnchanged =
-            string.Equals(existingCode.Trim(), code.Trim(), StringComparison.OrdinalIgnoreCase)
-            && string.Equals(existingDescription.Trim(), description.Trim(), StringComparison.OrdinalIgnoreCase);
-        return identityIsUnchanged ? null : GetFormulaIdentityValidationError(code, description);
+        var hasNonZeroQuantity = EditableFields
+            .Where(field => field.EndsWith('C'))
+            .Select(field => values.GetValueOrDefault(field)?.Trim())
+            .Any(value =>
+                decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out var quantity)
+                    ? quantity != 0
+                    : decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out quantity)
+                        && quantity != 0);
+
+        return hasNonZeroQuantity
+            ? null
+            : "La fórmula debe tener al menos una cantidad de material distinta de cero.";
     }
 
     private static void ValidateFormulaIdentity(IReadOnlyDictionary<string, string> values)
@@ -185,6 +181,15 @@ public sealed class FormulaService
         var error = GetFormulaIdentityValidationError(
             values.GetValueOrDefault("Cod_Formula") ?? string.Empty,
             values.GetValueOrDefault("Descripcion") ?? string.Empty);
+        if (error is not null)
+        {
+            throw new InvalidOperationException(error);
+        }
+    }
+
+    private static void ValidateMaterialQuantities(IReadOnlyDictionary<string, string> values)
+    {
+        var error = GetFormulaMaterialQuantityValidationError(values);
         if (error is not null)
         {
             throw new InvalidOperationException(error);
