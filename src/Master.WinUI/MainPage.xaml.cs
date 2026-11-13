@@ -49,6 +49,7 @@ public sealed partial class MainPage : Page
     private readonly ClientService _clientService = new();
     private readonly TruckService _truckService = new();
     private readonly OrderService _orderService = new();
+    private readonly OrderScheduleConfigurationService _orderScheduleConfigurationService = new();
     private readonly ReportCatalogService _reportCatalogService = new();
     private readonly ReportExportService _reportExportService = new();
     private readonly CompanyConfigurationService _companyConfigurationService = new();
@@ -108,6 +109,7 @@ public sealed partial class MainPage : Page
     private bool _showingCancelledOrders;
     private bool _syncingManualLoadOrderSelection;
     private int _manualLoadOrderRequestId;
+    private readonly HashSet<string> _manualLoadInvalidMaterialFields = new(StringComparer.Ordinal);
     private bool _editingSupplier;
     private bool _editingClient;
     private bool _editingTruck;
@@ -203,6 +205,7 @@ public sealed partial class MainPage : Page
     public ObservableCollection<string> ManualLoadConstructionOptions { get; } = new();
     public ObservableCollection<OperatorRecord> ManualLoadOperators { get; } = new();
     public ObservableCollection<TruckRecord> ManualLoadTrucks { get; } = new();
+    public ObservableCollection<string> ManualLoadShifts { get; } = new();
     public ObservableCollection<string> OrderDischargeTypes { get; } = new();
     public ObservableCollection<string> OrderProducts { get; } = new();
     public ObservableCollection<string> OrderPaymentConditions { get; } = new();
@@ -225,6 +228,11 @@ public sealed partial class MainPage : Page
         }
 
         InitializeComponent();
+        foreach (var (column, _, input) in GetManualLoadMaterialInputs())
+        {
+            input.TextChanged += (_, _) => ClearManualLoadMaterialHighlightWhenValid(column, input);
+        }
+
         UpdateManualLoadMaterialInputs(null);
         AddCanvasDeleteAccelerator(Windows.System.VirtualKey.Delete);
         AddCanvasDeleteAccelerator(Windows.System.VirtualKey.Back);
@@ -2709,6 +2717,14 @@ public sealed partial class MainPage : Page
 
     private async Task LoadManualLoadRecipesAsync()
     {
+        var currentLocalTime = DateTime.Now;
+        ManualLoadQuantityNumberBox.Value = 0;
+        ManualLoadActualRemissionDatePicker.Date = new DateTimeOffset(currentLocalTime.Date);
+        ManualLoadActualRemissionTimePicker.Time = new TimeSpan(currentLocalTime.Hour, currentLocalTime.Minute, 0);
+        ManualLoadShifts.Clear();
+        ManualLoadRemissionShiftComboBox.SelectedItem = null;
+        ManualLoadRemissionShiftComboBox.IsEnabled = false;
+        ManualLoadRemissionShiftComboBox.PlaceholderText = "Cargando turnos...";
         ManualLoadStatusText.Text = "Consultando catálogos y pedidos en BlapaciSQL...";
         ManualLoadRecipeComboBox.IsEnabled = false;
         ManualLoadOrderComboBox.IsEnabled = false;
@@ -2725,6 +2741,7 @@ public sealed partial class MainPage : Page
             var paymentConditions = await _orderService.GetPaymentConditionsAsync();
             var operators = await _truckService.GetOperatorsAsync();
             var trucks = await _truckService.GetTrucksAsync();
+            var schedules = await _orderScheduleConfigurationService.GetSchedulesAsync();
             var nextRemission = await _orderService.GetNextManualLoadRemissionAsync();
 
             ManualLoadRecipes.Clear();
@@ -2758,14 +2775,6 @@ public sealed partial class MainPage : Page
             }
 
             ManualLoadConstructionOptions.Clear();
-            foreach (var construction in clients.Clients
-                         .Select(client => client.Construction.Trim())
-                         .Where(construction => !string.IsNullOrWhiteSpace(construction))
-                         .Distinct(StringComparer.OrdinalIgnoreCase)
-                         .OrderBy(construction => construction, StringComparer.CurrentCultureIgnoreCase))
-            {
-                ManualLoadConstructionOptions.Add(construction);
-            }
 
             ManualLoadOperators.Clear();
             foreach (var operatorRecord in operators.Operators)
@@ -2779,6 +2788,26 @@ public sealed partial class MainPage : Page
                 ManualLoadTrucks.Add(truck);
             }
 
+            foreach (var schedule in schedules)
+            {
+                var shiftDescription = string.Join(
+                    " ",
+                    schedule.Description
+                        .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                        .Select(line => line.Trim())
+                        .Where(line => !string.IsNullOrWhiteSpace(line))
+                        .Distinct(StringComparer.OrdinalIgnoreCase));
+                if (!string.IsNullOrWhiteSpace(shiftDescription))
+                {
+                    ManualLoadShifts.Add(shiftDescription);
+                }
+            }
+
+            ManualLoadRemissionShiftComboBox.IsEnabled = ManualLoadShifts.Count > 0;
+            ManualLoadRemissionShiftComboBox.PlaceholderText = ManualLoadShifts.Count > 0
+                ? "Selecciona turno"
+                : "No hay turnos configurados";
+
             ManualLoadOrderNumbers.Clear();
             ManualLoadOrderNumbers.Add("Ocasional");
             foreach (var orderNumber in orderNumbers)
@@ -2788,10 +2817,11 @@ public sealed partial class MainPage : Page
 
             ManualLoadOrderComboBox.SelectedItem = null;
             ManualLoadRemissionTextBox.Text = nextRemission;
-            ManualLoadStatusText.Text = $"Fórmulas: {ManualLoadRecipes.Count}. Pedidos activos: {orderNumbers.Count}.";
+            ManualLoadStatusText.Text = $"Fórmulas: {ManualLoadRecipes.Count}. Pedidos activos: {orderNumbers.Count}. Turnos: {ManualLoadShifts.Count}.";
         }
         catch (SqlException exception)
         {
+            ManualLoadRemissionShiftComboBox.PlaceholderText = "Turnos no disponibles";
             ManualLoadStatusText.Text = $"No se pudieron cargar los catálogos de Carga Manual en BlapaciSQL (SQL {exception.Number}): {exception.Message}";
         }
         finally
@@ -2935,10 +2965,10 @@ public sealed partial class MainPage : Page
             ManualLoadOrderedQuantityNumberBox.Value = (double)(order.Quantity ?? 0);
             ManualLoadSuppliedQuantityNumberBox.Value = (double)(order.Supplied ?? 0);
             ManualLoadToSupplyQuantityNumberBox.Value = (double)(order.ToSupply ?? 0);
-            ManualLoadQuantityNumberBox.Value = Math.Max(0, (double)(order.ToSupply ?? 0));
+            ManualLoadQuantityNumberBox.Value = 0;
             ManualLoadRemissionObservationsTextBox.Text = order.Observations;
             ManualLoadStatusText.Text = order.ToSupply > 0
-                ? $"Datos cargados del pedido activo {orderNumber}. Se sugirió la cantidad pendiente por surtir."
+                ? $"Datos cargados del pedido activo {orderNumber}. La cantidad a cargar inicia en 0."
                 : $"Datos cargados del pedido activo {orderNumber}. No tiene cantidad pendiente; captura manualmente una cantidad mayor que cero.";
         }
         catch (SqlException exception)
@@ -2967,6 +2997,44 @@ public sealed partial class MainPage : Page
         _syncingManualLoadOrderSelection = true;
         ManualLoadOrderComboBox.SelectedItem = ManualLoadRemissionOrderComboBox.SelectedItem;
         _syncingManualLoadOrderSelection = false;
+    }
+
+    private void ManualLoadRemissionClient_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        ManualLoadConstructionOptions.Clear();
+        ManualLoadRemissionConstructionComboBox.SelectedItem = null;
+        ManualLoadRemissionConstructionComboBox.Text = string.Empty;
+
+        if (ManualLoadRemissionClientComboBox.SelectedItem is not ClientRecord selectedClient)
+        {
+            ManualLoadRemissionConstructionComboBox.IsEnabled = false;
+            ManualLoadRemissionConstructionComboBox.PlaceholderText = "Selecciona cliente";
+            return;
+        }
+
+        var constructions = OrderClients
+            .Where(client => string.Equals(client.Client, selectedClient.Client, StringComparison.OrdinalIgnoreCase))
+            .Select(client => client.Construction.Trim())
+            .Where(construction => !string.IsNullOrWhiteSpace(construction))
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(construction => construction, StringComparer.CurrentCultureIgnoreCase)
+            .ToArray();
+
+        foreach (var construction in constructions)
+        {
+            ManualLoadConstructionOptions.Add(construction);
+        }
+
+        ManualLoadRemissionConstructionComboBox.IsEnabled = constructions.Length > 0;
+        ManualLoadRemissionConstructionComboBox.PlaceholderText = constructions.Length > 0
+            ? "Selecciona obra"
+            : "Cliente sin obras configuradas";
+
+        if (constructions.Length == 1)
+        {
+            ManualLoadRemissionConstructionComboBox.SelectedItem = constructions[0];
+            ManualLoadRemissionConstructionComboBox.Text = constructions[0];
+        }
     }
 
     private void ClearManualLoadOrderFields()
@@ -3008,6 +3076,18 @@ public sealed partial class MainPage : Page
             ManualLoadSaveButton.IsEnabled = false;
             ManualLoadStatusText.Text = "Tu perfil no tiene permiso para guardar cargas manuales.";
             return;
+        }
+
+        bool RequireText(string? value, string label, Control control)
+        {
+            if (!string.IsNullOrWhiteSpace(value))
+            {
+                return true;
+            }
+
+            SetFormStatus(ManualLoadStatusInfoBar, $"El campo {label} es obligatorio.", InfoBarSeverity.Error);
+            control.Focus(FocusState.Programmatic);
+            return false;
         }
 
         if (ManualLoadRecipeComboBox.SelectedItem is not OrderRecipe selectedRecipe)
@@ -3063,9 +3143,7 @@ public sealed partial class MainPage : Page
             .Where(field => selectedRecipe?.MaterialSlots.Contains(field.Slot) == true)
             .ToArray();
         var invalidRequiredMaterialFields = activeMaterialFields
-            .Where(field =>
-                !decimal.TryParse(field.Input.Text.Trim(), NumberStyles.Number, CultureInfo.CurrentCulture, out var value) ||
-                value <= 0)
+            .Where(field => string.IsNullOrWhiteSpace(field.Input.Text))
             .Select(field => field.Column)
             .ToHashSet(StringComparer.Ordinal);
         SetManualLoadRequiredFieldHighlight(invalidRequiredMaterialFields);
@@ -3073,7 +3151,7 @@ public sealed partial class MainPage : Page
         {
             SetFormStatus(
                 ManualLoadStatusInfoBar,
-                "Todos los campos de materiales habilitados deben tener una cantidad mayor a cero.",
+                "Todos los campos de materiales habilitados son obligatorios.",
                 InfoBarSeverity.Error);
             return;
         }
@@ -3096,6 +3174,7 @@ public sealed partial class MainPage : Page
             if (!decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out var materialQuantity) ||
                 materialQuantity < 0)
             {
+                SetManualLoadRequiredFieldHighlight(new HashSet<string>(StringComparer.Ordinal) { column });
                 ManualLoadStatusText.Text = $"{input.Header} debe ser un número igual o mayor que cero.";
                 input.Focus(FocusState.Programmatic);
                 return;
@@ -3120,6 +3199,83 @@ public sealed partial class MainPage : Page
             orderNumber = parsedOrder;
         }
 
+        var client = (ManualLoadRemissionClientComboBox.SelectedItem as ClientRecord)?.Client
+            ?? ManualLoadRemissionClientComboBox.Text.Trim();
+        if (!RequireText(client, "Cliente", ManualLoadRemissionClientComboBox))
+        {
+            return;
+        }
+
+        var construction = ManualLoadRemissionConstructionComboBox.Text.Trim();
+        if (!RequireText(construction, "Obra", ManualLoadRemissionConstructionComboBox))
+        {
+            return;
+        }
+
+        var description = ManualLoadDescriptionTextBox.Text.Trim();
+        if (!RequireText(description, "Descripción de la receta", ManualLoadDescriptionTextBox))
+        {
+            return;
+        }
+
+        var product = ManualLoadRemissionProductComboBox.Text.Trim();
+        if (!RequireText(product, "Producto", ManualLoadRemissionProductComboBox))
+        {
+            return;
+        }
+
+        var paymentCondition = ManualLoadRemissionPaymentComboBox.Text.Trim();
+        if (!RequireText(paymentCondition, "Condiciones de pago", ManualLoadRemissionPaymentComboBox))
+        {
+            return;
+        }
+
+        var dischargeType = ManualLoadRemissionDischargeComboBox.Text.Trim();
+        if (!RequireText(dischargeType, "Tipo de descarga", ManualLoadRemissionDischargeComboBox))
+        {
+            return;
+        }
+
+        var selectedOperator = ManualLoadRemissionOperatorComboBox.SelectedItem as OperatorRecord;
+        if (selectedOperator is null)
+        {
+            SetFormStatus(ManualLoadStatusInfoBar, "Selecciona un operador.", InfoBarSeverity.Error);
+            ManualLoadRemissionOperatorComboBox.Focus(FocusState.Programmatic);
+            return;
+        }
+
+        var selectedTruck = ManualLoadRemissionTruckComboBox.SelectedItem as TruckRecord;
+        if (selectedTruck is null)
+        {
+            SetFormStatus(ManualLoadStatusInfoBar, "Selecciona un camión.", InfoBarSeverity.Error);
+            ManualLoadRemissionTruckComboBox.Focus(FocusState.Programmatic);
+            return;
+        }
+
+        var dispatcher = ManualLoadRemissionDispatcherTextBox.Text.Trim();
+        if (!RequireText(dispatcher, "Despachador", ManualLoadRemissionDispatcherTextBox))
+        {
+            return;
+        }
+
+        var observations = ManualLoadRemissionObservationsTextBox.Text.Trim();
+        if (!RequireText(observations, "Observaciones", ManualLoadRemissionObservationsTextBox))
+        {
+            return;
+        }
+
+        var shift = ManualLoadRemissionShiftComboBox.SelectedItem as string;
+        if (!RequireText(shift, "Turno", ManualLoadRemissionShiftComboBox))
+        {
+            return;
+        }
+
+        if (!selectedOrderOption.Equals("Ocasional", StringComparison.OrdinalIgnoreCase) &&
+            !RequireText(ManualLoadRemissionStatusTextBox.Text, "Estatus", ManualLoadRemissionStatusTextBox))
+        {
+            return;
+        }
+
         ManualLoadSaveButton.IsEnabled = false;
         ManualLoadStatusText.Text = "Guardando carga manual en BlapaciSQL...";
         try
@@ -3129,20 +3285,24 @@ public sealed partial class MainPage : Page
                 quantity,
                 materialQuantities,
                 activeMaterialFields.Select(field => field.Column).ToHashSet(StringComparer.Ordinal),
-                ManualLoadRemissionDischargeComboBox.Text,
+                dischargeType,
                 orderNumber,
-                (ManualLoadRemissionClientComboBox.SelectedItem as ClientRecord)?.Client
-                    ?? ManualLoadRemissionClientComboBox.Text,
-                ManualLoadRemissionConstructionComboBox.Text,
-                ManualLoadRemissionProductComboBox.Text,
-                ManualLoadRemissionPaymentComboBox.Text,
-                ManualLoadDescriptionTextBox.Text,
-                (ManualLoadRemissionOperatorComboBox.SelectedItem as OperatorRecord)?.Name,
-                (ManualLoadRemissionTruckComboBox.SelectedItem as TruckRecord)?.Unit,
+                client,
+                (ManualLoadRemissionClientComboBox.SelectedItem as ClientRecord)?.Id,
+                construction,
+                product,
+                paymentCondition,
+                description,
+                selectedOperator.Name,
+                selectedTruck.Unit,
+                dispatcher,
+                shift,
+                ManualLoadActualRemissionDatePicker.Date.DateTime,
+                ManualLoadActualRemissionTimePicker.Time,
                 orderedQuantity,
                 suppliedQuantity,
                 toSupplyQuantity,
-                ManualLoadRemissionObservationsTextBox.Text);
+                observations);
 
             ManualLoadRemissionTextBox.Text = remission;
             ManualLoadStatusText.Text = $"Carga de la remisión {remission} guardada correctamente.";
@@ -3184,11 +3344,35 @@ public sealed partial class MainPage : Page
 
     private void SetManualLoadRequiredFieldHighlight(ISet<string> invalidFields)
     {
+        _manualLoadInvalidMaterialFields.Clear();
+        foreach (var invalidField in invalidFields)
+        {
+            _manualLoadInvalidMaterialFields.Add(invalidField);
+        }
+
+        ApplyManualLoadRequiredFieldHighlight();
+    }
+
+    private void ClearManualLoadMaterialHighlightWhenValid(string column, TextBox input)
+    {
+        if (!_manualLoadInvalidMaterialFields.Contains(column) ||
+            !decimal.TryParse(input.Text.Trim(), NumberStyles.Number, CultureInfo.CurrentCulture, out var value) ||
+            value < 0)
+        {
+            return;
+        }
+
+        _manualLoadInvalidMaterialFields.Remove(column);
+        ApplyManualLoadRequiredFieldHighlight();
+    }
+
+    private void ApplyManualLoadRequiredFieldHighlight()
+    {
         var normalBrush = _themeBrushes.GetBrush("#40516A");
         var errorBrush = _themeBrushes.GetBrush("#EF4444");
         foreach (var (column, _, input) in GetManualLoadMaterialInputs())
         {
-            var isInvalid = invalidFields.Contains(column);
+            var isInvalid = _manualLoadInvalidMaterialFields.Contains(column);
             input.BorderBrush = isInvalid ? errorBrush : normalBrush;
             input.BorderThickness = isInvalid ? new Thickness(2) : new Thickness(1);
         }
@@ -3657,6 +3841,22 @@ public sealed partial class MainPage : Page
             return;
         }
 
+        if (OrderPaymentConditionsComboBox.SelectedItem is not string paymentCondition ||
+            string.IsNullOrWhiteSpace(paymentCondition))
+        {
+            SetFormStatus(OrderEditorStatusInfoBar, "Selecciona las condiciones de pago.", InfoBarSeverity.Error);
+            OrderPaymentConditionsComboBox.Focus(FocusState.Programmatic);
+            return;
+        }
+
+        var observations = OrderObservationsTextBox.Text.Trim();
+        if (string.IsNullOrWhiteSpace(observations))
+        {
+            SetFormStatus(OrderEditorStatusInfoBar, "El campo Observaciones es obligatorio.", InfoBarSeverity.Error);
+            OrderObservationsTextBox.Focus(FocusState.Programmatic);
+            return;
+        }
+
         if (!decimal.TryParse(OrderShippingTextBox.Text, NumberStyles.Number, CultureInfo.CurrentCulture, out var shipping) ||
             shipping < 0)
         {
@@ -3678,7 +3878,6 @@ public sealed partial class MainPage : Page
         {
             var construction = OrderConstructionComboBox.Text.Trim();
             var buyer = OrderRequestedByTextBox.Text.Trim();
-            var paymentCondition = OrderPaymentConditionsComboBox.SelectedItem as string ?? string.Empty;
             int orderNumber;
             if (_editingOrder && _selectedOrder is not null)
             {
@@ -3702,7 +3901,7 @@ public sealed partial class MainPage : Page
                     OrderIntervalNumberBox.Value,
                     product,
                     paymentCondition,
-                    OrderObservationsTextBox.Text.Trim());
+                    observations);
                 orderNumber = int.Parse(_selectedOrder.Number, CultureInfo.InvariantCulture);
             }
             else
@@ -3725,7 +3924,8 @@ public sealed partial class MainPage : Page
                 OrderIntervalNumberBox.Value,
                 product,
                 paymentCondition,
-                OrderObservationsTextBox.Text.Trim());
+                observations,
+                _authenticatedUsername);
             }
 
             OrderNumberTextBox.Text = orderNumber.ToString(CultureInfo.InvariantCulture);

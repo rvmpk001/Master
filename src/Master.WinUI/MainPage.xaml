@@ -1490,9 +1490,9 @@
                             <NumberBox x:Name="OrderIntervalNumberBox" Grid.Row="10" Grid.Column="3" HorizontalAlignment="Stretch" Value="41" Minimum="0" SpinButtonPlacementMode="Inline" />
                             <TextBlock Grid.Row="11" Text="Producto:" VerticalAlignment="Center" TextWrapping="Wrap" />
                             <ComboBox x:Name="OrderProductComboBox" Grid.Row="11" Grid.Column="1" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" ItemsSource="{x:Bind OrderProducts}" />
-                            <TextBlock Grid.Row="12" Text="Condiciones pago:" VerticalAlignment="Center" TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="12" Text="Condiciones pago (obligatorio):" VerticalAlignment="Center" TextWrapping="Wrap" />
                             <ComboBox x:Name="OrderPaymentConditionsComboBox" Grid.Row="12" Grid.Column="1" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" ItemsSource="{x:Bind OrderPaymentConditions}" />
-                            <TextBlock Grid.Row="13" Text="Observaciones:" VerticalAlignment="Top" TextWrapping="Wrap" />
+                            <TextBlock Grid.Row="13" Text="Observaciones (obligatorio):" VerticalAlignment="Top" TextWrapping="Wrap" />
                             <TextBox x:Name="OrderObservationsTextBox" Grid.Row="13" Grid.Column="1" Grid.ColumnSpan="3" HorizontalAlignment="Stretch" AcceptsReturn="True" TextWrapping="Wrap" Height="80" />
                             <TextBlock Grid.Row="14" Grid.Column="2" Text="Pedido" VerticalAlignment="Center" TextWrapping="Wrap" />
                             <TextBox x:Name="OrderNumberTextBox" Grid.Row="14" Grid.Column="3" HorizontalAlignment="Stretch" IsReadOnly="True" />
@@ -1519,7 +1519,7 @@
                         <Button x:Name="ManualLoadSaveButton" Content="Guardar" Click="SaveManualLoad_Click" Style="{StaticResource DefaultButtonStyle}" IsEnabled="False" />
                     </StackPanel>
                     <TabView Grid.Row="2" IsAddTabButtonVisible="False" CanReorderTabs="False" Background="{ThemeResource Palette101B2D}">
-                        <TabViewItem Header="Materiales">
+                        <TabViewItem Header="Materiales" IsClosable="False">
                             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                 <Grid Padding="16" RowSpacing="12" ColumnSpacing="14" Background="{ThemeResource Palette101B2D}">
                                     <Grid.ColumnDefinitions>
@@ -1608,7 +1608,7 @@
                                 </Grid>
                             </ScrollViewer>
                         </TabViewItem>
-                        <TabViewItem Header="Datos Remisión">
+                        <TabViewItem Header="Datos Remisión" IsClosable="False">
                             <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                                 <Grid Padding="16" ColumnSpacing="12" RowSpacing="12" Background="{ThemeResource Palette101B2D}">
                                     <Grid.ColumnDefinitions>
@@ -1619,14 +1619,14 @@
                                         <StackPanel Spacing="8">
                                             <TextBlock Text="DATOS DE REMISIÓN" FontWeight="SemiBold" Foreground="{ThemeResource PaletteF1F5F9}" />
                                             <ComboBox x:Name="ManualLoadRemissionOrderComboBox" Header="PEDIDO" ItemsSource="{x:Bind ManualLoadOrderNumbers}" SelectionChanged="ManualLoadRemissionOrder_SelectionChanged" PlaceholderText="Selecciona pedido activo" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <ComboBox x:Name="ManualLoadRemissionClientComboBox" Header="CLIENTE" ItemsSource="{x:Bind OrderClients}" DisplayMemberPath="Client" IsEditable="True" PlaceholderText="Selecciona cliente" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionClientComboBox" Header="CLIENTE" ItemsSource="{x:Bind OrderClients}" DisplayMemberPath="Client" IsEditable="True" SelectionChanged="ManualLoadRemissionClient_SelectionChanged" PlaceholderText="Selecciona cliente" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             <ComboBox x:Name="ManualLoadRemissionConstructionComboBox" Header="OBRA" ItemsSource="{x:Bind ManualLoadConstructionOptions}" IsEditable="True" PlaceholderText="Selecciona obra" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             <ComboBox x:Name="ManualLoadRemissionOperatorComboBox" Header="OPERADOR" ItemsSource="{x:Bind ManualLoadOperators}" DisplayMemberPath="Name" PlaceholderText="Selecciona operador" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             <TextBox x:Name="ManualLoadRemissionStatusTextBox" Header="ESTATUS" IsReadOnly="True" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             <ComboBox x:Name="ManualLoadRemissionProductComboBox" Header="PRODUCTO" ItemsSource="{x:Bind OrderProducts}" IsEditable="True" PlaceholderText="Selecciona producto" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             <ComboBox x:Name="ManualLoadRemissionPaymentComboBox" Header="CONDICIONES PAGO" ItemsSource="{x:Bind OrderPaymentConditions}" IsEditable="True" PlaceholderText="Selecciona condiciones" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             <ComboBox x:Name="ManualLoadRemissionDischargeComboBox" Header="TIPO DESCARGA" ItemsSource="{x:Bind OrderDischargeTypes}" IsEditable="True" PlaceholderText="Selecciona tipo" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <TextBox Header="DESPACHADOR" Text="1" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadRemissionDispatcherTextBox" Header="DESPACHADOR" Text="1" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             <TextBox x:Name="ManualLoadRemissionTextBox" Header="REMISIÓN" MaxLength="50" IsReadOnly="True" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             <ComboBox x:Name="ManualLoadRemissionTruckComboBox" Header="CAMIÓN" ItemsSource="{x:Bind ManualLoadTrucks}" DisplayMemberPath="Unit" PlaceholderText="Selecciona camión" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                         </StackPanel>
@@ -1638,9 +1638,9 @@
                                             <NumberBox x:Name="ManualLoadSuppliedQuantityNumberBox" Header="SURTIDOS (M³)" Value="0" Minimum="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             <NumberBox x:Name="ManualLoadToSupplyQuantityNumberBox" Header="X SURTIR (M³)" Value="0" Minimum="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             <TextBox x:Name="ManualLoadRemissionObservationsTextBox" Header="OBSERVACIONES" AcceptsReturn="True" Height="90" TextWrapping="Wrap" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <DatePicker Header="FECHA REMISIÓN REAL" Foreground="{ThemeResource PaletteF1F5F9}" />
-                                            <TimePicker Header="HORA REMISIÓN REAL" Foreground="{ThemeResource PaletteF1F5F9}" />
-                                            <ComboBox Header="TURNO" PlaceholderText="Selecciona turno" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <DatePicker x:Name="ManualLoadActualRemissionDatePicker" Header="FECHA REMISIÓN REAL" Foreground="{ThemeResource PaletteF1F5F9}" />
+                                            <TimePicker x:Name="ManualLoadActualRemissionTimePicker" Header="HORA REMISIÓN REAL" Foreground="{ThemeResource PaletteF1F5F9}" />
+                                            <ComboBox x:Name="ManualLoadRemissionShiftComboBox" Header="TURNO" ItemsSource="{x:Bind ManualLoadShifts}" PlaceholderText="Selecciona turno" IsEnabled="False" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                         </StackPanel>
                                     </Border>
                                 </Grid>

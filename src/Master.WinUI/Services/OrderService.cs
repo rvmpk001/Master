@@ -266,12 +266,17 @@ public sealed class OrderService
         string? dischargeType,
         int? orderNumber,
         string? client,
+        int? clientCode,
         string? construction,
         string? product,
         string? paymentCondition,
         string description,
         string? operatorName,
         string? truckUnit,
+        string? dispatcher,
+        string? shift,
+        DateTime actualRemissionDate,
+        TimeSpan actualRemissionTime,
         decimal? orderedQuantity,
         decimal? suppliedQuantity,
         decimal? toSupplyQuantity,
@@ -283,9 +288,51 @@ public sealed class OrderService
             throw new InvalidOperationException("El código de receta es obligatorio y no debe exceder 50 caracteres.");
         }
 
+        foreach (var (value, label) in new (string? Value, string Label)[]
+        {
+            (client, "Cliente"),
+            (construction, "Obra"),
+            (description, "Descripción de la receta"),
+            (product, "Producto"),
+            (paymentCondition, "Condiciones de pago"),
+            (dischargeType, "Tipo de descarga"),
+            (operatorName, "Operador"),
+            (truckUnit, "Camión"),
+            (dispatcher, "Despachador"),
+            (observations, "Observaciones"),
+            (shift, "Turno")
+        })
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                throw new InvalidOperationException($"{label} es obligatorio.");
+            }
+        }
+
+        if (orderedQuantity is null || suppliedQuantity is null || toSupplyQuantity is null)
+        {
+            throw new InvalidOperationException("Las cantidades de pedidos, surtidos y por surtir son obligatorias.");
+        }
+
+        if (actualRemissionDate == default)
+        {
+            throw new InvalidOperationException("La fecha real de remisión es obligatoria.");
+        }
+
+        if (actualRemissionTime < TimeSpan.Zero || actualRemissionTime >= TimeSpan.FromDays(1))
+        {
+            throw new InvalidOperationException("La hora real de remisión es obligatoria y debe ser válida.");
+        }
+
         if (quantity <= 0)
         {
             throw new InvalidOperationException("La cantidad de carga debe ser mayor que cero.");
+        }
+
+        var quantityText = quantity.ToString("0.############################", CultureInfo.InvariantCulture);
+        if (quantityText.Length > 8)
+        {
+            throw new InvalidOperationException("La cantidad excede los 8 caracteres que admite el procedimiento de remisiones.");
         }
 
         var materialFieldNames = new Dictionary<string, string>(StringComparer.Ordinal)
@@ -321,9 +368,9 @@ public sealed class OrderService
             var fieldName = materialFieldNames.TryGetValue(column, out var name) ? name : column;
             if (!materialQuantities.TryGetValue(column, out var value) ||
                 !decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out var materialQuantity) ||
-                materialQuantity <= 0)
+                materialQuantity < 0)
             {
-                throw new InvalidOperationException($"{fieldName} es obligatorio y debe ser mayor que cero.");
+                throw new InvalidOperationException($"{fieldName} es obligatorio y debe ser igual o mayor que cero.");
             }
         }
 
@@ -376,38 +423,58 @@ public sealed class OrderService
                 orderConstruction = reader.IsDBNull(2) ? null : Convert.ToString(reader.GetValue(2), CultureInfo.CurrentCulture)?.Trim();
             }
 
-            const string insertRemission = """
-                INSERT INTO dbo.Remisiones
-                    (Cliente, Obra, Pedido, Producto, Uso, Cantidad, DescFormula, Operador, Unidad,
-                     Remision, Pedidos, Surtidos, xSurtir, Observaciones, Tipo, FechaCarga)
-                VALUES
-                    (@Cliente, @Obra, @Pedido, @Producto, @Uso, @Cantidad, @DescFormula, @Operador, @Unidad,
-                     @Remision, @Pedidos, @Surtidos, @xSurtir, @Observaciones, @Tipo, GETDATE());
-                """;
-            await using (var remissionInsert = new SqlCommand(insertRemission, connection, transaction))
+            var loadTimestamp = DateTime.Now;
+            await using (var remissionInsert = new SqlCommand("dbo.sp_ins_Remision", connection, transaction)
             {
+                CommandType = CommandType.StoredProcedure
+            })
+            {
+                remissionInsert.Parameters.Add("@Manual", SqlDbType.Int).Value = 1;
                 AddTextParameter(remissionInsert, "@Cliente", 100, orderClient ?? client);
                 AddTextParameter(remissionInsert, "@Obra", 50, orderConstruction ?? construction);
                 AddTextParameter(remissionInsert, "@Pedido", 50, orderNumber?.ToString(CultureInfo.InvariantCulture));
                 AddTextParameter(remissionInsert, "@Producto", 50, product);
                 AddTextParameter(remissionInsert, "@Uso", 50, paymentCondition);
-                AddTextParameter(remissionInsert, "@Cantidad", 50, quantity.ToString("0.############################", CultureInfo.InvariantCulture));
+                AddTextParameter(remissionInsert, "@Tipo", 255, dischargeType);
+                remissionInsert.Parameters.Add("@Cantidad", SqlDbType.NVarChar, 8).Value = quantityText;
                 AddTextParameter(remissionInsert, "@DescFormula", 100, description);
+                AddTextParameter(remissionInsert, "@Despachador", 50, dispatcher);
                 AddTextParameter(remissionInsert, "@Operador", 50, operatorName);
                 AddTextParameter(remissionInsert, "@Unidad", 50, truckUnit);
                 AddTextParameter(remissionInsert, "@Remision", 50, remission);
-                remissionInsert.Parameters.Add("@Pedidos", SqlDbType.Decimal).Value = orderedQuantity is null ? DBNull.Value : orderedQuantity.Value;
-                remissionInsert.Parameters["@Pedidos"].Precision = 18;
-                remissionInsert.Parameters["@Pedidos"].Scale = 2;
-                remissionInsert.Parameters.Add("@Surtidos", SqlDbType.Decimal).Value = suppliedQuantity is null ? DBNull.Value : suppliedQuantity.Value;
-                remissionInsert.Parameters["@Surtidos"].Precision = 18;
-                remissionInsert.Parameters["@Surtidos"].Scale = 2;
-                remissionInsert.Parameters.Add("@xSurtir", SqlDbType.Decimal).Value = toSupplyQuantity is null ? DBNull.Value : toSupplyQuantity.Value;
-                remissionInsert.Parameters["@xSurtir"].Precision = 18;
-                remissionInsert.Parameters["@xSurtir"].Scale = 2;
-                AddTextParameter(remissionInsert, "@Observaciones", -1, observations);
-                AddTextParameter(remissionInsert, "@Tipo", 255, dischargeType);
-                await remissionInsert.ExecuteNonQueryAsync(cancellationToken);
+                AddTextParameter(remissionInsert, "@TMA", 20, null);
+                AddTextParameter(remissionInsert, "@Resistencia", 20, null);
+                AddTextParameter(remissionInsert, "@Edad", 20, null);
+                AddTextParameter(remissionInsert, "@Revenimiento", 20, null);
+                AddTextParameter(remissionInsert, "@Aditivos", 50, null);
+                AddTextParameter(remissionInsert, "@Colocacion", 50, null);
+                AddNullableDecimal(remissionInsert, "@Pedidos", orderedQuantity);
+                AddNullableDecimal(remissionInsert, "@Surtidos", suppliedQuantity);
+                AddNullableDecimal(remissionInsert, "@xSurtir", toSupplyQuantity);
+                remissionInsert.Parameters.Add("@Observaciones", SqlDbType.NText).Value =
+                    string.IsNullOrWhiteSpace(observations) ? DBNull.Value : observations.Trim();
+                remissionInsert.Parameters.Add("@Fecha", SqlDbType.DateTime).Value = actualRemissionDate.Date;
+                remissionInsert.Parameters.Add("@Horario", SqlDbType.DateTime).Value =
+                    new DateTime(1900, 1, 1).Add(actualRemissionTime);
+                remissionInsert.Parameters.Add("@CodCliente", SqlDbType.Int).Value =
+                    clientCode is null ? DBNull.Value : clientCode.Value;
+                AddTextParameter(remissionInsert, "@SubFijo", 50, null);
+                AddTextParameter(remissionInsert, "@Turno", 255, shift);
+                remissionInsert.Parameters.Add("@FechaCarga", SqlDbType.DateTime).Value = loadTimestamp;
+
+                await using var resultReader = await remissionInsert.ExecuteReaderAsync(cancellationToken);
+                if (!await resultReader.ReadAsync(cancellationToken))
+                {
+                    throw new InvalidOperationException("El procedimiento de remisiones no devolvió un resultado.");
+                }
+
+                var errorNumber = Convert.ToInt32(resultReader["ErrNumber"], CultureInfo.InvariantCulture);
+                if (errorNumber != 0)
+                {
+                    var errorMessage = Convert.ToString(resultReader["ErrMessage"], CultureInfo.CurrentCulture)
+                        ?? "Error no especificado por el procedimiento de remisiones.";
+                    throw new InvalidOperationException($"No se pudo guardar la remisión (SQL {errorNumber}): {errorMessage}");
+                }
             }
 
             var columns = new[]
@@ -427,7 +494,7 @@ public sealed class OrderService
                 """;
             await using var command = new SqlCommand(query, connection, transaction);
             AddTextParameter(command, "@CodFormula", 50, recipeCode);
-            AddTextParameter(command, "@Cantidad", 50, quantity.ToString("0.############################", CultureInfo.InvariantCulture));
+            AddTextParameter(command, "@Cantidad", 50, quantityText);
             foreach (var column in columns)
             {
                 materialQuantities.TryGetValue(column, out var value);
@@ -441,17 +508,6 @@ public sealed class OrderService
                 string.IsNullOrWhiteSpace(dischargeType) ? DBNull.Value : dischargeType.Trim();
             command.Parameters.Add("@IdPedido", SqlDbType.Int).Value = orderId is null ? DBNull.Value : orderId.Value;
             await command.ExecuteNonQueryAsync(cancellationToken);
-            const string updateRemissionSequence = """
-                UPDATE dbo.AjusteRemision
-                SET Numremision = @Remision
-                WHERE IdConfigRe = (SELECT MIN(IdConfigRe) FROM dbo.AjusteRemision);
-                """;
-            await using (var sequenceCommand = new SqlCommand(updateRemissionSequence, connection, transaction))
-            {
-                sequenceCommand.Parameters.Add("@Remision", SqlDbType.Int).Value = checked((int)remissionNumber);
-                await sequenceCommand.ExecuteNonQueryAsync(cancellationToken);
-            }
-
             await transaction.CommitAsync(cancellationToken);
             return remission;
         }
@@ -466,6 +522,14 @@ public sealed class OrderService
     {
         command.Parameters.Add(name, SqlDbType.NVarChar, size).Value =
             string.IsNullOrWhiteSpace(value) ? DBNull.Value : value.Trim();
+    }
+
+    private static void AddNullableDecimal(SqlCommand command, string name, decimal? value)
+    {
+        var parameter = command.Parameters.Add(name, SqlDbType.Decimal);
+        parameter.Precision = 18;
+        parameter.Scale = 2;
+        parameter.Value = value is null ? DBNull.Value : value.Value;
     }
 
     public async Task<int> AddOrderAsync(
@@ -487,8 +551,11 @@ public sealed class OrderService
         string product,
         string paymentCondition,
         string observations,
+        string createdBy,
         CancellationToken cancellationToken = default)
     {
+        ValidateRequiredOrderFields(paymentCondition, observations);
+
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
         await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(cancellationToken);
@@ -511,11 +578,11 @@ public sealed class OrderService
                 INSERT INTO dbo.Pedidos
                     (NumPedido, Estatus, Fecha, Cliente, Obra, Comprador, Autoriza, Telefono, Email,
                      FechaEntrega, Hora, Cantidad, Receta, Descripcion, Tipo, Envio, Intervalo,
-                     Producto, Uso, Observaciones, Surtida, xSurtir)
+                     Producto, Uso, Observaciones, Surtida, xSurtir, ObsMod)
                 VALUES
                     (@NumPedido, @Estatus, @Fecha, @Cliente, @Obra, @Comprador, @Autoriza, @Telefono, @Email,
                      @FechaEntrega, @Hora, @Cantidad, @Receta, @Descripcion, @Tipo, @Envio, @Intervalo,
-                     @Producto, @Uso, @Observaciones, @Surtida, @xSurtir);
+                     @Producto, @Uso, @Observaciones, @Surtida, @xSurtir, @ObsMod);
                 """;
             await using var command = new SqlCommand(insertQuery, connection, transaction);
             command.Parameters.Add("@NumPedido", SqlDbType.Int).Value = number;
@@ -542,6 +609,8 @@ public sealed class OrderService
                 string.IsNullOrWhiteSpace(observations) ? DBNull.Value : observations;
             AddDecimal(command, "@Surtida", 0);
             AddDecimal(command, "@xSurtir", quantity);
+            command.Parameters.Add("@ObsMod", SqlDbType.NText).Value =
+                $"El pedido se creo el {DateTime.Now.ToString("dd/MM/yyyy hh:mm:ss tt", CultureInfo.GetCultureInfo("es-MX"))} por {createdBy}";
             await command.ExecuteNonQueryAsync(cancellationToken);
             await transaction.CommitAsync(cancellationToken);
             return number;
@@ -576,6 +645,8 @@ public sealed class OrderService
         string observations,
         CancellationToken cancellationToken = default)
     {
+        ValidateRequiredOrderFields(paymentCondition, observations);
+
         const string query = """
             UPDATE dbo.Pedidos
             SET Estatus = @Estatus, Fecha = @Fecha, Cliente = @Cliente, Obra = @Obra,
@@ -615,6 +686,19 @@ public sealed class OrderService
         if (await command.ExecuteNonQueryAsync(cancellationToken) != 1)
         {
             throw new InvalidOperationException("El pedido ya no está activo o no existe. Actualiza la lista e inténtalo de nuevo.");
+        }
+    }
+
+    private static void ValidateRequiredOrderFields(string paymentCondition, string observations)
+    {
+        if (string.IsNullOrWhiteSpace(paymentCondition))
+        {
+            throw new InvalidOperationException("Selecciona las condiciones de pago.");
+        }
+
+        if (string.IsNullOrWhiteSpace(observations))
+        {
+            throw new InvalidOperationException("El campo Observaciones es obligatorio.");
         }
     }
 
