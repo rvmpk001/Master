@@ -511,11 +511,13 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="CurrentUserText" Text="USUARIO:" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" />
             <TextBlock x:Name="CurrentRoleText" Grid.Column="1" Text="TIPO:" FontSize="10" FontWeight="SemiBold" Margin="24,0,0,0" VerticalAlignment="Center" />
             <TextBlock x:Name="SystemStatusText" Grid.Column="2" Text="Esperando inicio de sesión" Foreground="{ThemeResource PaletteFBBF24}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-            <TextBlock x:Name="ClockText" Grid.Column="3" FontSize="10" VerticalAlignment="Center" />
+            <Button x:Name="LogoutButton" Grid.Column="3" Content="Cerrar sesión" Click="LogoutButton_Click" Visibility="Collapsed" Margin="0,0,12,0" />
+            <TextBlock x:Name="ClockText" Grid.Column="4" FontSize="10" VerticalAlignment="Center" />
         </Grid>
 
         <Grid x:Name="InventoryFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">

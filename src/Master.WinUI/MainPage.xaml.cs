@@ -39,6 +39,7 @@ public sealed partial class MainPage : Page
     private readonly DispatcherQueueTimer _clockTimer;
     private readonly DispatcherQueueTimer _plcStatusTimer;
     private readonly DispatcherQueueTimer _canvasLayoutSaveTimer;
+    private readonly SemaphoreSlim _accessSessionEndLock = new(1, 1);
     private readonly ThemeBrushSet _themeBrushes = new();
     private readonly AuthenticationService _authenticationService = new();
     private readonly PlcCommunicationService _plcCommunicationService = new();
@@ -94,6 +95,8 @@ public sealed partial class MainPage : Page
     private bool _isSecurityFormOpen;
     private int? _authenticatedUserId;
     private string _authenticatedUsername = string.Empty;
+    private string? _authenticatedName;
+    private int? _accessLogRecordId;
     private IReadOnlyList<AccessPermissionEntry> _currentUserPermissions = Array.Empty<AccessPermissionEntry>();
     private FormulaRow? _selectedFormula;
     private SupplierRecord? _selectedSupplier;
@@ -9289,6 +9292,9 @@ public sealed partial class MainPage : Page
             CurrentRoleText.Text = $"TIPO: {user.Role}";
             _authenticatedUserId = user.UserId;
             _authenticatedUsername = user.Username;
+            _authenticatedName = user.Name;
+            _accessLogRecordId = user.AccessRecordId;
+            LogoutButton.Visibility = Visibility.Visible;
             SetSystemStatus("Sesión iniciada • verificando configuración...", "#FBBF24");
             await RefreshCurrentUserPermissionsAsync();
             LoginShell.Visibility = Visibility.Collapsed;
@@ -9298,9 +9304,13 @@ public sealed partial class MainPage : Page
             _plcStatusTimer.Start();
             await RefreshPlcStatusAsync();
         }
-        catch (SqlException)
+        catch (SqlException exception)
         {
-            ShowLoginError("No se pudo conectar a BlapaciSQL. Verifica que SQL Server esté activo y que tu cuenta de Windows tenga acceso de lectura a dbo.Password.");
+            ShowLoginError($"No se pudo validar el acceso o registrar la entrada en BlapaciSQL (SQL {exception.Number}): {exception.Message}");
+        }
+        catch (AccessLogException exception)
+        {
+            ShowLoginError(exception.Message);
         }
         finally
         {
@@ -9308,6 +9318,92 @@ public sealed partial class MainPage : Page
             LoginProgress.IsActive = false;
             LoginProgress.Visibility = Visibility.Collapsed;
         }
+    }
+
+    private async void LogoutButton_Click(object sender, RoutedEventArgs e)
+    {
+        LogoutButton.IsEnabled = false;
+        try
+        {
+            await CompleteAccessSessionAsync();
+            _authenticatedUserId = null;
+            _authenticatedUsername = string.Empty;
+            _authenticatedName = null;
+            _currentUserPermissions = Array.Empty<AccessPermissionEntry>();
+            UsernameTextBox.Text = string.Empty;
+            PasswordInput.Password = string.Empty;
+            CurrentUserText.Text = "USUARIO:";
+            CurrentRoleText.Text = "TIPO:";
+            LogoutButton.Visibility = Visibility.Collapsed;
+            DashboardShell.Visibility = Visibility.Collapsed;
+            LoginShell.Visibility = Visibility.Visible;
+            _plcStatusTimer.Stop();
+            SetSystemStatus("Esperando inicio de sesión", "#FBBF24");
+        }
+        catch (SqlException exception)
+        {
+            await ShowAccessLogErrorAsync(
+                "No se pudo cerrar la sesión",
+                $"No se pudo registrar la salida en BlapaciSQL (SQL {exception.Number}): {exception.Message}");
+        }
+        catch (AccessLogException exception)
+        {
+            await ShowAccessLogErrorAsync("No se pudo cerrar la sesión", exception.Message);
+        }
+        finally
+        {
+            LogoutButton.IsEnabled = true;
+        }
+    }
+
+    public async Task CompleteAccessSessionAsync()
+    {
+        await _accessSessionEndLock.WaitAsync();
+        try
+        {
+            if (_accessLogRecordId is not int accessRecordId)
+            {
+                return;
+            }
+
+            await _authenticationService.RecordLogoutAsync(
+                _authenticatedUsername,
+                _authenticatedName,
+                accessRecordId);
+            _accessLogRecordId = null;
+        }
+        finally
+        {
+            _accessSessionEndLock.Release();
+        }
+    }
+
+    public async Task<bool> ConfirmCloseWithoutAccessLogAsync(Exception exception)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = "No se pudo registrar la salida",
+            Content = $"La sesión quedará sin hora de salida. {exception.Message}",
+            PrimaryButtonText = "Cerrar sin registrar",
+            CloseButtonText = "Cancelar",
+            DefaultButton = ContentDialogButton.Close,
+            XamlRoot = XamlRoot
+        };
+
+        return await dialog.ShowAsync() == ContentDialogResult.Primary;
+    }
+
+    private async Task ShowAccessLogErrorAsync(string title, string message)
+    {
+        var dialog = new ContentDialog
+        {
+            Title = title,
+            Content = message,
+            CloseButtonText = "Aceptar",
+            XamlRoot = XamlRoot
+        };
+
+        await dialog.ShowAsync();
     }
 
     private void LoginInput_KeyDown(object sender, KeyRoutedEventArgs e)
