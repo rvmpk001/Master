@@ -8,6 +8,15 @@ public sealed class ReportCatalogService
 {
     private const int MaximumRows = 5000;
     private readonly SqlConnectionFactory _connectionFactory = new();
+    private static readonly (string ConfigurationParameter, string DataColumn)[] ProductionRealMaterialColumns =
+    {
+        ("A1", "A1C"), ("A2", "A2C"), ("A3", "A3C"), ("A4", "A4C"),
+        ("A5", "A5C"), ("A6", "A6C"), ("A7", "A7C"), ("A8", "A8C"),
+        ("C1", "C1C"), ("C2", "C2C"), ("C3", "C3C"), ("C4", "C4C"), ("C5", "C5C"),
+        ("D1", "D1C"), ("D2", "D2C"), ("D3", "D3C"), ("D4", "D4C"), ("D5", "D5C"), ("D6", "D6C"),
+        ("G1", "Agua"), ("G2", "Agua2"), ("G3", "Agua3"),
+        ("FI1", "FI1C"), ("FI2", "FI2C"), ("FI3", "FI3C")
+    };
 
     private static readonly ReportCatalogDefinition[] Catalog =
     {
@@ -92,6 +101,126 @@ public sealed class ReportCatalogService
                 currentRow.PlantArrival AS [LLEGADA PLANTA],
                 currentRow.Element AS [ELEMENTO],
                 currentRow.ConstructionAndResident AS [OBRA Y RESIDENTE]
+            FROM ProductionRows AS currentRow
+            ORDER BY currentRow.RowNumber;
+            """),
+        new(
+            "production-real",
+            "Producción real",
+            "Cargas y cantidades reales por material, con filtros de fecha, remisión y descarga.",
+            new[] { "Produccion Real" },
+            """
+            ;WITH ProductionRows AS
+            (
+                SELECT
+                    ROW_NUMBER() OVER (ORDER BY d.Fecha_Hora, d.Remision) AS RowNumber,
+                    r.Unidad AS Unit,
+                    d.Remision AS Remission,
+                    parsed.Quantity,
+                    d.Cod_Formula AS Formula,
+                    d.A1C AS A1C,
+                    d.A2C AS A2C,
+                    d.A3C AS A3C,
+                    d.A4C AS A4C,
+                    d.A5C AS A5C,
+                    d.A6C AS A6C,
+                    d.A7C AS A7C,
+                    d.A8C AS A8C,
+                    d.C1C AS C1C,
+                    d.C2C AS C2C,
+                    d.C3C AS C3C,
+                    d.C4C AS C4C,
+                    d.C5C AS C5C,
+                    d.D1C AS D1C,
+                    d.D2C AS D2C,
+                    d.D3C AS D3C,
+                    d.D4C AS D4C,
+                    d.D5C AS D5C,
+                    d.D6C AS D6C,
+                    d.Agua AS Agua,
+                    d.Agua2 AS Agua2,
+                    d.Agua3 AS Agua3,
+                    d.FI1C AS FI1C,
+                    d.FI2C AS FI2C,
+                    d.FI3C AS FI3C,
+                    d.Cliente AS Client
+                FROM dbo.Descarga AS d
+                INNER JOIN dbo.Remisiones AS r ON d.Remision = r.Remision
+                CROSS APPLY
+                (
+                    SELECT
+                        LTRIM(RTRIM(d.Remision)) AS RemissionText,
+                        REPLACE(LTRIM(RTRIM(ISNULL(d.Cantidad, N''))), N',', N'') AS QuantityText
+                ) AS normalized
+                CROSS APPLY
+                (
+                    SELECT
+                        CASE
+                            WHEN ISNUMERIC(normalized.QuantityText) = 1
+                            THEN CAST(normalized.QuantityText AS decimal(18, 2))
+                            ELSE CAST(0 AS decimal(18, 2))
+                        END AS Quantity,
+                        CASE
+                            WHEN normalized.RemissionText <> N''
+                                AND normalized.RemissionText NOT LIKE N'%[^0-9]%'
+                                AND LEN(normalized.RemissionText) <= 10
+                                AND (LEN(normalized.RemissionText) < 10
+                                    OR normalized.RemissionText <= N'2147483647')
+                            THEN CAST(normalized.RemissionText AS int)
+                        END AS NumericRemission
+                ) AS parsed
+                WHERE d.Fecha_Hora >= @StartDate AND d.Fecha_Hora < @EndDate
+                    AND (@ProductionShift IS NULL OR LTRIM(RTRIM(r.Turno)) = @ProductionShift)
+                    AND (@ProductionDriver IS NULL OR LTRIM(RTRIM(r.Operador)) = @ProductionDriver)
+                    AND (@ProductionFormula IS NULL OR LTRIM(RTRIM(d.Cod_Formula)) = @ProductionFormula)
+                    AND (@ProductionClient IS NULL OR LTRIM(RTRIM(d.Cliente)) = @ProductionClient)
+                    AND (@ProductionLoadType IS NULL OR LTRIM(RTRIM(d.TipoDescarga)) = @ProductionLoadType)
+                    AND (@ProductionOperator IS NULL OR LTRIM(RTRIM(r.Despachador)) = @ProductionOperator)
+                    AND (@ProductionConstruction IS NULL OR LTRIM(RTRIM(d.Obra)) = @ProductionConstruction)
+                    AND (@ProductionTruck IS NULL OR LTRIM(RTRIM(d.Olla)) = @ProductionTruck)
+                    AND (@ProductionRemission IS NULL OR normalized.RemissionText = @ProductionRemission)
+                    AND (@ProductionRemissionStart IS NULL
+                        OR parsed.NumericRemission >= @ProductionRemissionStart)
+                    AND (@ProductionRemissionEnd IS NULL
+                        OR parsed.NumericRemission <= @ProductionRemissionEnd)
+            )
+            SELECT TOP (@RowLimit)
+                currentRow.RowNumber AS [#],
+                currentRow.Unit AS [UNIDAD],
+                currentRow.Remission AS [N. REM.],
+                currentRow.Quantity AS [M3 X CARGA],
+                (
+                    SELECT SUM(previousRow.Quantity)
+                    FROM ProductionRows AS previousRow
+                    WHERE previousRow.RowNumber <= currentRow.RowNumber
+                ) AS [ACUMULADO],
+                currentRow.Formula AS [TIPO DE CONCRETO],
+                currentRow.A1C,
+                currentRow.A2C,
+                currentRow.A3C,
+                currentRow.A4C,
+                currentRow.A5C,
+                currentRow.A6C,
+                currentRow.A7C,
+                currentRow.A8C,
+                currentRow.C1C,
+                currentRow.C2C,
+                currentRow.C3C,
+                currentRow.C4C,
+                currentRow.C5C,
+                currentRow.D1C,
+                currentRow.D2C,
+                currentRow.D3C,
+                currentRow.D4C,
+                currentRow.D5C,
+                currentRow.D6C,
+                currentRow.Agua,
+                currentRow.Agua2,
+                currentRow.Agua3,
+                currentRow.FI1C,
+                currentRow.FI2C,
+                currentRow.FI3C,
+                currentRow.Client AS [CLIENTE]
             FROM ProductionRows AS currentRow
             ORDER BY currentRow.RowNumber;
             """),
@@ -413,6 +542,9 @@ public sealed class ReportCatalogService
 
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
+        var productionRealMaterialNames = report.Id == "production-real"
+            ? await ReadProductionRealMaterialNamesAsync(connection, cancellationToken)
+            : null;
         await using var command = new SqlCommand(report.Query, connection)
         {
             CommandTimeout = 30
@@ -448,7 +580,7 @@ public sealed class ReportCatalogService
             command.Parameters.Add("@RemissionNumber", SqlDbType.NVarChar, 50).Value =
                 string.IsNullOrWhiteSpace(remissionNumber) ? DBNull.Value : remissionNumber.Trim();
         }
-        if (report.Id == "production")
+        if (report.Id is "production" or "production-real")
         {
             AddOptionalOrderFilter(command, "@ProductionShift", productionShift);
             AddOptionalOrderFilter(command, "@ProductionDriver", productionDriver);
@@ -491,9 +623,117 @@ public sealed class ReportCatalogService
             rows.Add(values);
         }
 
-        return report.Id == FormulaReportLayout.ReportId
-            ? FormulaReportLayout.CreateResult(report, columns, rows, isTruncated)
+        if (report.Id == FormulaReportLayout.ReportId)
+        {
+            return FormulaReportLayout.CreateResult(report, columns, rows, isTruncated);
+        }
+
+        return report.Id == "production-real"
+            ? CreateProductionRealResult(report, columns, rows, productionRealMaterialNames!, isTruncated)
             : new ReportCatalogResult(report, columns, rows, isTruncated);
+    }
+
+    private static async Task<IReadOnlyDictionary<string, string>> ReadProductionRealMaterialNamesAsync(
+        SqlConnection connection,
+        CancellationToken cancellationToken)
+    {
+        const string query = """
+            SELECT Param, LTRIM(RTRIM(Valor_Param))
+            FROM dbo.ConfigMaq
+            WHERE Param IN
+                (N'A1', N'A2', N'A3', N'A4', N'A5', N'A6', N'A7', N'A8',
+                 N'C1', N'C2', N'C3', N'C4', N'C5',
+                 N'D1', N'D2', N'D3', N'D4', N'D5', N'D6',
+                 N'G1', N'G2', N'G3', N'FI1', N'FI2', N'FI3')
+            ORDER BY Id;
+            """;
+        await using var command = new SqlCommand(query, connection) { CommandTimeout = 30 };
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var materialNames = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var parameter = reader.GetString(0);
+            var material = reader.IsDBNull(1) ? string.Empty : reader.GetString(1).Trim();
+            if (!string.IsNullOrWhiteSpace(material)
+                && !material.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase)
+                && !materialNames.ContainsKey(parameter))
+            {
+                materialNames.Add(parameter, material);
+            }
+        }
+
+        return materialNames;
+    }
+
+    private static ReportCatalogResult CreateProductionRealResult(
+        ReportCatalogDefinition report,
+        IReadOnlyList<string> sourceColumns,
+        IReadOnlyList<IReadOnlyList<string>> sourceRows,
+        IReadOnlyDictionary<string, string> materialNames,
+        bool isTruncated)
+    {
+        var sourceIndexes = sourceColumns
+            .Select((column, index) => (column, index))
+            .ToDictionary(item => item.column, item => item.index, StringComparer.OrdinalIgnoreCase);
+        var outputColumns = new List<string>
+        {
+            "UNIDAD",
+            "N. REM.",
+            "M3 X CARGA",
+            "ACUMULADO",
+            "TIPO DE CONCRETO"
+        };
+        var outputIndexes = new List<(int SourceIndex, bool IsMaterial)>();
+        var usedColumnNames = new HashSet<string>(outputColumns, StringComparer.OrdinalIgnoreCase);
+        foreach (var column in outputColumns)
+        {
+            outputIndexes.Add((sourceIndexes[column], false));
+        }
+
+        foreach (var (configurationParameter, dataColumn) in ProductionRealMaterialColumns)
+        {
+            if (!materialNames.TryGetValue(configurationParameter, out var materialName)
+                || !sourceIndexes.TryGetValue(dataColumn, out var sourceIndex))
+            {
+                continue;
+            }
+
+            var displayName = materialName;
+            if (!usedColumnNames.Add(displayName))
+            {
+                var duplicateIndex = 1;
+                do
+                {
+                    displayName = $"{materialName} ({configurationParameter} {duplicateIndex++})";
+                }
+                while (!usedColumnNames.Add(displayName));
+            }
+
+            outputColumns.Add(displayName);
+            outputIndexes.Add((sourceIndex, true));
+        }
+
+        outputColumns.Add("CLIENTE");
+        outputIndexes.Add((sourceIndexes["CLIENTE"], false));
+        var rows = sourceRows
+            .Select(sourceRow => (IReadOnlyList<string>)outputIndexes
+                .Select(index => index.IsMaterial
+                    ? FormatProductionRealQuantity(sourceRow[index.SourceIndex])
+                    : sourceRow[index.SourceIndex])
+                .ToArray())
+            .ToArray();
+        return new ReportCatalogResult(report, outputColumns, rows, isTruncated);
+    }
+
+    private static string FormatProductionRealQuantity(string value)
+    {
+        if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out var quantity)
+            || decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out quantity))
+        {
+            return quantity.ToString("0.00", CultureInfo.InvariantCulture);
+        }
+
+        return string.IsNullOrWhiteSpace(value) ? "0.00" : value.Trim();
     }
 
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetProductionReportFilterOptionsAsync(

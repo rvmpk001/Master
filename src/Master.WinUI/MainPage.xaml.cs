@@ -6340,6 +6340,9 @@ public sealed partial class MainPage : Page
     private bool CanExportReport(ReportCatalogDefinition report) =>
         report.PermissionModules.Any(module => HasActionPermission(module, "Exportar"));
 
+    private static bool IsProductionReportId(string? reportId) =>
+        reportId is "production" or "production-real";
+
     private async void ReportDatasetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
         var loadVersion = ++_reportInventoryFilterLoadVersion;
@@ -6361,10 +6364,15 @@ public sealed partial class MainPage : Page
         }
 
         InvalidateCurrentReportResult(resetColumnSelection: true);
+        if (report.Id == "production-real")
+        {
+            SetProductionRealDateRangeToToday();
+        }
+
         UpdateReportFilterLayout();
         SetReportStatus(report.Description, InfoBarSeverity.Informational);
         ReportRemissionNumberTextBox.IsEnabled = report.Id == "remissions";
-        if (report.Id == "production")
+        if (IsProductionReportId(report.Id))
         {
             await LoadProductionReportFiltersAsync(loadVersion);
             return;
@@ -6468,14 +6476,17 @@ public sealed partial class MainPage : Page
         var selectedReport = ReportDatasetComboBox.SelectedItem as ReportCatalogDefinition;
         var isInventoryReport = selectedReport?.Id == "inventory-movements";
         var isOrderReport = selectedReport?.Id == "orders";
-        var isProductionReport = selectedReport?.Id == "production";
+        var isProductionReport = IsProductionReportId(selectedReport?.Id);
+        var isProductionRealReport = selectedReport?.Id == "production-real";
         var isRemissionReport = selectedReport?.Id == "remissions";
         var usesDateRange = selectedReport?.UsesDateRange == true;
         var showInventoryFilters = isInventoryReport;
-        var showCustomDateRange = usesDateRange && GetSelectedReportPeriod() == "custom";
+        var showCustomDateRange = usesDateRange
+            && !isProductionRealReport
+            && GetSelectedReportPeriod() == "custom";
 
-        ReportPeriodFilterLabel.Visibility = usesDateRange ? Visibility.Visible : Visibility.Collapsed;
-        ReportPeriodComboBox.Visibility = usesDateRange ? Visibility.Visible : Visibility.Collapsed;
+        ReportPeriodFilterLabel.Visibility = usesDateRange && !isProductionRealReport ? Visibility.Visible : Visibility.Collapsed;
+        ReportPeriodComboBox.Visibility = usesDateRange && !isProductionRealReport ? Visibility.Visible : Visibility.Collapsed;
         ReportSupplierFilterLabel.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
         ReportMaterialFilterLabel.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
         ReportTypeFilterLabel.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
@@ -6484,6 +6495,7 @@ public sealed partial class MainPage : Page
         ReportTypeFilterComboBox.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
         ReportOrderFiltersPanel.Visibility = isOrderReport ? Visibility.Visible : Visibility.Collapsed;
         ReportProductionFiltersPanel.Visibility = isProductionReport ? Visibility.Visible : Visibility.Collapsed;
+        ReportProductionRealDateFiltersPanel.Visibility = isProductionRealReport ? Visibility.Visible : Visibility.Collapsed;
         ReportRemissionFilterLabel.Visibility = isRemissionReport ? Visibility.Visible : Visibility.Collapsed;
         ReportRemissionNumberTextBox.Visibility = isRemissionReport ? Visibility.Visible : Visibility.Collapsed;
         ReportCustomDateRangePanel.Visibility = showCustomDateRange ? Visibility.Visible : Visibility.Collapsed;
@@ -6526,7 +6538,11 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        ReportPeriodComboBox.SelectedIndex = 0;
+        if (ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition { Id: "production-real" })
+        {
+            ReportPeriodComboBox.SelectedIndex = 0;
+        }
+
         InvalidateCurrentReportResult();
         SetReportStatus(
             "Rango de fechas actualizado. Presiona Generar para consultar los resultados.",
@@ -6721,7 +6737,8 @@ public sealed partial class MainPage : Page
         {
             var options = await _reportCatalogService.GetProductionReportFilterOptionsAsync();
             if (loadVersion != _reportInventoryFilterLoadVersion
-                || ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition { Id: "production" })
+                || ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition selectedReport
+                || !IsProductionReportId(selectedReport.Id))
             {
                 return;
             }
@@ -6838,7 +6855,8 @@ public sealed partial class MainPage : Page
     {
         if (_isLoadingReportProductionFilters
             || !_reportProductionFiltersLoaded
-            || ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition { Id: "production" })
+            || ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition selectedReport
+            || !IsProductionReportId(selectedReport.Id))
         {
             return;
         }
@@ -6851,7 +6869,8 @@ public sealed partial class MainPage : Page
     {
         if (_isLoadingReportProductionFilters
             || !_reportProductionFiltersLoaded
-            || ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition { Id: "production" })
+            || ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition selectedReport
+            || !IsProductionReportId(selectedReport.Id))
         {
             return;
         }
@@ -6888,6 +6907,21 @@ public sealed partial class MainPage : Page
         {
             ReportStartDatePicker.Date = new DateTimeOffset(startDate);
             ReportEndDatePicker.Date = new DateTimeOffset(endDate);
+        }
+        finally
+        {
+            _isApplyingReportPeriodSelection = false;
+        }
+    }
+
+    private void SetProductionRealDateRangeToToday()
+    {
+        var today = new DateTimeOffset(DateTime.Today);
+        _isApplyingReportPeriodSelection = true;
+        try
+        {
+            ReportProductionRealStartDatePicker.Date = today;
+            ReportProductionRealEndDatePicker.Date = today;
         }
         finally
         {
@@ -6963,7 +6997,7 @@ public sealed partial class MainPage : Page
         }
 
         var selectedPeriod = GetSelectedReportPeriod();
-        if (report.UsesDateRange && selectedPeriod is null)
+        if (report.UsesDateRange && report.Id != "production-real" && selectedPeriod is null)
         {
             SetReportStatus(
                 "Selecciona un periodo predefinido o un rango personalizado.",
@@ -7041,7 +7075,7 @@ public sealed partial class MainPage : Page
                 ? null
                 : ReportRemissionNumberTextBox.Text.Trim();
         }
-        else if (report.Id == "production")
+        else if (IsProductionReportId(report.Id))
         {
             if (!_reportProductionFiltersLoaded)
             {
@@ -7079,9 +7113,11 @@ public sealed partial class MainPage : Page
         var endDate = DateTime.Today;
         if (report.UsesDateRange)
         {
-            (startDate, endDate) = selectedPeriod == "custom"
-                ? (ReportStartDatePicker.Date.Date, ReportEndDatePicker.Date.Date)
-                : GetReportDateRange(selectedPeriod!, DateTime.Today);
+            (startDate, endDate) = report.Id == "production-real"
+                ? (ReportProductionRealStartDatePicker.Date.Date, ReportProductionRealEndDatePicker.Date.Date)
+                : selectedPeriod == "custom"
+                    ? (ReportStartDatePicker.Date.Date, ReportEndDatePicker.Date.Date)
+                    : GetReportDateRange(selectedPeriod!, DateTime.Today);
 
             if (startDate > endDate)
             {
@@ -7250,7 +7286,7 @@ public sealed partial class MainPage : Page
         var selectedResult = CreateSelectedReportResult(result);
         var isInventoryStock = selectedResult.Definition.Id == "inventory-stock";
         var isFormulaReport = selectedResult.Definition.Id == FormulaReportLayout.ReportId;
-        var isProductionReport = selectedResult.Definition.Id == "production";
+        var isProductionReport = IsProductionReportId(selectedResult.Definition.Id);
         var defaultColumnWidths = selectedResult.Columns
             .Select((_, index) => isInventoryStock
                 ? 230d

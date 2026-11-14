@@ -21,7 +21,7 @@ public sealed class ReportExportService
             throw new InvalidOperationException("El reporte no contiene columnas para exportar.");
         }
 
-        if (result.Definition.Id == "production")
+        if (result.Definition.Id is "production" or "production-real")
         {
             return BuildProductionExcel(result);
         }
@@ -95,7 +95,7 @@ public sealed class ReportExportService
             throw new InvalidOperationException("El reporte no contiene columnas para exportar.");
         }
 
-        if (result.Definition.Id == "production")
+        if (result.Definition.Id is "production" or "production-real")
         {
             return BuildProductionPdf(result);
         }
@@ -438,10 +438,12 @@ public sealed class ReportExportService
         "M3 X CARGA" => 80,
         "ACUMULADO" => 85,
         "TIPO DE CONCRETO" => 155,
+        "N. REM." => 70,
+        "CLIENTE" => 120,
         "SALIDA PLANTA" or "LLEGADA PLANTA" => 90,
         "ELEMENTO" => 110,
         "OBRA Y RESIDENTE" => 220,
-        _ => 90
+        _ => 52
     };
 
     private static byte[] BuildFormulaPdf(ReportCatalogResult result)
