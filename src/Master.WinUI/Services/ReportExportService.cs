@@ -21,6 +21,11 @@ public sealed class ReportExportService
             throw new InvalidOperationException("El reporte no contiene columnas para exportar.");
         }
 
+        if (result.Definition.Id == "production")
+        {
+            return BuildProductionExcel(result);
+        }
+
         if (result.Definition.Id == FormulaReportLayout.ReportId)
         {
             return BuildFormulaExcel(result);
@@ -88,6 +93,11 @@ public sealed class ReportExportService
         if (result.Columns.Count == 0)
         {
             throw new InvalidOperationException("El reporte no contiene columnas para exportar.");
+        }
+
+        if (result.Definition.Id == "production")
+        {
+            return BuildProductionPdf(result);
         }
 
         if (result.Definition.Id == FormulaReportLayout.ReportId)
@@ -281,6 +291,158 @@ public sealed class ReportExportService
         workbook.SaveAs(stream);
         return stream.ToArray();
     }
+
+    private static byte[] BuildProductionExcel(ReportCatalogResult result)
+    {
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add(SanitizeWorksheetName(result.Definition.Name));
+        var columnCount = result.Columns.Count;
+        const int titleRow = 1;
+        const int generatedRow = 2;
+        const int headerRow = 4;
+        var lastDataRow = headerRow + result.Rows.Count;
+
+        worksheet.Range(titleRow, 1, titleRow, columnCount).Merge();
+        worksheet.Cell(titleRow, 1).Value = "REPORTE DE CARGAS";
+        worksheet.Cell(titleRow, 1).Style.Font.Bold = true;
+        worksheet.Cell(titleRow, 1).Style.Font.FontSize = 18;
+        worksheet.Cell(titleRow, 1).Style.Font.FontColor = XLColor.FromHtml("#F4773B");
+        worksheet.Cell(generatedRow, 1).Value = $"Fecha: {DateTime.Now:dd 'de' MMMM 'de' yyyy}";
+
+        for (var column = 0; column < columnCount; column++)
+        {
+            worksheet.Cell(headerRow, column + 1).Value = result.Columns[column];
+            worksheet.Column(column + 1).Width = result.Columns[column] switch
+            {
+                "TIPO DE CONCRETO" => 25,
+                "OBRA Y RESIDENTE" => 32,
+                "UNIDAD" or "ELEMENTO" => 16,
+                "SALIDA PLANTA" or "LLEGADA PLANTA" => 16,
+                _ => 13
+            };
+        }
+
+        for (var row = 0; row < result.Rows.Count; row++)
+        {
+            for (var column = 0; column < columnCount; column++)
+            {
+                worksheet.Cell(headerRow + row + 1, column + 1).Value = result.Rows[row][column];
+            }
+        }
+
+        var headerRange = worksheet.Range(headerRow, 1, headerRow, columnCount);
+        headerRange.Style.Font.Bold = true;
+        headerRange.Style.Font.FontColor = XLColor.White;
+        headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#F4773B");
+        headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+        headerRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        var tableRange = worksheet.Range(headerRow, 1, lastDataRow, columnCount);
+        tableRange.SetAutoFilter();
+        tableRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        tableRange.Style.Border.OutsideBorder = XLBorderStyleValues.Thin;
+        tableRange.Style.Border.InsideBorder = XLBorderStyleValues.Thin;
+        worksheet.SheetView.FreezeRows(headerRow);
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    private static byte[] BuildProductionPdf(ReportCatalogResult result)
+    {
+        const double titleTop = 34;
+        const double tableTop = 94;
+        const double headerHeight = 28;
+        const double rowHeight = 20;
+        const double margin = 32;
+        const double footerHeight = 30;
+        var columnWidths = result.Columns.Select(GetProductionPdfColumnWidth).ToArray();
+        var tableWidth = columnWidths.Sum();
+        var contentWidth = PdfA3LandscapeWidth - margin * 2;
+        if (tableWidth > contentWidth)
+        {
+            var scale = contentWidth / tableWidth;
+            for (var index = 0; index < columnWidths.Length; index++)
+            {
+                columnWidths[index] *= scale;
+            }
+
+            tableWidth = contentWidth;
+        }
+
+        var tableLeft = (PdfA3LandscapeWidth - tableWidth) / 2;
+        var rowsPerPage = Math.Max(1, (int)((PdfA3LandscapeHeight - tableTop - headerHeight - margin - footerHeight) / rowHeight));
+        var pageCount = Math.Max(1, (int)Math.Ceiling(result.Rows.Count / (double)rowsPerPage));
+        var generatedAt = DateTime.Now;
+        var pageContents = new List<byte[]>(pageCount);
+
+        for (var pageIndex = 0; pageIndex < pageCount; pageIndex++)
+        {
+            var start = pageIndex * rowsPerPage;
+            var end = Math.Min(start + rowsPerPage, result.Rows.Count);
+            var content = new StringBuilder("q\n");
+            AppendPdfText(content, "REPORTE DE CARGAS", margin, titleTop, 18, bold: true, contentWidth);
+            AppendPdfText(
+                content,
+                $"Fecha: {generatedAt:dd 'de' MMMM 'de' yyyy}",
+                margin,
+                titleTop + 29,
+                9,
+                bold: false,
+                contentWidth);
+
+            var x = tableLeft;
+            for (var column = 0; column < result.Columns.Count; column++)
+            {
+                var width = columnWidths[column];
+                var y = PdfA3LandscapeHeight - tableTop - headerHeight;
+                AppendPdfRectangle(content, x, y, width, headerHeight, "0.96 0.43 0.22");
+                AppendPdfCellBorder(content, x, y, width, headerHeight);
+                AppendPdfText(content, result.Columns[column], x + 3, tableTop + 9, 6.5, bold: true, width - 6, white: true);
+                x += width;
+            }
+
+            var rowTop = tableTop + headerHeight;
+            for (var rowIndex = start; rowIndex < end; rowIndex++)
+            {
+                var fill = (rowIndex - start) % 2 == 0 ? "1 1 1" : "0.96 0.96 0.96";
+                x = tableLeft;
+                for (var column = 0; column < result.Columns.Count; column++)
+                {
+                    var width = columnWidths[column];
+                    var y = PdfA3LandscapeHeight - rowTop - rowHeight;
+                    AppendPdfRectangle(content, x, y, width, rowHeight, fill);
+                    AppendPdfCellBorder(content, x, y, width, rowHeight);
+                    AppendPdfText(content, result.Rows[rowIndex][column], x + 3, rowTop + 6, 7, bold: false, width - 6);
+                    x += width;
+                }
+
+                rowTop += rowHeight;
+            }
+
+            var rowRange = result.Rows.Count == 0
+                ? "Sin registros"
+                : $"Cargas {start + 1}-{end} de {result.Rows.Count}";
+            AppendPdfText(content, $"Página {pageIndex + 1} de {pageCount} | {rowRange}", margin, PdfA3LandscapeHeight - margin - 12, 8, bold: false, contentWidth);
+            content.Append("Q\n");
+            pageContents.Add(Encoding.ASCII.GetBytes(content.ToString()));
+        }
+
+        return BuildPdfDocument(pageContents, "Reporte de cargas");
+    }
+
+    private static double GetProductionPdfColumnWidth(string column) => column switch
+    {
+        "#" => 40,
+        "UNIDAD" => 70,
+        "REM." => 70,
+        "M3 X CARGA" => 80,
+        "ACUMULADO" => 85,
+        "TIPO DE CONCRETO" => 155,
+        "SALIDA PLANTA" or "LLEGADA PLANTA" => 90,
+        "ELEMENTO" => 110,
+        "OBRA Y RESIDENTE" => 220,
+        _ => 90
+    };
 
     private static byte[] BuildFormulaPdf(ReportCatalogResult result)
     {

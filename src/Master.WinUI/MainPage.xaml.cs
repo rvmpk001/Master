@@ -63,6 +63,7 @@ public sealed partial class MainPage : Page
     private readonly OrderScheduleConfigurationService _orderScheduleConfigurationService = new();
     private readonly ReportCatalogService _reportCatalogService = new();
     private readonly ReportExportService _reportExportService = new();
+    private readonly Dictionary<(string ReportId, string ColumnName), double> _reportColumnWidthSettings = new();
     private readonly CompanyConfigurationService _companyConfigurationService = new();
     private readonly MachineConfigurationService _machineConfigurationService = new();
     private readonly MessageConfigurationService _messageConfigurationService = new();
@@ -93,6 +94,12 @@ public sealed partial class MainPage : Page
     private double _plantToolsResizeStartX;
     private double _plantToolsResizeStartWidth;
     private double _plantToolsWidth = DefaultPlantToolsWidth;
+    private bool _isReportColumnResizeActive;
+    private double _reportColumnResizeStartX;
+    private double _reportColumnResizeStartWidth;
+    private int _reportColumnResizeIndex = -1;
+    private (string ReportId, string ColumnName)? _reportColumnResizeKey;
+    private double[] _visibleReportColumnWidths = Array.Empty<double>();
     private bool _isCompanyConfigurationOpen;
     private bool _isRemissionConfigurationOpen;
     private bool _isImagesOnConfigurationOpen;
@@ -171,6 +178,8 @@ public sealed partial class MainPage : Page
     private bool _reportInventoryFiltersLoaded;
     private bool _isLoadingReportOrderFilters;
     private bool _reportOrderFiltersLoaded;
+    private bool _isLoadingReportProductionFilters;
+    private bool _reportProductionFiltersLoaded;
     private int _reportInventoryFilterLoadVersion;
     private SimulatedRemission? _simulatedRemission;
     private string[]? _remissionBeforeSimulation;
@@ -6336,10 +6345,12 @@ public sealed partial class MainPage : Page
         var loadVersion = ++_reportInventoryFilterLoadVersion;
         _reportInventoryFiltersLoaded = false;
         _reportOrderFiltersLoaded = false;
+        _reportProductionFiltersLoaded = false;
         ReportSupplierFilterComboBox.IsEnabled = false;
         ReportMaterialFilterComboBox.IsEnabled = false;
         ReportTypeFilterComboBox.IsEnabled = false;
         SetOrderReportFilterControlsEnabled(false);
+        SetProductionReportFilterControlsEnabled(false);
         ReportRemissionNumberTextBox.IsEnabled = false;
         ReportRemissionNumberTextBox.Text = string.Empty;
 
@@ -6353,6 +6364,12 @@ public sealed partial class MainPage : Page
         UpdateReportFilterLayout();
         SetReportStatus(report.Description, InfoBarSeverity.Informational);
         ReportRemissionNumberTextBox.IsEnabled = report.Id == "remissions";
+        if (report.Id == "production")
+        {
+            await LoadProductionReportFiltersAsync(loadVersion);
+            return;
+        }
+
         if (report.Id == "orders")
         {
             await LoadOrderReportFiltersAsync(loadVersion);
@@ -6451,6 +6468,7 @@ public sealed partial class MainPage : Page
         var selectedReport = ReportDatasetComboBox.SelectedItem as ReportCatalogDefinition;
         var isInventoryReport = selectedReport?.Id == "inventory-movements";
         var isOrderReport = selectedReport?.Id == "orders";
+        var isProductionReport = selectedReport?.Id == "production";
         var isRemissionReport = selectedReport?.Id == "remissions";
         var usesDateRange = selectedReport?.UsesDateRange == true;
         var showInventoryFilters = isInventoryReport;
@@ -6465,6 +6483,7 @@ public sealed partial class MainPage : Page
         ReportMaterialFilterComboBox.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
         ReportTypeFilterComboBox.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
         ReportOrderFiltersPanel.Visibility = isOrderReport ? Visibility.Visible : Visibility.Collapsed;
+        ReportProductionFiltersPanel.Visibility = isProductionReport ? Visibility.Visible : Visibility.Collapsed;
         ReportRemissionFilterLabel.Visibility = isRemissionReport ? Visibility.Visible : Visibility.Collapsed;
         ReportRemissionNumberTextBox.Visibility = isRemissionReport ? Visibility.Visible : Visibility.Collapsed;
         ReportCustomDateRangePanel.Visibility = showCustomDateRange ? Visibility.Visible : Visibility.Collapsed;
@@ -6693,6 +6712,154 @@ public sealed partial class MainPage : Page
         SetReportStatus("Filtros actualizados. Presiona Generar para consultar los resultados.", InfoBarSeverity.Informational);
     }
 
+    private async Task LoadProductionReportFiltersAsync(int loadVersion)
+    {
+        RunReportButton.IsEnabled = false;
+        ResetProductionReportFilterOptions();
+        SetReportStatus("Cargando opciones de filtros de producción...", InfoBarSeverity.Informational);
+        try
+        {
+            var options = await _reportCatalogService.GetProductionReportFilterOptionsAsync();
+            if (loadVersion != _reportInventoryFilterLoadVersion
+                || ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition { Id: "production" })
+            {
+                return;
+            }
+
+            _isLoadingReportProductionFilters = true;
+            try
+            {
+                AddProductionReportFilterOptions(ReportProductionShiftComboBox, options, "Turno");
+                AddProductionReportFilterOptions(ReportProductionDriverComboBox, options, "Chofer");
+                AddProductionReportFilterOptions(ReportProductionFormulaComboBox, options, "Formula");
+                AddProductionReportFilterOptions(ReportProductionOperatorComboBox, options, "Operador");
+                AddProductionReportFilterOptions(ReportProductionClientComboBox, options, "Cliente");
+                AddProductionReportFilterOptions(ReportProductionLoadTypeComboBox, options, "Tipo de Carga");
+                AddProductionReportFilterOptions(ReportProductionConstructionComboBox, options, "Obra");
+                AddProductionReportFilterOptions(ReportProductionTruckComboBox, options, "Camion");
+                _reportProductionFiltersLoaded = true;
+            }
+            finally
+            {
+                _isLoadingReportProductionFilters = false;
+            }
+
+            SetReportStatus("Filtros de producción listos. Selecciona los criterios que quieras aplicar.", InfoBarSeverity.Informational);
+        }
+        catch (SqlException exception)
+        {
+            if (loadVersion == _reportInventoryFilterLoadVersion)
+            {
+                SetReportStatus(
+                    $"No se pudieron cargar los filtros de producción (SQL {exception.Number}): {exception.Message}",
+                    InfoBarSeverity.Error);
+            }
+        }
+        catch (InvalidOperationException exception)
+        {
+            if (loadVersion == _reportInventoryFilterLoadVersion)
+            {
+                SetReportStatus($"No se pudieron cargar los filtros de producción: {exception.Message}", InfoBarSeverity.Error);
+            }
+        }
+        finally
+        {
+            if (loadVersion == _reportInventoryFilterLoadVersion)
+            {
+                RunReportButton.IsEnabled = _reportProductionFiltersLoaded;
+                SetProductionReportFilterControlsEnabled(_reportProductionFiltersLoaded);
+            }
+        }
+    }
+
+    private void ResetProductionReportFilterOptions()
+    {
+        _isLoadingReportProductionFilters = true;
+        try
+        {
+            foreach (var comboBox in GetProductionReportFilterComboBoxes())
+            {
+                comboBox.Items.Clear();
+                AddReportInventoryFilterOption(comboBox, "Todos", null);
+                comboBox.SelectedIndex = 0;
+            }
+
+            ReportProductionRemissionStartTextBox.Text = string.Empty;
+            ReportProductionRemissionEndTextBox.Text = string.Empty;
+            ReportProductionRemissionTextBox.Text = string.Empty;
+        }
+        finally
+        {
+            _isLoadingReportProductionFilters = false;
+        }
+    }
+
+    private static void AddProductionReportFilterOptions(
+        ComboBox comboBox,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> options,
+        string filter)
+    {
+        if (!options.TryGetValue(filter, out var values))
+        {
+            return;
+        }
+
+        foreach (var value in values)
+        {
+            AddReportInventoryFilterOption(comboBox, value, value);
+        }
+    }
+
+    private IEnumerable<ComboBox> GetProductionReportFilterComboBoxes()
+    {
+        yield return ReportProductionShiftComboBox;
+        yield return ReportProductionDriverComboBox;
+        yield return ReportProductionFormulaComboBox;
+        yield return ReportProductionOperatorComboBox;
+        yield return ReportProductionClientComboBox;
+        yield return ReportProductionLoadTypeComboBox;
+        yield return ReportProductionConstructionComboBox;
+        yield return ReportProductionTruckComboBox;
+    }
+
+    private void SetProductionReportFilterControlsEnabled(bool isEnabled)
+    {
+        foreach (var comboBox in GetProductionReportFilterComboBoxes())
+        {
+            comboBox.IsEnabled = isEnabled;
+        }
+
+        ReportProductionRemissionStartTextBox.IsEnabled = isEnabled;
+        ReportProductionRemissionEndTextBox.IsEnabled = isEnabled;
+        ReportProductionRemissionTextBox.IsEnabled = isEnabled;
+    }
+
+    private void ReportProductionFilterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isLoadingReportProductionFilters
+            || !_reportProductionFiltersLoaded
+            || ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition { Id: "production" })
+        {
+            return;
+        }
+
+        InvalidateCurrentReportResult();
+        SetReportStatus("Filtros actualizados. Presiona Generar para consultar las cargas.", InfoBarSeverity.Informational);
+    }
+
+    private void ReportProductionFilterTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_isLoadingReportProductionFilters
+            || !_reportProductionFiltersLoaded
+            || ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition { Id: "production" })
+        {
+            return;
+        }
+
+        InvalidateCurrentReportResult();
+        SetReportStatus("Filtros actualizados. Presiona Generar para consultar las cargas.", InfoBarSeverity.Informational);
+    }
+
     private void ReportRemissionNumberTextBox_TextChanged(object sender, TextChangedEventArgs e)
     {
         if (!ReportRemissionNumberTextBox.IsEnabled
@@ -6762,6 +6929,25 @@ public sealed partial class MainPage : Page
         ExportPdfReportButton.IsEnabled = isEnabled;
     }
 
+    private bool TryParseProductionRemissionBound(string value, string label, out int? number)
+    {
+        number = null;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        if (!int.TryParse(value.Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var parsed)
+            || parsed <= 0)
+        {
+            SetReportStatus($"{label} debe ser un número entero positivo.", InfoBarSeverity.Warning);
+            return false;
+        }
+
+        number = parsed;
+        return true;
+    }
+
     private async void RunReport_Click(object sender, RoutedEventArgs e)
     {
         if (ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition report)
@@ -6796,6 +6982,17 @@ public sealed partial class MainPage : Page
         string? selectedOrderConstruction = null;
         int? selectedOrderNumber = null;
         string? selectedRemissionNumber = null;
+        string? selectedProductionShift = null;
+        string? selectedProductionDriver = null;
+        string? selectedProductionFormula = null;
+        string? selectedProductionClient = null;
+        string? selectedProductionLoadType = null;
+        string? selectedProductionOperator = null;
+        string? selectedProductionConstruction = null;
+        string? selectedProductionTruck = null;
+        string? selectedProductionRemission = null;
+        int? selectedProductionRemissionStart = null;
+        int? selectedProductionRemissionEnd = null;
         if (report.Id == "inventory-movements")
         {
             if (!_reportInventoryFiltersLoaded)
@@ -6844,6 +7041,39 @@ public sealed partial class MainPage : Page
                 ? null
                 : ReportRemissionNumberTextBox.Text.Trim();
         }
+        else if (report.Id == "production")
+        {
+            if (!_reportProductionFiltersLoaded)
+            {
+                SetReportStatus("Espera a que se carguen los filtros de producción.", InfoBarSeverity.Informational);
+                return;
+            }
+
+            if (!TryParseProductionRemissionBound(ReportProductionRemissionStartTextBox.Text, "R. Inicial", out selectedProductionRemissionStart)
+                || !TryParseProductionRemissionBound(ReportProductionRemissionEndTextBox.Text, "R. Final", out selectedProductionRemissionEnd))
+            {
+                return;
+            }
+
+            if (selectedProductionRemissionStart > selectedProductionRemissionEnd
+                && selectedProductionRemissionEnd.HasValue)
+            {
+                SetReportStatus("R. Inicial no puede ser mayor que R. Final.", InfoBarSeverity.Warning);
+                return;
+            }
+
+            selectedProductionShift = GetSelectedReportFilterValue(ReportProductionShiftComboBox);
+            selectedProductionDriver = GetSelectedReportFilterValue(ReportProductionDriverComboBox);
+            selectedProductionFormula = GetSelectedReportFilterValue(ReportProductionFormulaComboBox);
+            selectedProductionClient = GetSelectedReportFilterValue(ReportProductionClientComboBox);
+            selectedProductionLoadType = GetSelectedReportFilterValue(ReportProductionLoadTypeComboBox);
+            selectedProductionOperator = GetSelectedReportFilterValue(ReportProductionOperatorComboBox);
+            selectedProductionConstruction = GetSelectedReportFilterValue(ReportProductionConstructionComboBox);
+            selectedProductionTruck = GetSelectedReportFilterValue(ReportProductionTruckComboBox);
+            selectedProductionRemission = string.IsNullOrWhiteSpace(ReportProductionRemissionTextBox.Text)
+                ? null
+                : ReportProductionRemissionTextBox.Text.Trim();
+        }
 
         var startDate = DateTime.Today;
         var endDate = DateTime.Today;
@@ -6882,7 +7112,18 @@ public sealed partial class MainPage : Page
                 orderProduct: selectedOrderProduct,
                 orderNumber: selectedOrderNumber,
                 orderConstruction: selectedOrderConstruction,
-                remissionNumber: selectedRemissionNumber);
+                remissionNumber: selectedRemissionNumber,
+                productionShift: selectedProductionShift,
+                productionDriver: selectedProductionDriver,
+                productionFormula: selectedProductionFormula,
+                productionClient: selectedProductionClient,
+                productionLoadType: selectedProductionLoadType,
+                productionOperator: selectedProductionOperator,
+                productionConstruction: selectedProductionConstruction,
+                productionTruck: selectedProductionTruck,
+                productionRemission: selectedProductionRemission,
+                productionRemissionStart: selectedProductionRemissionStart,
+                productionRemissionEnd: selectedProductionRemissionEnd);
             InitializeReportColumnEditor(_currentReportResult.Columns);
             RenderReportResult(_currentReportResult);
             var rowCount = _currentReportResult.Rows.Count;
@@ -7009,8 +7250,23 @@ public sealed partial class MainPage : Page
         var selectedResult = CreateSelectedReportResult(result);
         var isInventoryStock = selectedResult.Definition.Id == "inventory-stock";
         var isFormulaReport = selectedResult.Definition.Id == FormulaReportLayout.ReportId;
-        var columnWidth = isInventoryStock ? 230d : isFormulaReport ? 190d : selectedResult.Columns.Count > 10 ? 145d : 180d;
-        ReportResultsHost.MinWidth = Math.Max(1000, selectedResult.Columns.Count * columnWidth);
+        var isProductionReport = selectedResult.Definition.Id == "production";
+        var defaultColumnWidths = selectedResult.Columns
+            .Select((_, index) => isInventoryStock
+                ? 230d
+                : isFormulaReport
+                    ? index == 0 ? 120d : index == 1 ? 210d : 190d
+                    : isProductionReport
+                        ? 125d
+                        : selectedResult.Columns.Count > 10 ? 145d : 180d)
+            .ToArray();
+        var columnWidths = selectedResult.Columns
+            .Select((column, index) => _reportColumnWidthSettings.TryGetValue((selectedResult.Definition.Id, column), out var savedWidth)
+                ? savedWidth
+                : defaultColumnWidths[index])
+            .ToArray();
+        _visibleReportColumnWidths = columnWidths;
+        ReportResultsHost.MinWidth = Math.Max(1000, columnWidths.Sum());
         if (selectedResult.Columns.Count == 0)
         {
             ReportResultsHost.Children.Add(new TextBlock
@@ -7026,27 +7282,43 @@ public sealed partial class MainPage : Page
         {
             ReportResultsHost.Children.Add(CreateInventoryStockReportRow(
                 selectedResult.Columns,
-                columnWidth,
+                columnWidths,
                 isHeader: true));
             foreach (var row in selectedResult.Rows)
             {
-                ReportResultsHost.Children.Add(CreateInventoryStockReportRow(row, columnWidth, isHeader: false));
+                ReportResultsHost.Children.Add(CreateInventoryStockReportRow(row, columnWidths, isHeader: false));
             }
         }
         else if (isFormulaReport)
         {
-            ReportResultsHost.Children.Add(CreateFormulaReportRow(selectedResult.Columns, null, isHeader: true));
+            ReportResultsHost.Children.Add(CreateFormulaReportRow(
+                selectedResult.Columns,
+                null,
+                columnWidths,
+                isHeader: true));
             foreach (var row in selectedResult.Rows)
             {
-                ReportResultsHost.Children.Add(CreateFormulaReportRow(selectedResult.Columns, row, isHeader: false));
+                ReportResultsHost.Children.Add(CreateFormulaReportRow(
+                    selectedResult.Columns,
+                    row,
+                    columnWidths,
+                    isHeader: false));
             }
         }
         else
         {
-            ReportResultsHost.Children.Add(CreateReportResultRow(selectedResult.Columns, columnWidth, isHeader: true));
+            ReportResultsHost.Children.Add(CreateReportResultRow(
+                selectedResult.Columns,
+                columnWidths,
+                isHeader: true,
+                isProductionReport: isProductionReport));
             foreach (var row in selectedResult.Rows)
             {
-                ReportResultsHost.Children.Add(CreateReportResultRow(row, columnWidth, isHeader: false));
+                ReportResultsHost.Children.Add(CreateReportResultRow(
+                    row,
+                    columnWidths,
+                    isHeader: false,
+                    isProductionReport: isProductionReport));
             }
         }
 
@@ -7058,6 +7330,8 @@ public sealed partial class MainPage : Page
                     ? "No se encontraron materiales en los catálogos de existencias."
                     : isFormulaReport
                         ? "No se encontraron fórmulas activas."
+                        : isProductionReport
+                            ? "No se encontraron cargas para el periodo y los filtros seleccionados."
                         : "No se encontraron registros en el periodo seleccionado.",
                 Margin = new Thickness(12),
                 Foreground = _themeBrushes.GetBrush("#A9B8CC")
@@ -7068,6 +7342,7 @@ public sealed partial class MainPage : Page
     private Grid CreateFormulaReportRow(
         IReadOnlyList<string> columns,
         IReadOnlyList<string>? values,
+        IReadOnlyList<double> columnWidths,
         bool isHeader)
     {
         var entriesByColumn = isHeader || values is null
@@ -7089,7 +7364,7 @@ public sealed partial class MainPage : Page
         {
             row.ColumnDefinitions.Add(new ColumnDefinition
             {
-                Width = new GridLength(index < 2 ? index == 0 ? 120 : 210 : 190)
+                Width = new GridLength(columnWidths[index])
             });
             FrameworkElement content;
             var columnName = columns[index];
@@ -7183,6 +7458,10 @@ public sealed partial class MainPage : Page
 
             Grid.SetColumn(cell, index);
             row.Children.Add(cell);
+            if (isHeader)
+            {
+                AddReportColumnResizeHandle(row, index);
+            }
         }
 
         return row;
@@ -7190,7 +7469,7 @@ public sealed partial class MainPage : Page
 
     private Grid CreateInventoryStockReportRow(
         IReadOnlyList<string> values,
-        double columnWidth,
+        IReadOnlyList<double> columnWidths,
         bool isHeader)
     {
         var row = new Grid
@@ -7201,7 +7480,7 @@ public sealed partial class MainPage : Page
         };
         for (var index = 0; index < values.Count; index++)
         {
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(columnWidth) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(columnWidths[index]) });
             FrameworkElement content;
             string tooltip;
             if (isHeader)
@@ -7210,7 +7489,7 @@ public sealed partial class MainPage : Page
                 heading.Children.Add(new TextBlock
                 {
                     Text = values[index],
-                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    TextWrapping = TextWrapping.Wrap,
                     Foreground = _themeBrushes.GetBrush("#F1F5F9"),
                     FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
                 });
@@ -7275,6 +7554,10 @@ public sealed partial class MainPage : Page
             ToolTipService.SetToolTip(cell, tooltip);
             Grid.SetColumn(cell, index);
             row.Children.Add(cell);
+            if (isHeader)
+            {
+                AddReportColumnResizeHandle(row, index);
+            }
         }
 
         return row;
@@ -7302,17 +7585,22 @@ public sealed partial class MainPage : Page
         return new ReportCatalogResult(result.Definition, columns, rows, result.IsTruncated);
     }
 
-    private Grid CreateReportResultRow(IReadOnlyList<string> values, double columnWidth, bool isHeader)
+    private Grid CreateReportResultRow(
+        IReadOnlyList<string> values,
+        IReadOnlyList<double> columnWidths,
+        bool isHeader,
+        bool isProductionReport = false)
     {
         var row = new Grid
         {
-            Background = _themeBrushes.GetBrush(isHeader ? "#263B5A" : "#1E2D43"),
-            MinHeight = isHeader ? 36 : 32,
+            Background = _themeBrushes.GetBrush(
+                isHeader && isProductionReport ? "#F4773B" : isHeader ? "#263B5A" : "#1E2D43"),
+            MinHeight = isHeader ? 48 : 32,
             ColumnSpacing = 1
         };
         for (var index = 0; index < values.Count; index++)
         {
-            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(columnWidth) });
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(columnWidths[index]) });
             var cell = new Border
             {
                 Padding = new Thickness(8, 4, 8, 4),
@@ -7321,7 +7609,8 @@ public sealed partial class MainPage : Page
                 Child = new TextBlock
                 {
                     Text = values[index],
-                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    TextWrapping = isHeader ? TextWrapping.Wrap : TextWrapping.NoWrap,
+                    TextTrimming = isHeader ? TextTrimming.None : TextTrimming.CharacterEllipsis,
                     VerticalAlignment = VerticalAlignment.Center,
                     Foreground = _themeBrushes.GetBrush(isHeader ? "#F1F5F9" : "#E6EDF7"),
                     FontWeight = isHeader ? Microsoft.UI.Text.FontWeights.SemiBold : Microsoft.UI.Text.FontWeights.Normal
@@ -7330,9 +7619,102 @@ public sealed partial class MainPage : Page
             ToolTipService.SetToolTip(cell, values[index]);
             Grid.SetColumn(cell, index);
             row.Children.Add(cell);
+            if (isHeader)
+            {
+                AddReportColumnResizeHandle(row, index);
+            }
         }
 
         return row;
+    }
+
+    private void AddReportColumnResizeHandle(Grid row, int columnIndex)
+    {
+        var resizeHandle = new Border
+        {
+            Width = 8,
+            HorizontalAlignment = HorizontalAlignment.Right,
+            Background = _themeBrushes.GetBrush("#B8421C"),
+            Tag = columnIndex
+        };
+        ToolTipService.SetToolTip(resizeHandle, "Arrastra para cambiar el ancho de la columna.");
+        resizeHandle.PointerPressed += ReportColumnResizeHandle_PointerPressed;
+        resizeHandle.PointerMoved += ReportColumnResizeHandle_PointerMoved;
+        resizeHandle.PointerReleased += ReportColumnResizeHandle_PointerReleased;
+        resizeHandle.PointerCaptureLost += ReportColumnResizeHandle_PointerCaptureLost;
+        Grid.SetColumn(resizeHandle, columnIndex);
+        row.Children.Add(resizeHandle);
+    }
+
+    private void ReportColumnResizeHandle_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is not Border { Tag: int columnIndex } handle
+            || _currentReportResult is not { } result
+            || columnIndex < 0
+            || columnIndex >= _visibleReportColumnWidths.Length)
+        {
+            return;
+        }
+
+        var selectedResult = CreateSelectedReportResult(result);
+        if (columnIndex >= selectedResult.Columns.Count)
+        {
+            return;
+        }
+
+        _isReportColumnResizeActive = true;
+        _reportColumnResizeIndex = columnIndex;
+        _reportColumnResizeKey = (selectedResult.Definition.Id, selectedResult.Columns[columnIndex]);
+        _reportColumnResizeStartX = e.GetCurrentPoint(ReportResultsHost).Position.X;
+        _reportColumnResizeStartWidth = _visibleReportColumnWidths[columnIndex];
+        handle.CapturePointer(e.Pointer);
+        e.Handled = true;
+    }
+
+    private void ReportColumnResizeHandle_PointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (!_isReportColumnResizeActive
+            || _reportColumnResizeKey is not { } resizeKey
+            || _reportColumnResizeIndex < 0)
+        {
+            return;
+        }
+
+        var currentX = e.GetCurrentPoint(ReportResultsHost).Position.X;
+        var width = Math.Clamp(_reportColumnResizeStartWidth + currentX - _reportColumnResizeStartX, 80, 600);
+        _visibleReportColumnWidths[_reportColumnResizeIndex] = width;
+        _reportColumnWidthSettings[resizeKey] = width;
+        foreach (var row in ReportResultsHost.Children.OfType<Grid>())
+        {
+            if (_reportColumnResizeIndex < row.ColumnDefinitions.Count)
+            {
+                row.ColumnDefinitions[_reportColumnResizeIndex].Width = new GridLength(width);
+            }
+        }
+
+        ReportResultsHost.MinWidth = Math.Max(1000, _visibleReportColumnWidths.Sum());
+        e.Handled = true;
+    }
+
+    private void ReportColumnResizeHandle_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (sender is Border handle)
+        {
+            handle.ReleasePointerCapture(e.Pointer);
+        }
+
+        EndReportColumnResize();
+        e.Handled = true;
+    }
+
+    private void ReportColumnResizeHandle_PointerCaptureLost(object sender, PointerRoutedEventArgs e) =>
+        EndReportColumnResize();
+
+    private void EndReportColumnResize()
+    {
+        _isReportColumnResizeActive = false;
+        _reportColumnResizeIndex = -1;
+        _reportColumnResizeKey = null;
     }
 
     private async void ExportReport_Click(object sender, RoutedEventArgs e)

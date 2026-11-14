@@ -794,6 +794,44 @@
                                 <ComboBox x:Name="ReportOrderConstructionComboBox" IsEnabled="False" SelectionChanged="ReportOrderFilterComboBox_SelectionChanged" />
                             </StackPanel>
                         </Grid>
+                        <Grid x:Name="ReportProductionFiltersPanel" Grid.Row="2" Grid.ColumnSpan="5" ColumnSpacing="8" RowSpacing="6" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock Grid.Row="0" Text="R. Inicial" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                            <TextBox x:Name="ReportProductionRemissionStartTextBox" Grid.Row="0" Grid.Column="1" MaxLength="10" InputScope="Number" TextChanged="ReportProductionFilterTextBox_TextChanged" />
+                            <TextBlock Grid.Row="0" Grid.Column="2" Text="R. Final" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                            <TextBox x:Name="ReportProductionRemissionEndTextBox" Grid.Row="0" Grid.Column="3" MaxLength="10" InputScope="Number" TextChanged="ReportProductionFilterTextBox_TextChanged" />
+                            <TextBlock Grid.Row="1" Text="Turno" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                            <ComboBox x:Name="ReportProductionShiftComboBox" Grid.Row="1" Grid.Column="1" SelectionChanged="ReportProductionFilterComboBox_SelectionChanged" />
+                            <TextBlock Grid.Row="1" Grid.Column="2" Text="Chofer" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                            <ComboBox x:Name="ReportProductionDriverComboBox" Grid.Row="1" Grid.Column="3" SelectionChanged="ReportProductionFilterComboBox_SelectionChanged" />
+                            <TextBlock Grid.Row="2" Text="Fórmula" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                            <ComboBox x:Name="ReportProductionFormulaComboBox" Grid.Row="2" Grid.Column="1" SelectionChanged="ReportProductionFilterComboBox_SelectionChanged" />
+                            <TextBlock Grid.Row="2" Grid.Column="2" Text="Operador" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                            <ComboBox x:Name="ReportProductionOperatorComboBox" Grid.Row="2" Grid.Column="3" SelectionChanged="ReportProductionFilterComboBox_SelectionChanged" />
+                            <TextBlock Grid.Row="3" Text="Cliente" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                            <ComboBox x:Name="ReportProductionClientComboBox" Grid.Row="3" Grid.Column="1" SelectionChanged="ReportProductionFilterComboBox_SelectionChanged" />
+                            <TextBlock Grid.Row="3" Grid.Column="2" Text="Remisión" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                            <TextBox x:Name="ReportProductionRemissionTextBox" Grid.Row="3" Grid.Column="3" MaxLength="50" TextChanged="ReportProductionFilterTextBox_TextChanged" />
+                            <TextBlock Grid.Row="4" Text="Tipo de carga" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                            <ComboBox x:Name="ReportProductionLoadTypeComboBox" Grid.Row="4" Grid.Column="1" SelectionChanged="ReportProductionFilterComboBox_SelectionChanged" />
+                            <TextBlock Grid.Row="4" Grid.Column="2" Text="Obra" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                            <ComboBox x:Name="ReportProductionConstructionComboBox" Grid.Row="4" Grid.Column="3" SelectionChanged="ReportProductionFilterComboBox_SelectionChanged" />
+                            <TextBlock Grid.Row="5" Text="Camión" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                            <ComboBox x:Name="ReportProductionTruckComboBox" Grid.Row="5" Grid.Column="1" SelectionChanged="ReportProductionFilterComboBox_SelectionChanged" />
+                        </Grid>
                         <Grid x:Name="ReportCustomDateRangePanel" Grid.Row="3" Grid.ColumnSpan="5" ColumnSpacing="12" Visibility="Collapsed">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />

@@ -13,23 +13,87 @@ public sealed class ReportCatalogService
     {
         new(
             "production",
-            "Producción",
-            "Descargas de planta por fecha.",
-            new[] { "Produccion General", "Produccion Real" },
+            "Producción general",
+            "Reporte de cargas con filtros de fecha, remisión, turno, personal y datos de descarga.",
+            new[] { "Produccion General" },
             """
+            ;WITH ProductionRows AS
+            (
+                SELECT
+                    ROW_NUMBER() OVER (ORDER BY d.Fecha_Hora, d.Remision) AS RowNumber,
+                    r.Unidad AS Unit,
+                    d.Remision AS Remission,
+                    parsed.Quantity,
+                    d.Cod_Formula AS Formula,
+                    CONVERT(varchar(5), r.Hora, 108) AS PlantDeparture,
+                    CONVERT(varchar(5), d.Fecha_Hora, 108) AS PlantArrival,
+                    r.Tipo AS Element,
+                    COALESCE(NULLIF(LTRIM(RTRIM(d.Obra)), N''), N'')
+                        + CASE
+                            WHEN NULLIF(LTRIM(RTRIM(d.Obra)), N'') IS NULL
+                                OR NULLIF(LTRIM(RTRIM(c.Residente)), N'') IS NULL
+                            THEN N''
+                            ELSE N' - '
+                          END
+                        + COALESCE(NULLIF(LTRIM(RTRIM(c.Residente)), N''), N'') AS ConstructionAndResident
+                FROM dbo.Descarga AS d
+                INNER JOIN dbo.Remisiones AS r ON d.Remision = r.Remision
+                LEFT JOIN dbo.Clientes AS c ON r.CodCLiente = c.Cod_Cliente
+                CROSS APPLY
+                (
+                    SELECT
+                        LTRIM(RTRIM(d.Remision)) AS RemissionText,
+                        REPLACE(LTRIM(RTRIM(ISNULL(d.Cantidad, N''))), N',', N'') AS QuantityText
+                ) AS normalized
+                CROSS APPLY
+                (
+                    SELECT
+                        CASE
+                            WHEN ISNUMERIC(normalized.QuantityText) = 1
+                            THEN CAST(normalized.QuantityText AS decimal(18, 2))
+                            ELSE CAST(0 AS decimal(18, 2))
+                        END AS Quantity,
+                        CASE
+                            WHEN normalized.RemissionText <> N''
+                                AND normalized.RemissionText NOT LIKE N'%[^0-9]%'
+                                AND LEN(normalized.RemissionText) <= 10
+                                AND (LEN(normalized.RemissionText) < 10
+                                    OR normalized.RemissionText <= N'2147483647')
+                            THEN CAST(normalized.RemissionText AS int)
+                        END AS NumericRemission
+                ) AS parsed
+                WHERE d.Fecha_Hora >= @StartDate AND d.Fecha_Hora < @EndDate
+                    AND (@ProductionShift IS NULL OR LTRIM(RTRIM(r.Turno)) = @ProductionShift)
+                    AND (@ProductionDriver IS NULL OR LTRIM(RTRIM(r.Operador)) = @ProductionDriver)
+                    AND (@ProductionFormula IS NULL OR LTRIM(RTRIM(d.Cod_Formula)) = @ProductionFormula)
+                    AND (@ProductionClient IS NULL OR LTRIM(RTRIM(d.Cliente)) = @ProductionClient)
+                    AND (@ProductionLoadType IS NULL OR LTRIM(RTRIM(d.TipoDescarga)) = @ProductionLoadType)
+                    AND (@ProductionOperator IS NULL OR LTRIM(RTRIM(r.Despachador)) = @ProductionOperator)
+                    AND (@ProductionConstruction IS NULL OR LTRIM(RTRIM(d.Obra)) = @ProductionConstruction)
+                    AND (@ProductionTruck IS NULL OR LTRIM(RTRIM(d.Olla)) = @ProductionTruck)
+                    AND (@ProductionRemission IS NULL OR normalized.RemissionText = @ProductionRemission)
+                    AND (@ProductionRemissionStart IS NULL
+                        OR parsed.NumericRemission >= @ProductionRemissionStart)
+                    AND (@ProductionRemissionEnd IS NULL
+                        OR parsed.NumericRemission <= @ProductionRemissionEnd)
+            )
             SELECT TOP (@RowLimit)
-                Fecha_Hora AS Fecha,
-                Cod_Formula AS Formula,
-                Cantidad,
-                Remision,
-                Cliente,
-                Obra,
-                Turno,
-                TipoDescarga AS Tipo,
-                FechaCarga
-            FROM dbo.Descarga
-            WHERE Fecha_Hora >= @StartDate AND Fecha_Hora < @EndDate
-            ORDER BY Fecha_Hora DESC;
+                currentRow.RowNumber AS [#],
+                currentRow.Unit AS [UNIDAD],
+                currentRow.Remission AS [REM.],
+                currentRow.Quantity AS [M3 X CARGA],
+                (
+                    SELECT SUM(previousRow.Quantity)
+                    FROM ProductionRows AS previousRow
+                    WHERE previousRow.RowNumber <= currentRow.RowNumber
+                ) AS [ACUMULADO],
+                currentRow.Formula AS [TIPO DE CONCRETO],
+                currentRow.PlantDeparture AS [SALIDA PLANTA],
+                currentRow.PlantArrival AS [LLEGADA PLANTA],
+                currentRow.Element AS [ELEMENTO],
+                currentRow.ConstructionAndResident AS [OBRA Y RESIDENTE]
+            FROM ProductionRows AS currentRow
+            ORDER BY currentRow.RowNumber;
             """),
         new(
             FormulaReportLayout.ReportId,
@@ -325,7 +389,18 @@ public sealed class ReportCatalogService
         string? orderProduct = null,
         int? orderNumber = null,
         string? orderConstruction = null,
-        string? remissionNumber = null)
+        string? remissionNumber = null,
+        string? productionShift = null,
+        string? productionDriver = null,
+        string? productionFormula = null,
+        string? productionClient = null,
+        string? productionLoadType = null,
+        string? productionOperator = null,
+        string? productionConstruction = null,
+        string? productionTruck = null,
+        string? productionRemission = null,
+        int? productionRemissionStart = null,
+        int? productionRemissionEnd = null)
     {
         var report = Catalog.FirstOrDefault(item =>
             item.Id.Equals(reportId, StringComparison.Ordinal))
@@ -373,6 +448,23 @@ public sealed class ReportCatalogService
             command.Parameters.Add("@RemissionNumber", SqlDbType.NVarChar, 50).Value =
                 string.IsNullOrWhiteSpace(remissionNumber) ? DBNull.Value : remissionNumber.Trim();
         }
+        if (report.Id == "production")
+        {
+            AddOptionalOrderFilter(command, "@ProductionShift", productionShift);
+            AddOptionalOrderFilter(command, "@ProductionDriver", productionDriver);
+            AddOptionalOrderFilter(command, "@ProductionFormula", productionFormula);
+            AddOptionalOrderFilter(command, "@ProductionClient", productionClient);
+            AddOptionalOrderFilter(command, "@ProductionLoadType", productionLoadType);
+            AddOptionalOrderFilter(command, "@ProductionOperator", productionOperator);
+            AddOptionalOrderFilter(command, "@ProductionConstruction", productionConstruction);
+            AddOptionalOrderFilter(command, "@ProductionTruck", productionTruck);
+            command.Parameters.Add("@ProductionRemission", SqlDbType.NVarChar, 50).Value =
+                string.IsNullOrWhiteSpace(productionRemission) ? DBNull.Value : productionRemission.Trim();
+            command.Parameters.Add("@ProductionRemissionStart", SqlDbType.Int).Value =
+                productionRemissionStart.HasValue ? productionRemissionStart.Value : DBNull.Value;
+            command.Parameters.Add("@ProductionRemissionEnd", SqlDbType.Int).Value =
+                productionRemissionEnd.HasValue ? productionRemissionEnd.Value : DBNull.Value;
+        }
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var columns = Enumerable.Range(0, reader.FieldCount)
@@ -402,6 +494,59 @@ public sealed class ReportCatalogService
         return report.Id == FormulaReportLayout.ReportId
             ? FormulaReportLayout.CreateResult(report, columns, rows, isTruncated)
             : new ReportCatalogResult(report, columns, rows, isTruncated);
+    }
+
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetProductionReportFilterOptionsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        const string query = """
+            SELECT Filtro, Valor
+            FROM
+            (
+                SELECT N'Turno' AS Filtro, CONVERT(nvarchar(255), LTRIM(RTRIM(r.Turno))) AS Valor
+                FROM dbo.Descarga AS d
+                INNER JOIN dbo.Remisiones AS r ON d.Remision = r.Remision
+                WHERE NULLIF(LTRIM(RTRIM(r.Turno)), N'') IS NOT NULL
+                UNION
+                SELECT N'Chofer', CONVERT(nvarchar(255), LTRIM(RTRIM(r.Operador)))
+                FROM dbo.Descarga AS d
+                INNER JOIN dbo.Remisiones AS r ON d.Remision = r.Remision
+                WHERE NULLIF(LTRIM(RTRIM(r.Operador)), N'') IS NOT NULL
+                UNION
+                SELECT N'Formula', CONVERT(nvarchar(255), LTRIM(RTRIM(d.Cod_Formula)))
+                FROM dbo.Descarga AS d
+                INNER JOIN dbo.Remisiones AS r ON d.Remision = r.Remision
+                WHERE NULLIF(LTRIM(RTRIM(d.Cod_Formula)), N'') IS NOT NULL
+                UNION
+                SELECT N'Cliente', CONVERT(nvarchar(255), LTRIM(RTRIM(d.Cliente)))
+                FROM dbo.Descarga AS d
+                INNER JOIN dbo.Remisiones AS r ON d.Remision = r.Remision
+                WHERE NULLIF(LTRIM(RTRIM(d.Cliente)), N'') IS NOT NULL
+                UNION
+                SELECT N'Tipo de Carga', CONVERT(nvarchar(255), LTRIM(RTRIM(d.TipoDescarga)))
+                FROM dbo.Descarga AS d
+                INNER JOIN dbo.Remisiones AS r ON d.Remision = r.Remision
+                WHERE NULLIF(LTRIM(RTRIM(d.TipoDescarga)), N'') IS NOT NULL
+                UNION
+                SELECT N'Operador', CONVERT(nvarchar(255), LTRIM(RTRIM(r.Despachador)))
+                FROM dbo.Descarga AS d
+                INNER JOIN dbo.Remisiones AS r ON d.Remision = r.Remision
+                WHERE NULLIF(LTRIM(RTRIM(r.Despachador)), N'') IS NOT NULL
+                UNION
+                SELECT N'Obra', CONVERT(nvarchar(255), LTRIM(RTRIM(d.Obra)))
+                FROM dbo.Descarga AS d
+                INNER JOIN dbo.Remisiones AS r ON d.Remision = r.Remision
+                WHERE NULLIF(LTRIM(RTRIM(d.Obra)), N'') IS NOT NULL
+                UNION
+                SELECT N'Camion', CONVERT(nvarchar(255), LTRIM(RTRIM(d.Olla)))
+                FROM dbo.Descarga AS d
+                INNER JOIN dbo.Remisiones AS r ON d.Remision = r.Remision
+                WHERE NULLIF(LTRIM(RTRIM(d.Olla)), N'') IS NOT NULL
+            ) AS Filtros
+            ORDER BY Filtro, Valor;
+            """;
+
+        return await ReadReportFilterOptionsAsync(query, cancellationToken);
     }
 
     public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetOrderReportFilterOptionsAsync(
@@ -438,6 +583,13 @@ public sealed class ReportCatalogService
             ORDER BY Filtro, Valor;
             """;
 
+        return await ReadReportFilterOptionsAsync(query, cancellationToken);
+    }
+
+    private async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> ReadReportFilterOptionsAsync(
+        string query,
+        CancellationToken cancellationToken)
+    {
         await using var connection = _connectionFactory.CreateConnection();
         await connection.OpenAsync(cancellationToken);
         await using var command = new SqlCommand(query, connection) { CommandTimeout = 30 };
