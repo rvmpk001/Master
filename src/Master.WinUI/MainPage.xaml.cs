@@ -476,19 +476,6 @@ public sealed partial class MainPage : Page
             var status = await _plcCommunicationService.CheckConnectionAsync(
                 additionalImageControls,
                 additionalValueControls);
-            var unsupportedWaterControls = _designerCanvasState.Controls
-                .Where(IsUnsupportedWaterValueControl)
-                .Select(control => control.Text)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            if (unsupportedWaterControls.Length > 0)
-            {
-                status = status with
-                {
-                    Detail = $"{status.Detail} No se leen {string.Join(", ", unsupportedWaterControls)}: " +
-                             "el tag heredado no es compatible con el lector MI actual."
-                };
-            }
 
             var imageStatesChanged = false;
             if (_simulatedCanvasImageStates.Count == 0
@@ -556,11 +543,6 @@ public sealed partial class MainPage : Page
                 {
                     SetCanvasValue(control, "????");
                 }
-            }
-
-            foreach (var control in _designerCanvasState.Controls.Where(IsUnsupportedWaterValueControl))
-            {
-                SetCanvasValue(control, "N/D");
             }
 
             var message = status.State switch
@@ -7295,7 +7277,7 @@ public sealed partial class MainPage : Page
                     control.IsConfiguredDisabled = item.IsDisabled;
                     SetCanvasValue(control, item.IsDisabled
                         ? "—"
-                        : IsUnsupportedWaterValueControl(control) ? "N/D" : "????");
+                        : "????");
                     canvasChanged = true;
                 }
 
@@ -8176,7 +8158,7 @@ public sealed partial class MainPage : Page
         {
             Text = control.IsConfiguredDisabled
                 ? "—"
-                : IsUnsupportedWaterValueControl(control) ? "N/D" : "????",
+                : "????",
             TextAlignment = TextAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
             FontSize = 16,
@@ -8385,17 +8367,8 @@ public sealed partial class MainPage : Page
             : string.Equals(control.Type, "CtlAditivo", StringComparison.OrdinalIgnoreCase)
                 ? (control.IsConfiguredDisabled ? null : control.AdditiveControl)
                 : string.Equals(control.Type, "CtlAgua", StringComparison.OrdinalIgnoreCase)
-                    ? (control.IsConfiguredDisabled || IsUnsupportedWaterValueControl(control)
-                        ? null
-                        : control.WaterControl)
+                    ? (control.IsConfiguredDisabled ? null : control.WaterControl)
                     : null;
-    }
-
-    private static bool IsUnsupportedWaterValueControl(DesignerCanvasControlState control)
-    {
-        return string.Equals(control.Type, "CtlAgua", StringComparison.OrdinalIgnoreCase)
-            && !control.IsConfiguredDisabled
-            && string.Equals(control.WaterControl, "ctlAgua2", StringComparison.OrdinalIgnoreCase);
     }
 
     private static bool IsCanvasPlcImageControl(DesignerCanvasControlState control)
