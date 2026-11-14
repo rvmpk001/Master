@@ -736,6 +736,7 @@
                         <TextBlock x:Name="ReportSupplierFilterLabel" Grid.Row="0" Grid.Column="2" Text="Proveedor" Foreground="{ThemeResource PaletteE6EDF7}" Visibility="Collapsed" />
                         <TextBlock x:Name="ReportMaterialFilterLabel" Grid.Row="0" Grid.Column="3" Text="Material" Foreground="{ThemeResource PaletteE6EDF7}" Visibility="Collapsed" />
                         <TextBlock x:Name="ReportTypeFilterLabel" Grid.Row="0" Grid.Column="4" Text="Tipo" Foreground="{ThemeResource PaletteE6EDF7}" Visibility="Collapsed" />
+                        <TextBlock x:Name="ReportRemissionFilterLabel" Grid.Row="0" Grid.Column="2" Text="Número de remisión" Foreground="{ThemeResource PaletteE6EDF7}" Visibility="Collapsed" />
                         <ComboBox x:Name="ReportDatasetComboBox" Grid.Row="1" ItemsSource="{x:Bind ReportCatalogItems}" DisplayMemberPath="Name" SelectionChanged="ReportDatasetComboBox_SelectionChanged" />
                         <ComboBox x:Name="ReportPeriodComboBox" Grid.Row="1" Grid.Column="1" SelectionChanged="ReportPeriodComboBox_SelectionChanged">
                             <ComboBoxItem Content="Personalizado" Tag="custom" />
@@ -753,6 +754,7 @@
                             <ComboBoxItem Content="E (Entrada)" Tag="E" />
                             <ComboBoxItem Content="S (Salida)" Tag="S" />
                         </ComboBox>
+                        <TextBox x:Name="ReportRemissionNumberTextBox" Grid.Row="1" Grid.Column="2" IsEnabled="False" MaxLength="50" Visibility="Collapsed" TextChanged="ReportRemissionNumberTextBox_TextChanged" />
                         <Grid x:Name="ReportOrderFiltersPanel" Grid.Row="2" Grid.ColumnSpan="5" ColumnSpacing="12" Visibility="Collapsed">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />

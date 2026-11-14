@@ -6340,6 +6340,8 @@ public sealed partial class MainPage : Page
         ReportMaterialFilterComboBox.IsEnabled = false;
         ReportTypeFilterComboBox.IsEnabled = false;
         SetOrderReportFilterControlsEnabled(false);
+        ReportRemissionNumberTextBox.IsEnabled = false;
+        ReportRemissionNumberTextBox.Text = string.Empty;
 
         if (ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition report)
         {
@@ -6350,6 +6352,7 @@ public sealed partial class MainPage : Page
         InvalidateCurrentReportResult(resetColumnSelection: true);
         UpdateReportFilterLayout();
         SetReportStatus(report.Description, InfoBarSeverity.Informational);
+        ReportRemissionNumberTextBox.IsEnabled = report.Id == "remissions";
         if (report.Id == "orders")
         {
             await LoadOrderReportFiltersAsync(loadVersion);
@@ -6448,6 +6451,7 @@ public sealed partial class MainPage : Page
         var selectedReport = ReportDatasetComboBox.SelectedItem as ReportCatalogDefinition;
         var isInventoryReport = selectedReport?.Id == "inventory-movements";
         var isOrderReport = selectedReport?.Id == "orders";
+        var isRemissionReport = selectedReport?.Id == "remissions";
         var usesDateRange = selectedReport?.UsesDateRange == true;
         var showInventoryFilters = isInventoryReport;
         var showCustomDateRange = usesDateRange && GetSelectedReportPeriod() == "custom";
@@ -6461,6 +6465,8 @@ public sealed partial class MainPage : Page
         ReportMaterialFilterComboBox.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
         ReportTypeFilterComboBox.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
         ReportOrderFiltersPanel.Visibility = isOrderReport ? Visibility.Visible : Visibility.Collapsed;
+        ReportRemissionFilterLabel.Visibility = isRemissionReport ? Visibility.Visible : Visibility.Collapsed;
+        ReportRemissionNumberTextBox.Visibility = isRemissionReport ? Visibility.Visible : Visibility.Collapsed;
         ReportCustomDateRangePanel.Visibility = showCustomDateRange ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -6687,6 +6693,18 @@ public sealed partial class MainPage : Page
         SetReportStatus("Filtros actualizados. Presiona Generar para consultar los resultados.", InfoBarSeverity.Informational);
     }
 
+    private void ReportRemissionNumberTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (!ReportRemissionNumberTextBox.IsEnabled
+            || ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition { Id: "remissions" })
+        {
+            return;
+        }
+
+        InvalidateCurrentReportResult();
+        SetReportStatus("Filtro actualizado. Presiona Generar para consultar las remisiones.", InfoBarSeverity.Informational);
+    }
+
     private static string? GetSelectedReportFilterValue(ComboBox comboBox)
     {
         var value = (comboBox.SelectedItem as ComboBoxItem)?.Tag as string;
@@ -6777,6 +6795,7 @@ public sealed partial class MainPage : Page
         string? selectedOrderProduct = null;
         string? selectedOrderConstruction = null;
         int? selectedOrderNumber = null;
+        string? selectedRemissionNumber = null;
         if (report.Id == "inventory-movements")
         {
             if (!_reportInventoryFiltersLoaded)
@@ -6819,6 +6838,12 @@ public sealed partial class MainPage : Page
             selectedOrderProduct = GetSelectedReportFilterValue(ReportOrderProductComboBox);
             selectedOrderConstruction = GetSelectedReportFilterValue(ReportOrderConstructionComboBox);
         }
+        else if (report.Id == "remissions")
+        {
+            selectedRemissionNumber = string.IsNullOrWhiteSpace(ReportRemissionNumberTextBox.Text)
+                ? null
+                : ReportRemissionNumberTextBox.Text.Trim();
+        }
 
         var startDate = DateTime.Today;
         var endDate = DateTime.Today;
@@ -6856,7 +6881,8 @@ public sealed partial class MainPage : Page
                 orderUse: selectedOrderUse,
                 orderProduct: selectedOrderProduct,
                 orderNumber: selectedOrderNumber,
-                orderConstruction: selectedOrderConstruction);
+                orderConstruction: selectedOrderConstruction,
+                remissionNumber: selectedRemissionNumber);
             InitializeReportColumnEditor(_currentReportResult.Columns);
             RenderReportResult(_currentReportResult);
             var rowCount = _currentReportResult.Rows.Count;

@@ -119,6 +119,7 @@ public sealed class ReportCatalogService
                 Tipo
             FROM dbo.Remisiones
             WHERE Fecha >= @StartDate AND Fecha < @EndDate
+                AND (@RemissionNumber IS NULL OR LTRIM(RTRIM(Remision)) = @RemissionNumber)
             ORDER BY Fecha DESC, Hora DESC;
             """),
         new(
@@ -323,7 +324,8 @@ public sealed class ReportCatalogService
         string? orderUse = null,
         string? orderProduct = null,
         int? orderNumber = null,
-        string? orderConstruction = null)
+        string? orderConstruction = null,
+        string? remissionNumber = null)
     {
         var report = Catalog.FirstOrDefault(item =>
             item.Id.Equals(reportId, StringComparison.Ordinal))
@@ -365,6 +367,11 @@ public sealed class ReportCatalogService
             command.Parameters.Add("@OrderNumber", SqlDbType.Int).Value =
                 orderNumber.HasValue ? orderNumber.Value : DBNull.Value;
             AddOptionalOrderFilter(command, "@OrderConstruction", orderConstruction);
+        }
+        if (report.Id == "remissions")
+        {
+            command.Parameters.Add("@RemissionNumber", SqlDbType.NVarChar, 50).Value =
+                string.IsNullOrWhiteSpace(remissionNumber) ? DBNull.Value : remissionNumber.Trim();
         }
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
