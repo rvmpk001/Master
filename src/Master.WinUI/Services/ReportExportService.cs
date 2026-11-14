@@ -21,6 +21,11 @@ public sealed class ReportExportService
             throw new InvalidOperationException("El reporte no contiene columnas para exportar.");
         }
 
+        if (result.Definition.Id == "inventory-stock")
+        {
+            return BuildInventoryStockExcel(result);
+        }
+
         using var workbook = new XLWorkbook();
         var worksheet = workbook.Worksheets.Add(SanitizeWorksheetName(result.Definition.Name));
         var columnCount = result.Columns.Count;
@@ -80,6 +85,11 @@ public sealed class ReportExportService
             throw new InvalidOperationException("El reporte no contiene columnas para exportar.");
         }
 
+        if (result.Definition.Id == "inventory-stock")
+        {
+            result = ExpandInventoryStockForPdf(result);
+        }
+
         var columnsPerPage = Math.Min(PdfColumnsPerPage, result.Columns.Count);
         var columnGroups = Enumerable.Range(0, result.Columns.Count)
             .Chunk(columnsPerPage)
@@ -110,20 +120,102 @@ public sealed class ReportExportService
         return BuildPdfDocument(pageContents, result.Definition.Name);
     }
 
-    public byte[] BuildCsv(ReportCatalogResult result)
+    private static byte[] BuildInventoryStockExcel(ReportCatalogResult result)
     {
-        static string Escape(string value) =>
-            $"\"{value.Replace("\"", "\"\"", StringComparison.Ordinal)}\"";
+        using var workbook = new XLWorkbook();
+        var worksheet = workbook.Worksheets.Add(SanitizeWorksheetName(result.Definition.Name));
+        var columnCount = result.Columns.Count * 2;
+        const int titleRow = 1;
+        const int generatedRow = 2;
+        const int categoryHeaderRow = 4;
+        const int fieldHeaderRow = 5;
+        var lastDataRow = fieldHeaderRow + result.Rows.Count;
 
-        var lines = new List<string>
+        worksheet.Range(titleRow, 1, titleRow, columnCount).Merge();
+        worksheet.Cell(titleRow, 1).Value = result.Definition.Name;
+        worksheet.Cell(titleRow, 1).Style.Font.Bold = true;
+        worksheet.Cell(titleRow, 1).Style.Font.FontSize = 16;
+        worksheet.Cell(generatedRow, 1).Value = $"Fecha de corte: {DateTime.Now:dd/MM/yyyy HH:mm:ss}";
+
+        for (var group = 0; group < result.Columns.Count; group++)
         {
-            string.Join(",", result.Columns.Select(Escape))
-        };
-        lines.AddRange(result.Rows.Select(row => string.Join(",", row.Select(Escape))));
-        return new System.Text.UTF8Encoding(encoderShouldEmitUTF8Identifier: true)
-            .GetPreamble()
-            .Concat(Encoding.UTF8.GetBytes(string.Join(Environment.NewLine, lines)))
+            var firstColumn = group * 2 + 1;
+            var groupHeader = worksheet.Range(categoryHeaderRow, firstColumn, categoryHeaderRow, firstColumn + 1);
+            groupHeader.Merge();
+            groupHeader.FirstCell().Value = result.Columns[group];
+            groupHeader.Style.Font.Bold = true;
+            groupHeader.Style.Font.FontColor = XLColor.White;
+            groupHeader.Style.Fill.BackgroundColor = XLColor.FromHtml("#263B5A");
+            groupHeader.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
+            worksheet.Cell(fieldHeaderRow, firstColumn).Value = "Material";
+            worksheet.Cell(fieldHeaderRow, firstColumn + 1).Value = "Existencia";
+        }
+
+        for (var row = 0; row < result.Rows.Count; row++)
+        {
+            for (var group = 0; group < result.Columns.Count; group++)
+            {
+                var (material, quantity) = SplitInventoryStockValue(result.Rows[row][group]);
+                var firstColumn = group * 2 + 1;
+                worksheet.Cell(fieldHeaderRow + row + 1, firstColumn).Value = material;
+                worksheet.Cell(fieldHeaderRow + row + 1, firstColumn + 1).Value = quantity;
+            }
+        }
+
+        var tableRange = worksheet.Range(fieldHeaderRow, 1, lastDataRow, columnCount);
+        tableRange.SetAutoFilter();
+        tableRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
+        var fieldHeader = worksheet.Range(fieldHeaderRow, 1, fieldHeaderRow, columnCount);
+        fieldHeader.Style.Font.Bold = true;
+        fieldHeader.Style.Font.FontColor = XLColor.White;
+        fieldHeader.Style.Fill.BackgroundColor = XLColor.FromHtml("#40516A");
+        worksheet.SheetView.FreezeRows(fieldHeaderRow);
+        for (var group = 0; group < result.Columns.Count; group++)
+        {
+            worksheet.Column(group * 2 + 1).Width = 28;
+            worksheet.Column(group * 2 + 2).Width = 14;
+        }
+
+        using var stream = new MemoryStream();
+        workbook.SaveAs(stream);
+        return stream.ToArray();
+    }
+
+    private static ReportCatalogResult ExpandInventoryStockForPdf(ReportCatalogResult result)
+    {
+        var columns = new List<string>(result.Columns.Count * 2);
+        foreach (var category in result.Columns)
+        {
+            var shortCategory = category.StartsWith("TOTAL ", StringComparison.OrdinalIgnoreCase)
+                ? category[6..]
+                : category;
+            columns.Add($"{shortCategory} - Material");
+            columns.Add($"{shortCategory} - Existencia");
+        }
+
+        var rows = result.Rows
+            .Select(row =>
+            {
+                var expandedRow = new List<string>(result.Columns.Count * 2);
+                foreach (var value in row)
+                {
+                    var (material, quantity) = SplitInventoryStockValue(value);
+                    expandedRow.Add(material);
+                    expandedRow.Add(quantity);
+                }
+
+                return (IReadOnlyList<string>)expandedRow;
+            })
             .ToArray();
+        return new ReportCatalogResult(result.Definition, columns, rows, result.IsTruncated);
+    }
+
+    private static (string Material, string Quantity) SplitInventoryStockValue(string value)
+    {
+        var separatorIndex = value.IndexOf('\t');
+        return separatorIndex < 0
+            ? (value, string.Empty)
+            : (value[..separatorIndex], value[(separatorIndex + 1)..]);
     }
 
     private static int GetPdfRowsPerPage()

@@ -166,6 +166,10 @@ public sealed partial class MainPage : Page
     private string? _lastPlcStatusDetail;
     private PlcConnectionStatus? _latestPlcStatus;
     private ReportCatalogResult? _currentReportResult;
+    private bool _isApplyingReportPeriodSelection;
+    private bool _isLoadingReportInventoryFilters;
+    private bool _reportInventoryFiltersLoaded;
+    private int _reportInventoryFilterLoadVersion;
     private SimulatedRemission? _simulatedRemission;
     private string[]? _remissionBeforeSimulation;
     private SimulatedProcessState _simulatedProcessState;
@@ -202,6 +206,8 @@ public sealed partial class MainPage : Page
     public ObservableCollection<InventoryMaterial> SelectedInventoryMaterials { get; } = new();
     public ObservableCollection<string> InventorySuppliers { get; } = new();
     public ObservableCollection<ReportCatalogDefinition> ReportCatalogItems { get; } = new();
+    public ObservableCollection<string> AvailableReportColumns { get; } = new();
+    public ObservableCollection<string> SelectedReportColumns { get; } = new();
     public ObservableCollection<FormulaColumn> FormulaColumns { get; } = new();
     public ObservableCollection<FormulaRow> ActiveFormulaRows { get; } = new();
     public ObservableCollection<FormulaRow> CancelledFormulaRows { get; } = new();
@@ -742,6 +748,7 @@ public sealed partial class MainPage : Page
         StatusInfoBarStyler.Apply(OperatorEditorStatusInfoBar, theme);
         StatusInfoBarStyler.Apply(OrderEditorStatusInfoBar, theme);
         StatusInfoBarStyler.Apply(OrderFormStatusInfoBar, theme);
+        StatusInfoBarStyler.Apply(ReportFormStatusInfoBar, theme);
         StatusInfoBarStyler.Apply(LoginErrorInfoBar, theme);
         StatusInfoBarStyler.Apply(TruckFormStatusInfoBar, theme);
         DarkThemeMenuItem.IsChecked = theme == ElementTheme.Dark;
@@ -5338,6 +5345,9 @@ public sealed partial class MainPage : Page
         infoBar.IsOpen = true;
     }
 
+    private void SetReportStatus(string message, InfoBarSeverity severity) =>
+        SetFormStatus(ReportFormStatusInfoBar, message, severity);
+
     private TextBox GetSupplierTextBox(SupplierField field) => field switch
     {
         SupplierField.Supplier => SupplierNameTextBox,
@@ -6292,21 +6302,25 @@ public sealed partial class MainPage : Page
 
     private void OpenReportCenter()
     {
-        _currentReportResult = null;
-        SetReportExportButtonsEnabled(false);
-        ReportResultsHost.Children.Clear();
+        _reportInventoryFilterLoadVersion++;
+        _reportInventoryFiltersLoaded = false;
+        RunReportButton.IsEnabled = true;
+        InvalidateCurrentReportResult(resetColumnSelection: true);
         ReportCatalogItems.Clear();
         foreach (var report in _reportCatalogService.GetCatalog().Where(CanViewReport))
         {
             ReportCatalogItems.Add(report);
         }
 
-        ReportStartDatePicker.Date = new DateTimeOffset(DateTime.Today.AddDays(-6));
-        ReportEndDatePicker.Date = new DateTimeOffset(DateTime.Today);
+        ReportPeriodComboBox.SelectedIndex = 0;
+        ReportPeriodComboBox.SelectedIndex = 3;
         ReportDatasetComboBox.SelectedIndex = ReportCatalogItems.Count > 0 ? 0 : -1;
-        ReportFormStatusText.Text = ReportCatalogItems.Count > 0
-            ? "Selecciona una vista y un periodo. El catálogo consulta únicamente información autorizada."
-            : "No tienes permisos de visualización para las vistas disponibles.";
+        UpdateReportFilterLayout();
+        SetReportStatus(
+            ReportCatalogItems.Count > 0
+                ? "Selecciona una vista y un periodo. El catálogo consulta únicamente información autorizada."
+                : "No tienes permisos de visualización para las vistas disponibles.",
+            ReportCatalogItems.Count > 0 ? InfoBarSeverity.Informational : InfoBarSeverity.Warning);
     }
 
     private bool CanViewReport(ReportCatalogDefinition report) =>
@@ -6315,20 +6329,264 @@ public sealed partial class MainPage : Page
     private bool CanExportReport(ReportCatalogDefinition report) =>
         report.PermissionModules.Any(module => HasActionPermission(module, "Exportar"));
 
-    private void ReportDatasetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    private async void ReportDatasetComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        if (ReportDatasetComboBox.SelectedItem is ReportCatalogDefinition report)
+        var loadVersion = ++_reportInventoryFilterLoadVersion;
+        _reportInventoryFiltersLoaded = false;
+        ReportSupplierFilterComboBox.IsEnabled = false;
+        ReportMaterialFilterComboBox.IsEnabled = false;
+        ReportTypeFilterComboBox.IsEnabled = false;
+
+        if (ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition report)
         {
-            _currentReportResult = null;
-            ReportResultsHost.Children.Clear();
-            SetReportExportButtonsEnabled(false);
-            ReportFormStatusText.Text = report.Description;
+            UpdateReportFilterLayout();
+            return;
         }
+
+        InvalidateCurrentReportResult(resetColumnSelection: true);
+        UpdateReportFilterLayout();
+        SetReportStatus(report.Description, InfoBarSeverity.Informational);
+        if (report.Id != "inventory-movements")
+        {
+            RunReportButton.IsEnabled = true;
+            return;
+        }
+
+        RunReportButton.IsEnabled = false;
+        SetReportStatus("Cargando proveedores y materiales configurados...", InfoBarSeverity.Informational);
+        ResetReportInventoryFilterOptions();
+
+        try
+        {
+            var suppliersTask = _supplierService.GetSuppliersAsync();
+            var machineConfigurationTask = _machineConfigurationService.GetConfigurationAsync();
+            await Task.WhenAll(suppliersTask, machineConfigurationTask);
+
+            if (loadVersion != _reportInventoryFilterLoadVersion
+                || ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition { Id: "inventory-movements" })
+            {
+                return;
+            }
+
+            _isLoadingReportInventoryFilters = true;
+            try
+            {
+                foreach (var supplier in suppliersTask.Result.Suppliers
+                             .Select(item => item.Supplier.Trim())
+                             .Where(name => !string.IsNullOrWhiteSpace(name))
+                             .Distinct(StringComparer.OrdinalIgnoreCase)
+                             .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase))
+                {
+                    AddReportInventoryFilterOption(ReportSupplierFilterComboBox, supplier, supplier);
+                }
+
+                foreach (var material in machineConfigurationTask.Result.MaterialOptions.Values
+                             .SelectMany(options => options)
+                             .Select(name => name.Trim())
+                             .Where(name => !string.IsNullOrWhiteSpace(name)
+                                 && !name.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase))
+                             .Distinct(StringComparer.OrdinalIgnoreCase)
+                             .OrderBy(name => name, StringComparer.CurrentCultureIgnoreCase))
+                {
+                    AddReportInventoryFilterOption(ReportMaterialFilterComboBox, material, material);
+                }
+
+                ReportSupplierFilterComboBox.SelectedIndex = 0;
+                ReportMaterialFilterComboBox.SelectedIndex = 0;
+                ReportTypeFilterComboBox.SelectedIndex = 0;
+                _reportInventoryFiltersLoaded = true;
+            }
+            finally
+            {
+                _isLoadingReportInventoryFilters = false;
+            }
+
+            SetReportStatus(report.Description, InfoBarSeverity.Informational);
+        }
+        catch (SqlException exception)
+        {
+            if (loadVersion == _reportInventoryFilterLoadVersion)
+            {
+                SetReportStatus(
+                    $"No se pudieron cargar los filtros de inventario (SQL {exception.Number}): {exception.Message}",
+                    InfoBarSeverity.Error);
+            }
+        }
+        catch (InvalidOperationException exception)
+        {
+            if (loadVersion == _reportInventoryFilterLoadVersion)
+            {
+                SetReportStatus(
+                    $"No se pudieron cargar los filtros de inventario: {exception.Message}",
+                    InfoBarSeverity.Error);
+            }
+        }
+        finally
+        {
+            if (loadVersion == _reportInventoryFilterLoadVersion)
+            {
+                RunReportButton.IsEnabled = _reportInventoryFiltersLoaded;
+                ReportSupplierFilterComboBox.IsEnabled = _reportInventoryFiltersLoaded;
+                ReportMaterialFilterComboBox.IsEnabled = _reportInventoryFiltersLoaded;
+                ReportTypeFilterComboBox.IsEnabled = _reportInventoryFiltersLoaded;
+            }
+        }
+    }
+
+    private void UpdateReportFilterLayout()
+    {
+        var selectedReport = ReportDatasetComboBox.SelectedItem as ReportCatalogDefinition;
+        var isInventoryReport = selectedReport?.Id == "inventory-movements";
+        var usesDateRange = selectedReport?.UsesDateRange == true;
+        var showInventoryFilters = isInventoryReport;
+        var showCustomDateRange = usesDateRange && GetSelectedReportPeriod() == "custom";
+
+        ReportPeriodFilterLabel.Visibility = usesDateRange ? Visibility.Visible : Visibility.Collapsed;
+        ReportPeriodComboBox.Visibility = usesDateRange ? Visibility.Visible : Visibility.Collapsed;
+        ReportSupplierFilterLabel.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
+        ReportMaterialFilterLabel.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
+        ReportTypeFilterLabel.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
+        ReportSupplierFilterComboBox.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
+        ReportMaterialFilterComboBox.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
+        ReportTypeFilterComboBox.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
+        ReportCustomDateRangePanel.Visibility = showCustomDateRange ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void ReportPeriodComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isApplyingReportPeriodSelection)
+        {
+            return;
+        }
+
+        var period = GetSelectedReportPeriod();
+        if (period is null)
+        {
+            return;
+        }
+
+        UpdateReportFilterLayout();
+        if (period == "custom")
+        {
+            InvalidateCurrentReportResult();
+            SetReportStatus(
+                "Selecciona la fecha inicial y final y presiona Generar.",
+                InfoBarSeverity.Informational);
+            return;
+        }
+
+        ApplyReportPeriod(period);
+        InvalidateCurrentReportResult();
+        SetReportStatus(
+            "Periodo aplicado. Presiona Generar para consultar los resultados.",
+            InfoBarSeverity.Informational);
+    }
+
+    private void ReportDatePicker_DateChanged(object sender, DatePickerValueChangedEventArgs args)
+    {
+        if (_isApplyingReportPeriodSelection)
+        {
+            return;
+        }
+
+        ReportPeriodComboBox.SelectedIndex = 0;
+        InvalidateCurrentReportResult();
+        SetReportStatus(
+            "Rango de fechas actualizado. Presiona Generar para consultar los resultados.",
+            InfoBarSeverity.Informational);
+    }
+
+    private string? GetSelectedReportPeriod() =>
+        (ReportPeriodComboBox.SelectedItem as ComboBoxItem)?.Tag as string;
+
+    private void ResetReportInventoryFilterOptions()
+    {
+        _isLoadingReportInventoryFilters = true;
+        try
+        {
+            ReportSupplierFilterComboBox.Items.Clear();
+            ReportMaterialFilterComboBox.Items.Clear();
+            AddReportInventoryFilterOption(ReportSupplierFilterComboBox, "Todos", null);
+            AddReportInventoryFilterOption(ReportMaterialFilterComboBox, "Todos", null);
+            ReportSupplierFilterComboBox.SelectedIndex = 0;
+            ReportMaterialFilterComboBox.SelectedIndex = 0;
+            ReportTypeFilterComboBox.SelectedIndex = 0;
+        }
+        finally
+        {
+            _isLoadingReportInventoryFilters = false;
+        }
+    }
+
+    private static void AddReportInventoryFilterOption(ComboBox comboBox, string label, string? value) =>
+        comboBox.Items.Add(new ComboBoxItem { Content = label, Tag = value });
+
+    private void ReportInventoryFilterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isLoadingReportInventoryFilters || !_reportInventoryFiltersLoaded)
+        {
+            return;
+        }
+
+        InvalidateCurrentReportResult();
+        SetReportStatus(
+            "Filtros actualizados. Presiona Generar para consultar los resultados.",
+            InfoBarSeverity.Informational);
+    }
+
+    private static string? GetSelectedReportFilterValue(ComboBox comboBox)
+    {
+        var value = (comboBox.SelectedItem as ComboBoxItem)?.Tag as string;
+        return string.IsNullOrWhiteSpace(value) ? null : value;
+    }
+
+    private void ApplyReportPeriod(string period)
+    {
+        var today = DateTime.Today;
+        var (startDate, endDate) = GetReportDateRange(period, today);
+
+        _isApplyingReportPeriodSelection = true;
+        try
+        {
+            ReportStartDatePicker.Date = new DateTimeOffset(startDate);
+            ReportEndDatePicker.Date = new DateTimeOffset(endDate);
+        }
+        finally
+        {
+            _isApplyingReportPeriodSelection = false;
+        }
+    }
+
+    private static (DateTime StartDate, DateTime EndDate) GetReportDateRange(string period, DateTime today) =>
+        period switch
+        {
+            "today" => (today, today),
+            "yesterday" => (today.AddDays(-1), today.AddDays(-1)),
+            "last-seven-days" => (today.AddDays(-6), today),
+            "current-month" => (new DateTime(today.Year, today.Month, 1), today),
+            "previous-month" => (
+                new DateTime(today.Year, today.Month, 1).AddMonths(-1),
+                new DateTime(today.Year, today.Month, 1).AddDays(-1)),
+            "current-year" => (new DateTime(today.Year, 1, 1), today),
+            _ => throw new InvalidOperationException("El periodo seleccionado no es válido.")
+        };
+
+    private void InvalidateCurrentReportResult(bool resetColumnSelection = false)
+    {
+        _currentReportResult = null;
+        if (resetColumnSelection)
+        {
+            AvailableReportColumns.Clear();
+            SelectedReportColumns.Clear();
+            ReportColumnEditorPanel.Visibility = Visibility.Collapsed;
+        }
+
+        ReportResultsHost.Children.Clear();
+        SetReportExportButtonsEnabled(false);
     }
 
     private void SetReportExportButtonsEnabled(bool isEnabled)
     {
-        ExportCsvReportButton.IsEnabled = isEnabled;
         ExportExcelReportButton.IsEnabled = isEnabled;
         ExportPdfReportButton.IsEnabled = isEnabled;
     }
@@ -6337,50 +6595,99 @@ public sealed partial class MainPage : Page
     {
         if (ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition report)
         {
-            ReportFormStatusText.Text = "Selecciona una vista del catálogo.";
+            SetReportStatus("Selecciona una vista del catálogo.", InfoBarSeverity.Warning);
             return;
         }
 
         if (!await RefreshCurrentUserPermissionsAsync() || !CanViewReport(report))
         {
-            ReportFormStatusText.Text = "Tu perfil no tiene permiso para consultar esta vista.";
+            SetReportStatus("Tu perfil no tiene permiso para consultar esta vista.", InfoBarSeverity.Error);
             return;
         }
 
-        var startDate = ReportStartDatePicker.Date.Date;
-        var endDate = ReportEndDatePicker.Date.Date;
-        if (startDate > endDate)
+        var selectedPeriod = GetSelectedReportPeriod();
+        if (report.UsesDateRange && selectedPeriod is null)
         {
-            ReportFormStatusText.Text = "La fecha inicial no puede ser posterior a la fecha final.";
+            SetReportStatus(
+                "Selecciona un periodo predefinido o un rango personalizado.",
+                InfoBarSeverity.Warning);
             return;
+        }
+
+        string? selectedSupplier = null;
+        string? selectedMaterial = null;
+        string? selectedMovementType = null;
+        if (report.Id == "inventory-movements")
+        {
+            if (!_reportInventoryFiltersLoaded)
+            {
+                SetReportStatus(
+                    "Espera a que se carguen los filtros de proveedores y materiales.",
+                    InfoBarSeverity.Informational);
+                return;
+            }
+
+            selectedSupplier = GetSelectedReportFilterValue(ReportSupplierFilterComboBox);
+            selectedMaterial = GetSelectedReportFilterValue(ReportMaterialFilterComboBox);
+            selectedMovementType = GetSelectedReportFilterValue(ReportTypeFilterComboBox);
+        }
+
+        var startDate = DateTime.Today;
+        var endDate = DateTime.Today;
+        if (report.UsesDateRange)
+        {
+            (startDate, endDate) = selectedPeriod == "custom"
+                ? (ReportStartDatePicker.Date.Date, ReportEndDatePicker.Date.Date)
+                : GetReportDateRange(selectedPeriod!, DateTime.Today);
+
+            if (startDate > endDate)
+            {
+                SetReportStatus(
+                    "La fecha inicial no puede ser posterior a la fecha final.",
+                    InfoBarSeverity.Warning);
+                return;
+            }
         }
 
         RunReportButton.IsEnabled = false;
         SetReportExportButtonsEnabled(false);
         ReportResultsHost.Children.Clear();
-        ReportFormStatusText.Text = "Consultando BlapaciSQL...";
+        SetReportStatus("Consultando BlapaciSQL...", InfoBarSeverity.Informational);
         try
         {
             _currentReportResult = await _reportCatalogService.ExecuteAsync(
                 report.Id,
                 startDate,
-                endDate.AddDays(1));
+                endDate.AddDays(1),
+                supplier: selectedSupplier,
+                material: selectedMaterial,
+                movementType: selectedMovementType);
+            InitializeReportColumnEditor(_currentReportResult.Columns);
             RenderReportResult(_currentReportResult);
             var rowCount = _currentReportResult.Rows.Count;
-            ReportFormStatusText.Text = _currentReportResult.IsTruncated
-                ? $"Se muestran los primeros {rowCount:N0} registros. Reduce el periodo para consultar más detalle."
-                : $"Consulta completada. Registros: {rowCount:N0}.";
-            SetReportExportButtonsEnabled(rowCount > 0 && CanExportReport(report));
+            var completionMessage = report.Id == "inventory-stock"
+                ? $"Existencias al {DateTime.Now:dd/MM/yyyy HH:mm}. Materiales: {_currentReportResult.Rows.Sum(row => row.Count(value => !string.IsNullOrWhiteSpace(value))):N0}."
+                    + (_currentReportResult.IsTruncated ? " Se alcanzó el límite de filas consultadas." : string.Empty)
+                : _currentReportResult.IsTruncated
+                    ? $"Se muestran los primeros {rowCount:N0} registros. Reduce el periodo para consultar más detalle."
+                    : $"Consulta completada. Registros: {rowCount:N0}.";
+            SetReportStatus(
+                completionMessage,
+                _currentReportResult.IsTruncated ? InfoBarSeverity.Warning : InfoBarSeverity.Success);
+            SetReportExportButtonsEnabled(
+                rowCount > 0 && SelectedReportColumns.Count > 0 && CanExportReport(report));
         }
         catch (SqlException exception)
         {
             _currentReportResult = null;
-            ReportFormStatusText.Text = $"No se pudo generar el reporte (SQL {exception.Number}): {exception.Message}";
+            SetReportStatus(
+                $"No se pudo generar el reporte (SQL {exception.Number}): {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
             _currentReportResult = null;
-            ReportFormStatusText.Text = exception.Message;
+            SetReportStatus(exception.Message, InfoBarSeverity.Error);
         }
         finally
         {
@@ -6388,26 +6695,256 @@ public sealed partial class MainPage : Page
         }
     }
 
+    private void InitializeReportColumnEditor(IReadOnlyList<string> columns)
+    {
+        var existingColumns = SelectedReportColumns
+            .Concat(AvailableReportColumns)
+            .ToHashSet(StringComparer.Ordinal);
+        if (!existingColumns.SetEquals(columns))
+        {
+            AvailableReportColumns.Clear();
+            SelectedReportColumns.Clear();
+            foreach (var column in columns)
+            {
+                SelectedReportColumns.Add(column);
+            }
+        }
+
+        ReportColumnEditorPanel.Visibility = columns.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void AddReportColumn_Click(object sender, RoutedEventArgs e)
+    {
+        if (AvailableReportColumnsListView.SelectedItem is not string column)
+        {
+            return;
+        }
+
+        AvailableReportColumns.Remove(column);
+        SelectedReportColumns.Add(column);
+        SelectedReportColumnsListView.SelectedItem = column;
+        RefreshReportColumnPreview();
+    }
+
+    private void RemoveReportColumn_Click(object sender, RoutedEventArgs e)
+    {
+        if (SelectedReportColumnsListView.SelectedItem is not string column)
+        {
+            return;
+        }
+
+        SelectedReportColumns.Remove(column);
+        AvailableReportColumns.Add(column);
+        AvailableReportColumnsListView.SelectedItem = column;
+        RefreshReportColumnPreview();
+    }
+
+    private void MoveReportColumnUp_Click(object sender, RoutedEventArgs e) =>
+        MoveSelectedReportColumn(-1);
+
+    private void MoveReportColumnDown_Click(object sender, RoutedEventArgs e) =>
+        MoveSelectedReportColumn(1);
+
+    private void MoveSelectedReportColumn(int offset)
+    {
+        if (SelectedReportColumnsListView.SelectedItem is not string column)
+        {
+            return;
+        }
+
+        var currentIndex = SelectedReportColumns.IndexOf(column);
+        var targetIndex = currentIndex + offset;
+        if (currentIndex < 0 || targetIndex < 0 || targetIndex >= SelectedReportColumns.Count)
+        {
+            return;
+        }
+
+        SelectedReportColumns.Move(currentIndex, targetIndex);
+        SelectedReportColumnsListView.SelectedItem = column;
+        RefreshReportColumnPreview();
+    }
+
+    private void RefreshReportColumnPreview()
+    {
+        if (_currentReportResult is not { } result)
+        {
+            return;
+        }
+
+        RenderReportResult(result);
+        var hasColumns = SelectedReportColumns.Count > 0;
+        SetReportExportButtonsEnabled(
+            result.Rows.Count > 0 && hasColumns && CanExportReport(result.Definition));
+        SetReportStatus(
+            hasColumns
+                ? $"Vista previa actualizada. Registros: {result.Rows.Count:N0}. Columnas: {SelectedReportColumns.Count}."
+                : "Selecciona al menos una columna para generar el archivo.",
+            hasColumns ? InfoBarSeverity.Informational : InfoBarSeverity.Warning);
+    }
+
     private void RenderReportResult(ReportCatalogResult result)
     {
         ReportResultsHost.Children.Clear();
-        var columnWidth = result.Columns.Count > 10 ? 145d : 180d;
-        ReportResultsHost.MinWidth = Math.Max(1000, result.Columns.Count * columnWidth);
-        ReportResultsHost.Children.Add(CreateReportResultRow(result.Columns, columnWidth, isHeader: true));
-        foreach (var row in result.Rows)
-        {
-            ReportResultsHost.Children.Add(CreateReportResultRow(row, columnWidth, isHeader: false));
-        }
-
-        if (result.Rows.Count == 0)
+        var selectedResult = CreateSelectedReportResult(result);
+        var isInventoryStock = selectedResult.Definition.Id == "inventory-stock";
+        var columnWidth = isInventoryStock ? 230d : selectedResult.Columns.Count > 10 ? 145d : 180d;
+        ReportResultsHost.MinWidth = Math.Max(1000, selectedResult.Columns.Count * columnWidth);
+        if (selectedResult.Columns.Count == 0)
         {
             ReportResultsHost.Children.Add(new TextBlock
             {
-                Text = "No se encontraron registros en el periodo seleccionado.",
+                Text = "Agrega al menos una columna para mostrar la vista previa.",
+                Margin = new Thickness(12),
+                Foreground = _themeBrushes.GetBrush("#A9B8CC")
+            });
+            return;
+        }
+
+        if (isInventoryStock)
+        {
+            ReportResultsHost.Children.Add(CreateInventoryStockReportRow(
+                selectedResult.Columns,
+                columnWidth,
+                isHeader: true));
+            foreach (var row in selectedResult.Rows)
+            {
+                ReportResultsHost.Children.Add(CreateInventoryStockReportRow(row, columnWidth, isHeader: false));
+            }
+        }
+        else
+        {
+            ReportResultsHost.Children.Add(CreateReportResultRow(selectedResult.Columns, columnWidth, isHeader: true));
+            foreach (var row in selectedResult.Rows)
+            {
+                ReportResultsHost.Children.Add(CreateReportResultRow(row, columnWidth, isHeader: false));
+            }
+        }
+
+        if (selectedResult.Rows.Count == 0)
+        {
+            ReportResultsHost.Children.Add(new TextBlock
+            {
+                Text = isInventoryStock
+                    ? "No se encontraron materiales en los catálogos de existencias."
+                    : "No se encontraron registros en el periodo seleccionado.",
                 Margin = new Thickness(12),
                 Foreground = _themeBrushes.GetBrush("#A9B8CC")
             });
         }
+    }
+
+    private Grid CreateInventoryStockReportRow(
+        IReadOnlyList<string> values,
+        double columnWidth,
+        bool isHeader)
+    {
+        var row = new Grid
+        {
+            Background = _themeBrushes.GetBrush(isHeader ? "#263B5A" : "#1E2D43"),
+            MinHeight = isHeader ? 52 : 32,
+            ColumnSpacing = 1
+        };
+        for (var index = 0; index < values.Count; index++)
+        {
+            row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(columnWidth) });
+            FrameworkElement content;
+            string tooltip;
+            if (isHeader)
+            {
+                var heading = new StackPanel { Spacing = 4 };
+                heading.Children.Add(new TextBlock
+                {
+                    Text = values[index],
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    Foreground = _themeBrushes.GetBrush("#F1F5F9"),
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+                });
+                var labels = new Grid { ColumnSpacing = 8 };
+                labels.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.2, GridUnitType.Star) });
+                labels.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                labels.Children.Add(new TextBlock
+                {
+                    Text = "Material",
+                    Foreground = _themeBrushes.GetBrush("#C7D2E0"),
+                    FontSize = 11
+                });
+                var quantityLabel = new TextBlock
+                {
+                    Text = "Existencia",
+                    Foreground = _themeBrushes.GetBrush("#C7D2E0"),
+                    FontSize = 11,
+                    TextAlignment = TextAlignment.Right
+                };
+                Grid.SetColumn(quantityLabel, 1);
+                labels.Children.Add(quantityLabel);
+                heading.Children.Add(labels);
+                content = heading;
+                tooltip = values[index];
+            }
+            else
+            {
+                var separatorIndex = values[index].IndexOf('\t');
+                var material = separatorIndex < 0 ? values[index] : values[index][..separatorIndex];
+                var quantity = separatorIndex < 0 ? string.Empty : values[index][(separatorIndex + 1)..];
+                var entry = new Grid { ColumnSpacing = 8 };
+                entry.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2.2, GridUnitType.Star) });
+                entry.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                entry.Children.Add(new TextBlock
+                {
+                    Text = material,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = _themeBrushes.GetBrush("#E6EDF7")
+                });
+                var quantityText = new TextBlock
+                {
+                    Text = quantity,
+                    TextTrimming = TextTrimming.CharacterEllipsis,
+                    TextAlignment = TextAlignment.Right,
+                    VerticalAlignment = VerticalAlignment.Center,
+                    Foreground = _themeBrushes.GetBrush("#E6EDF7")
+                };
+                Grid.SetColumn(quantityText, 1);
+                entry.Children.Add(quantityText);
+                content = entry;
+                tooltip = string.IsNullOrEmpty(quantity) ? material : $"{material} | {quantity}";
+            }
+
+            var cell = new Border
+            {
+                Padding = new Thickness(8, 4, 8, 4),
+                BorderBrush = _themeBrushes.GetBrush("#40516A"),
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                Child = content
+            };
+            ToolTipService.SetToolTip(cell, tooltip);
+            Grid.SetColumn(cell, index);
+            row.Children.Add(cell);
+        }
+
+        return row;
+    }
+
+    private ReportCatalogResult CreateSelectedReportResult(ReportCatalogResult result)
+    {
+        var columnIndexes = result.Columns
+            .Select((column, index) => (column, index))
+            .ToDictionary(item => item.column, item => item.index, StringComparer.Ordinal);
+        var selectedIndexes = new int[SelectedReportColumns.Count];
+        for (var index = 0; index < SelectedReportColumns.Count; index++)
+        {
+            if (!columnIndexes.TryGetValue(SelectedReportColumns[index], out selectedIndexes[index]))
+            {
+                throw new InvalidOperationException(
+                    $"La columna «{SelectedReportColumns[index]}» ya no está disponible en este reporte.");
+            }
+        }
+
+        var columns = SelectedReportColumns.ToArray();
+        var rows = result.Rows
+            .Select(row => (IReadOnlyList<string>)selectedIndexes.Select(index => row[index]).ToArray())
+            .ToArray();
+        return new ReportCatalogResult(result.Definition, columns, rows, result.IsTruncated);
     }
 
     private Grid CreateReportResultRow(IReadOnlyList<string> values, double columnWidth, bool isHeader)
@@ -6446,28 +6983,35 @@ public sealed partial class MainPage : Page
     private async void ExportReport_Click(object sender, RoutedEventArgs e)
     {
         if (sender is not FrameworkElement { Tag: string format }
-            || format is not ("csv" or "xlsx" or "pdf"))
+            || format is not ("xlsx" or "pdf"))
         {
-            ReportFormStatusText.Text = "El formato de exportación seleccionado no es válido.";
+            SetReportStatus("El formato de exportación seleccionado no es válido.", InfoBarSeverity.Error);
             return;
         }
 
-        if (_currentReportResult is not { Rows.Count: > 0 } result)
+        if (_currentReportResult is not { Rows.Count: > 0 } reportResult)
         {
-            ReportFormStatusText.Text = "Genera un reporte con resultados antes de exportar.";
+            SetReportStatus("Genera un reporte con resultados antes de exportar.", InfoBarSeverity.Warning);
             return;
         }
 
+        if (SelectedReportColumns.Count == 0)
+        {
+            SetReportStatus("Selecciona al menos una columna antes de exportar.", InfoBarSeverity.Warning);
+            return;
+        }
+
+        var result = CreateSelectedReportResult(reportResult);
         if (!await RefreshCurrentUserPermissionsAsync() || !CanExportReport(result.Definition))
         {
             SetReportExportButtonsEnabled(false);
-            ReportFormStatusText.Text = "Tu perfil no tiene permiso para exportar esta vista.";
+            SetReportStatus("Tu perfil no tiene permiso para exportar esta vista.", InfoBarSeverity.Error);
             return;
         }
 
         if (Application.Current is not App { MainWindow: { } window })
         {
-            ReportFormStatusText.Text = "No se pudo abrir el selector de archivos.";
+            SetReportStatus("No se pudo abrir el selector de archivos.", InfoBarSeverity.Error);
             return;
         }
 
@@ -6476,7 +7020,6 @@ public sealed partial class MainPage : Page
             var picker = new FileSavePicker();
             var (fileTypeName, extension, formatName) = format switch
             {
-                "csv" => ("Archivo CSV", ".csv", "CSV"),
                 "xlsx" => ("Libro de Excel", ".xlsx", "Excel"),
                 "pdf" => ("Documento PDF", ".pdf", "PDF"),
                 _ => throw new InvalidOperationException("El formato de exportación seleccionado no es válido.")
@@ -6492,33 +7035,44 @@ public sealed partial class MainPage : Page
 
             var contents = format switch
             {
-                "csv" => _reportExportService.BuildCsv(result),
                 "xlsx" => _reportExportService.BuildExcel(result),
                 "pdf" => _reportExportService.BuildPdf(result),
                 _ => throw new InvalidOperationException("El formato de exportación seleccionado no es válido.")
             };
             await File.WriteAllBytesAsync(file.Path, contents);
-            ReportFormStatusText.Text = $"Reporte exportado como {formatName}: {file.Path}";
+            SetReportStatus(
+                $"Reporte exportado como {formatName}: {file.Path}",
+                InfoBarSeverity.Success);
         }
         catch (COMException exception)
         {
-            ReportFormStatusText.Text = $"No se pudo abrir el selector de archivos: {exception.Message}";
+            SetReportStatus(
+                $"No se pudo abrir el selector de archivos: {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (IOException exception)
         {
-            ReportFormStatusText.Text = $"No se pudo escribir el archivo de reporte: {exception.Message}";
+            SetReportStatus(
+                $"No se pudo escribir el archivo de reporte: {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (UnauthorizedAccessException exception)
         {
-            ReportFormStatusText.Text = $"No hay permisos para guardar el archivo de reporte: {exception.Message}";
+            SetReportStatus(
+                $"No hay permisos para guardar el archivo de reporte: {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (InvalidOperationException exception)
         {
-            ReportFormStatusText.Text = $"No se pudo generar el archivo de reporte: {exception.Message}";
+            SetReportStatus(
+                $"No se pudo generar el archivo de reporte: {exception.Message}",
+                InfoBarSeverity.Error);
         }
         catch (ArgumentException exception)
         {
-            ReportFormStatusText.Text = $"Los datos del reporte no son válidos para exportar: {exception.Message}";
+            SetReportStatus(
+                $"Los datos del reporte no son válidos para exportar: {exception.Message}",
+                InfoBarSeverity.Error);
         }
     }
 

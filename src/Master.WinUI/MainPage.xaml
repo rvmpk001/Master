@@ -706,42 +706,106 @@
             <Border MaxWidth="1600" MaxHeight="1000" Margin="20" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                 <Grid>
                     <Grid.RowDefinitions>
-                        <RowDefinition Height="40" />
+                        <RowDefinition Height="36" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
-                    <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,2">
+                    <Grid Grid.Row="0" Background="{ThemeResource Palette0078D4}" CornerRadius="7,7,0,0" Padding="12,1">
                         <TextBlock Text="Centro de reportes" Foreground="{ThemeResource PaletteF1F5F9}" FontSize="15" VerticalAlignment="Center" />
-                        <Button Content="×" Click="CloseReportForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="30" Height="28" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="20" ToolTipService.ToolTip="Cerrar reportes" />
+                        <Button Content="×" Click="CloseReportForm_Click" HorizontalAlignment="Right" VerticalAlignment="Center" Width="22" Height="22" Padding="0" Background="Transparent" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" FontSize="16" ToolTipService.ToolTip="Cerrar reportes" />
                     </Grid>
                     <Grid Grid.Row="1" Padding="16" ColumnSpacing="12" RowSpacing="8" Background="{ThemeResource Palette172337}">
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="2*" />
                             <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+                        <TextBlock Grid.Row="0" Text="Vista segura" Foreground="{ThemeResource PaletteE6EDF7}" />
+                        <TextBlock x:Name="ReportPeriodFilterLabel" Grid.Row="0" Grid.Column="1" Text="Periodo predefinido" Foreground="{ThemeResource PaletteE6EDF7}" />
+                        <TextBlock x:Name="ReportSupplierFilterLabel" Grid.Row="0" Grid.Column="2" Text="Proveedor" Foreground="{ThemeResource PaletteE6EDF7}" Visibility="Collapsed" />
+                        <TextBlock x:Name="ReportMaterialFilterLabel" Grid.Row="0" Grid.Column="3" Text="Material" Foreground="{ThemeResource PaletteE6EDF7}" Visibility="Collapsed" />
+                        <TextBlock x:Name="ReportTypeFilterLabel" Grid.Row="0" Grid.Column="4" Text="Tipo" Foreground="{ThemeResource PaletteE6EDF7}" Visibility="Collapsed" />
+                        <ComboBox x:Name="ReportDatasetComboBox" Grid.Row="1" ItemsSource="{x:Bind ReportCatalogItems}" DisplayMemberPath="Name" SelectionChanged="ReportDatasetComboBox_SelectionChanged" />
+                        <ComboBox x:Name="ReportPeriodComboBox" Grid.Row="1" Grid.Column="1" SelectionChanged="ReportPeriodComboBox_SelectionChanged">
+                            <ComboBoxItem Content="Personalizado" Tag="custom" />
+                            <ComboBoxItem Content="Día actual" Tag="today" />
+                            <ComboBoxItem Content="Día anterior" Tag="yesterday" />
+                            <ComboBoxItem Content="Últimos 7 días" Tag="last-seven-days" />
+                            <ComboBoxItem Content="Mes actual" Tag="current-month" />
+                            <ComboBoxItem Content="Mes anterior" Tag="previous-month" />
+                            <ComboBoxItem Content="Año actual" Tag="current-year" />
+                        </ComboBox>
+                        <ComboBox x:Name="ReportSupplierFilterComboBox" Grid.Row="1" Grid.Column="2" IsEnabled="False" Visibility="Collapsed" SelectionChanged="ReportInventoryFilterComboBox_SelectionChanged" />
+                        <ComboBox x:Name="ReportMaterialFilterComboBox" Grid.Row="1" Grid.Column="3" IsEnabled="False" Visibility="Collapsed" SelectionChanged="ReportInventoryFilterComboBox_SelectionChanged" />
+                        <ComboBox x:Name="ReportTypeFilterComboBox" Grid.Row="1" Grid.Column="4" IsEnabled="False" Visibility="Collapsed" SelectionChanged="ReportInventoryFilterComboBox_SelectionChanged">
+                            <ComboBoxItem Content="Todos" Tag="" />
+                            <ComboBoxItem Content="E (Entrada)" Tag="E" />
+                            <ComboBoxItem Content="S (Salida)" Tag="S" />
+                        </ComboBox>
+                        <Grid x:Name="ReportCustomDateRangePanel" Grid.Row="2" Grid.ColumnSpan="5" ColumnSpacing="12" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid Grid.Column="0" ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Fecha inicial" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                <DatePicker x:Name="ReportStartDatePicker" Grid.Column="1" MinWidth="205" HorizontalAlignment="Stretch" DateChanged="ReportDatePicker_DateChanged" />
+                            </Grid>
+                            <Grid Grid.Column="1" ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Text="Fecha final" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                <DatePicker x:Name="ReportEndDatePicker" Grid.Column="1" MinWidth="205" HorizontalAlignment="Stretch" DateChanged="ReportDatePicker_DateChanged" />
+                            </Grid>
+                        </Grid>
+                        <StackPanel Grid.Row="3" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+                            <Button x:Name="RunReportButton" Content="Generar" Click="RunReport_Click" Width="120" Style="{StaticResource DefaultButtonStyle}" />
+                            <Button x:Name="ExportExcelReportButton" Content="Excel" Tag="xlsx" Click="ExportReport_Click" Width="120" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" ToolTipService.ToolTip="Exportar como libro de Excel" />
+                            <Button x:Name="ExportPdfReportButton" Content="PDF" Tag="pdf" Click="ExportReport_Click" Width="120" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" ToolTipService.ToolTip="Exportar como documento PDF" />
+                        </StackPanel>
+                    </Grid>
+                    <InfoBar x:Name="ReportFormStatusInfoBar" Grid.Row="2" Margin="12,0,12,8" IsOpen="False" IsClosable="True" />
+                    <Grid x:Name="ReportColumnEditorPanel" Grid.Row="3" Margin="12,0,12,8" Padding="12" ColumnSpacing="10" RowSpacing="6" Background="{ThemeResource Palette172337}" Visibility="Collapsed">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="1*" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="1.4*" />
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
-                        <TextBlock Grid.Row="0" Text="Vista segura" Foreground="{ThemeResource PaletteE6EDF7}" />
-                        <TextBlock Grid.Row="0" Grid.Column="1" Text="Fecha inicial" Foreground="{ThemeResource PaletteE6EDF7}" />
-                        <TextBlock Grid.Row="0" Grid.Column="2" Text="Fecha final" Foreground="{ThemeResource PaletteE6EDF7}" />
-                        <ComboBox x:Name="ReportDatasetComboBox" Grid.Row="1" ItemsSource="{x:Bind ReportCatalogItems}" DisplayMemberPath="Name" SelectionChanged="ReportDatasetComboBox_SelectionChanged" />
-                        <DatePicker x:Name="ReportStartDatePicker" Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" />
-                        <DatePicker x:Name="ReportEndDatePicker" Grid.Row="1" Grid.Column="2" HorizontalAlignment="Stretch" />
-                        <Button x:Name="RunReportButton" Grid.Row="1" Grid.Column="3" Content="Generar" Click="RunReport_Click" Style="{StaticResource DefaultButtonStyle}" />
-                        <Button x:Name="ExportCsvReportButton" Grid.Row="1" Grid.Column="4" Content="CSV" Tag="csv" Click="ExportReport_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" ToolTipService.ToolTip="Exportar como archivo CSV" />
-                        <Button x:Name="ExportExcelReportButton" Grid.Row="1" Grid.Column="5" Content="Excel" Tag="xlsx" Click="ExportReport_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" ToolTipService.ToolTip="Exportar como libro de Excel" />
-                        <Button x:Name="ExportPdfReportButton" Grid.Row="1" Grid.Column="6" Content="PDF" Tag="pdf" Click="ExportReport_Click" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" ToolTipService.ToolTip="Exportar como documento PDF" />
+                        <TextBlock Text="Columnas disponibles" Foreground="{ThemeResource PaletteE6EDF7}" />
+                        <TextBlock Grid.Column="2" Text="Columnas del reporte (orden del archivo)" Foreground="{ThemeResource PaletteE6EDF7}" />
+                        <ListView x:Name="AvailableReportColumnsListView" Grid.Row="1" ItemsSource="{x:Bind AvailableReportColumns}" SelectionMode="Single" MaxHeight="108" MinHeight="52" Background="{ThemeResource Palette101B2D}" />
+                        <StackPanel Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" Spacing="6">
+                            <Button Content="Agregar →" Click="AddReportColumn_Click" Width="100" Height="32" Style="{StaticResource DefaultButtonStyle}" />
+                            <Button Content="Quitar ←" Click="RemoveReportColumn_Click" Width="100" Height="32" Style="{StaticResource DefaultButtonStyle}" />
+                        </StackPanel>
+                        <ListView x:Name="SelectedReportColumnsListView" Grid.Row="1" Grid.Column="2" ItemsSource="{x:Bind SelectedReportColumns}" SelectionMode="Single" MaxHeight="108" MinHeight="52" Background="{ThemeResource Palette101B2D}" />
+                        <StackPanel Grid.Row="1" Grid.Column="3" VerticalAlignment="Center" Spacing="6">
+                            <Button Content="Subir" Click="MoveReportColumnUp_Click" Style="{StaticResource DefaultButtonStyle}" />
+                            <Button Content="Bajar" Click="MoveReportColumnDown_Click" Style="{StaticResource DefaultButtonStyle}" />
+                        </StackPanel>
                     </Grid>
-                    <TextBlock x:Name="ReportFormStatusText" Grid.Row="2" Padding="16,8" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
-                    <Border Grid.Row="3" Margin="12,0,12,12" Background="{ThemeResource Palette101B2D}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1">
+                    <Border Grid.Row="4" Margin="12,0,12,12" Background="{ThemeResource Palette101B2D}" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1">
                         <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
                             <StackPanel x:Name="ReportResultsHost" MinWidth="1000" Spacing="1" />
                         </ScrollViewer>
