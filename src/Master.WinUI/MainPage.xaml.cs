@@ -6364,11 +6364,6 @@ public sealed partial class MainPage : Page
         }
 
         InvalidateCurrentReportResult(resetColumnSelection: true);
-        if (report.Id == "production-real")
-        {
-            SetProductionRealDateRangeToToday();
-        }
-
         UpdateReportFilterLayout();
         SetReportStatus(report.Description, InfoBarSeverity.Informational);
         ReportRemissionNumberTextBox.IsEnabled = report.Id == "remissions";
@@ -6477,16 +6472,13 @@ public sealed partial class MainPage : Page
         var isInventoryReport = selectedReport?.Id == "inventory-movements";
         var isOrderReport = selectedReport?.Id == "orders";
         var isProductionReport = IsProductionReportId(selectedReport?.Id);
-        var isProductionRealReport = selectedReport?.Id == "production-real";
         var isRemissionReport = selectedReport?.Id == "remissions";
         var usesDateRange = selectedReport?.UsesDateRange == true;
         var showInventoryFilters = isInventoryReport;
-        var showCustomDateRange = usesDateRange
-            && !isProductionRealReport
-            && GetSelectedReportPeriod() == "custom";
+        var showCustomDateRange = usesDateRange && GetSelectedReportPeriod() == "custom";
 
-        ReportPeriodFilterLabel.Visibility = usesDateRange && !isProductionRealReport ? Visibility.Visible : Visibility.Collapsed;
-        ReportPeriodComboBox.Visibility = usesDateRange && !isProductionRealReport ? Visibility.Visible : Visibility.Collapsed;
+        ReportPeriodFilterLabel.Visibility = usesDateRange ? Visibility.Visible : Visibility.Collapsed;
+        ReportPeriodComboBox.Visibility = usesDateRange ? Visibility.Visible : Visibility.Collapsed;
         ReportSupplierFilterLabel.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
         ReportMaterialFilterLabel.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
         ReportTypeFilterLabel.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
@@ -6495,7 +6487,6 @@ public sealed partial class MainPage : Page
         ReportTypeFilterComboBox.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
         ReportOrderFiltersPanel.Visibility = isOrderReport ? Visibility.Visible : Visibility.Collapsed;
         ReportProductionFiltersPanel.Visibility = isProductionReport ? Visibility.Visible : Visibility.Collapsed;
-        ReportProductionRealDateFiltersPanel.Visibility = isProductionRealReport ? Visibility.Visible : Visibility.Collapsed;
         ReportRemissionFilterLabel.Visibility = isRemissionReport ? Visibility.Visible : Visibility.Collapsed;
         ReportRemissionNumberTextBox.Visibility = isRemissionReport ? Visibility.Visible : Visibility.Collapsed;
         ReportCustomDateRangePanel.Visibility = showCustomDateRange ? Visibility.Visible : Visibility.Collapsed;
@@ -6538,11 +6529,7 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        if (ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition { Id: "production-real" })
-        {
-            ReportPeriodComboBox.SelectedIndex = 0;
-        }
-
+        ReportPeriodComboBox.SelectedIndex = 0;
         InvalidateCurrentReportResult();
         SetReportStatus(
             "Rango de fechas actualizado. Presiona Generar para consultar los resultados.",
@@ -6914,21 +6901,6 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private void SetProductionRealDateRangeToToday()
-    {
-        var today = new DateTimeOffset(DateTime.Today);
-        _isApplyingReportPeriodSelection = true;
-        try
-        {
-            ReportProductionRealStartDatePicker.Date = today;
-            ReportProductionRealEndDatePicker.Date = today;
-        }
-        finally
-        {
-            _isApplyingReportPeriodSelection = false;
-        }
-    }
-
     private static (DateTime StartDate, DateTime EndDate) GetReportDateRange(string period, DateTime today) =>
         period switch
         {
@@ -6997,7 +6969,7 @@ public sealed partial class MainPage : Page
         }
 
         var selectedPeriod = GetSelectedReportPeriod();
-        if (report.UsesDateRange && report.Id != "production-real" && selectedPeriod is null)
+        if (report.UsesDateRange && selectedPeriod is null)
         {
             SetReportStatus(
                 "Selecciona un periodo predefinido o un rango personalizado.",
@@ -7113,11 +7085,9 @@ public sealed partial class MainPage : Page
         var endDate = DateTime.Today;
         if (report.UsesDateRange)
         {
-            (startDate, endDate) = report.Id == "production-real"
-                ? (ReportProductionRealStartDatePicker.Date.Date, ReportProductionRealEndDatePicker.Date.Date)
-                : selectedPeriod == "custom"
-                    ? (ReportStartDatePicker.Date.Date, ReportEndDatePicker.Date.Date)
-                    : GetReportDateRange(selectedPeriod!, DateTime.Today);
+            (startDate, endDate) = selectedPeriod == "custom"
+                ? (ReportStartDatePicker.Date.Date, ReportEndDatePicker.Date.Date)
+                : GetReportDateRange(selectedPeriod!, DateTime.Today);
 
             if (startDate > endDate)
             {
@@ -7346,15 +7316,13 @@ public sealed partial class MainPage : Page
             ReportResultsHost.Children.Add(CreateReportResultRow(
                 selectedResult.Columns,
                 columnWidths,
-                isHeader: true,
-                isProductionReport: isProductionReport));
+                isHeader: true));
             foreach (var row in selectedResult.Rows)
             {
                 ReportResultsHost.Children.Add(CreateReportResultRow(
                     row,
                     columnWidths,
-                    isHeader: false,
-                    isProductionReport: isProductionReport));
+                    isHeader: false));
             }
         }
 
@@ -7391,7 +7359,7 @@ public sealed partial class MainPage : Page
         var lineCount = Math.Max(1, entriesByColumn.Select(entries => entries.Count).DefaultIfEmpty(1).Max());
         var row = new Grid
         {
-            Background = _themeBrushes.GetBrush(isHeader ? "#263B5A" : "#1E2D43"),
+            Background = _themeBrushes.GetBrush(isHeader ? "#F4773B" : "#1E2D43"),
             MinHeight = isHeader ? 56 : Math.Max(32, lineCount * 20 + 8),
             ColumnSpacing = 1
         };
@@ -7510,7 +7478,7 @@ public sealed partial class MainPage : Page
     {
         var row = new Grid
         {
-            Background = _themeBrushes.GetBrush(isHeader ? "#263B5A" : "#1E2D43"),
+            Background = _themeBrushes.GetBrush(isHeader ? "#F4773B" : "#1E2D43"),
             MinHeight = isHeader ? 52 : 32,
             ColumnSpacing = 1
         };
@@ -7624,13 +7592,11 @@ public sealed partial class MainPage : Page
     private Grid CreateReportResultRow(
         IReadOnlyList<string> values,
         IReadOnlyList<double> columnWidths,
-        bool isHeader,
-        bool isProductionReport = false)
+        bool isHeader)
     {
         var row = new Grid
         {
-            Background = _themeBrushes.GetBrush(
-                isHeader && isProductionReport ? "#F4773B" : isHeader ? "#263B5A" : "#1E2D43"),
+            Background = _themeBrushes.GetBrush(isHeader ? "#F4773B" : "#1E2D43"),
             MinHeight = isHeader ? 48 : 32,
             ColumnSpacing = 1
         };

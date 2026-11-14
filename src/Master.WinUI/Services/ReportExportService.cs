@@ -6,6 +6,8 @@ namespace Master_WinUI.Services;
 
 public sealed class ReportExportService
 {
+    private const string ReportHeaderColor = "#F4773B";
+    private const string ReportHeaderPdfColor = "0.96 0.43 0.22";
     private const int PdfColumnsPerPage = 8;
     private const double PdfMargin = 32;
     private const double PdfHeaderHeight = 28;
@@ -69,7 +71,7 @@ public sealed class ReportExportService
         var header = worksheet.Range(headerRow, 1, headerRow, columnCount);
         header.Style.Font.Bold = true;
         header.Style.Font.FontColor = XLColor.White;
-        header.Style.Fill.BackgroundColor = XLColor.FromHtml("#263B5A");
+        header.Style.Fill.BackgroundColor = XLColor.FromHtml(ReportHeaderColor);
         header.Style.Alignment.WrapText = true;
         worksheet.SheetView.FreezeRows(headerRow);
 
@@ -165,7 +167,7 @@ public sealed class ReportExportService
             groupHeader.FirstCell().Value = result.Columns[group];
             groupHeader.Style.Font.Bold = true;
             groupHeader.Style.Font.FontColor = XLColor.White;
-            groupHeader.Style.Fill.BackgroundColor = XLColor.FromHtml("#263B5A");
+            groupHeader.Style.Fill.BackgroundColor = XLColor.FromHtml(ReportHeaderColor);
             groupHeader.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
             worksheet.Cell(fieldHeaderRow, firstColumn).Value = "Material";
             worksheet.Cell(fieldHeaderRow, firstColumn + 1).Value = "Existencia";
@@ -188,7 +190,7 @@ public sealed class ReportExportService
         var fieldHeader = worksheet.Range(fieldHeaderRow, 1, fieldHeaderRow, columnCount);
         fieldHeader.Style.Font.Bold = true;
         fieldHeader.Style.Font.FontColor = XLColor.White;
-        fieldHeader.Style.Fill.BackgroundColor = XLColor.FromHtml("#40516A");
+        fieldHeader.Style.Fill.BackgroundColor = XLColor.FromHtml(ReportHeaderColor);
         worksheet.SheetView.FreezeRows(fieldHeaderRow);
         for (var group = 0; group < result.Columns.Count; group++)
         {
@@ -278,7 +280,7 @@ public sealed class ReportExportService
         var headerRange = worksheet.Range(groupHeaderRow, 1, fieldHeaderRow, columnCount);
         headerRange.Style.Font.Bold = true;
         headerRange.Style.Font.FontColor = XLColor.White;
-        headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#263B5A");
+        headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml(ReportHeaderColor);
         headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         headerRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
         var dataRange = worksheet.Range(fieldHeaderRow, 1, lastDataRow, columnCount);
@@ -306,7 +308,7 @@ public sealed class ReportExportService
         worksheet.Cell(titleRow, 1).Value = "REPORTE DE CARGAS";
         worksheet.Cell(titleRow, 1).Style.Font.Bold = true;
         worksheet.Cell(titleRow, 1).Style.Font.FontSize = 18;
-        worksheet.Cell(titleRow, 1).Style.Font.FontColor = XLColor.FromHtml("#F4773B");
+        worksheet.Cell(titleRow, 1).Style.Font.FontColor = XLColor.FromHtml(ReportHeaderColor);
         worksheet.Cell(generatedRow, 1).Value = $"Fecha: {DateTime.Now:dd 'de' MMMM 'de' yyyy}";
 
         for (var column = 0; column < columnCount; column++)
@@ -333,7 +335,7 @@ public sealed class ReportExportService
         var headerRange = worksheet.Range(headerRow, 1, headerRow, columnCount);
         headerRange.Style.Font.Bold = true;
         headerRange.Style.Font.FontColor = XLColor.White;
-        headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml("#F4773B");
+        headerRange.Style.Fill.BackgroundColor = XLColor.FromHtml(ReportHeaderColor);
         headerRange.Style.Alignment.Horizontal = XLAlignmentHorizontalValues.Center;
         headerRange.Style.Alignment.Vertical = XLAlignmentVerticalValues.Center;
         var tableRange = worksheet.Range(headerRow, 1, lastDataRow, columnCount);
@@ -395,7 +397,7 @@ public sealed class ReportExportService
             {
                 var width = columnWidths[column];
                 var y = PdfA3LandscapeHeight - tableTop - headerHeight;
-                AppendPdfRectangle(content, x, y, width, headerHeight, "0.96 0.43 0.22");
+                AppendPdfRectangle(content, x, y, width, headerHeight, ReportHeaderPdfColor);
                 AppendPdfCellBorder(content, x, y, width, headerHeight);
                 AppendPdfText(content, result.Columns[column], x + 3, tableTop + 9, 6.5, bold: true, width - 6, white: true);
                 x += width;
@@ -495,7 +497,7 @@ public sealed class ReportExportService
             {
                 var width = columnWidths[columnIndex];
                 var y = PdfA3LandscapeHeight - tableTop - headerHeight;
-                AppendPdfRectangle(content, x, y, width, headerHeight, "0.15 0.23 0.35");
+                AppendPdfRectangle(content, x, y, width, headerHeight, ReportHeaderPdfColor);
                 AppendPdfCellBorder(content, x, y, width, headerHeight);
                 if (FormulaReportLayout.TryGetCategory(result.Columns[columnIndex], out var category))
                 {
@@ -728,7 +730,7 @@ public sealed class ReportExportService
         for (var columnIndex = 0; columnIndex < columnGroup.Count; columnIndex++)
         {
             var x = PdfMargin + columnIndex * columnWidth;
-            AppendPdfRectangle(content, x, PdfA3LandscapeHeight - tableTop - PdfHeaderHeight, columnWidth, PdfHeaderHeight, "0.15 0.23 0.35");
+            AppendPdfRectangle(content, x, PdfA3LandscapeHeight - tableTop - PdfHeaderHeight, columnWidth, PdfHeaderHeight, ReportHeaderPdfColor);
             AppendPdfText(content, result.Columns[columnGroup[columnIndex]], x + 4, tableTop + 7, 8, bold: true, columnWidth - 8, white: true);
         }
 
