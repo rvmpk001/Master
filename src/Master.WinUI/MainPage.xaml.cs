@@ -169,6 +169,8 @@ public sealed partial class MainPage : Page
     private bool _isApplyingReportPeriodSelection;
     private bool _isLoadingReportInventoryFilters;
     private bool _reportInventoryFiltersLoaded;
+    private bool _isLoadingReportOrderFilters;
+    private bool _reportOrderFiltersLoaded;
     private int _reportInventoryFilterLoadVersion;
     private SimulatedRemission? _simulatedRemission;
     private string[]? _remissionBeforeSimulation;
@@ -6333,9 +6335,11 @@ public sealed partial class MainPage : Page
     {
         var loadVersion = ++_reportInventoryFilterLoadVersion;
         _reportInventoryFiltersLoaded = false;
+        _reportOrderFiltersLoaded = false;
         ReportSupplierFilterComboBox.IsEnabled = false;
         ReportMaterialFilterComboBox.IsEnabled = false;
         ReportTypeFilterComboBox.IsEnabled = false;
+        SetOrderReportFilterControlsEnabled(false);
 
         if (ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition report)
         {
@@ -6346,6 +6350,12 @@ public sealed partial class MainPage : Page
         InvalidateCurrentReportResult(resetColumnSelection: true);
         UpdateReportFilterLayout();
         SetReportStatus(report.Description, InfoBarSeverity.Informational);
+        if (report.Id == "orders")
+        {
+            await LoadOrderReportFiltersAsync(loadVersion);
+            return;
+        }
+
         if (report.Id != "inventory-movements")
         {
             RunReportButton.IsEnabled = true;
@@ -6437,6 +6447,7 @@ public sealed partial class MainPage : Page
     {
         var selectedReport = ReportDatasetComboBox.SelectedItem as ReportCatalogDefinition;
         var isInventoryReport = selectedReport?.Id == "inventory-movements";
+        var isOrderReport = selectedReport?.Id == "orders";
         var usesDateRange = selectedReport?.UsesDateRange == true;
         var showInventoryFilters = isInventoryReport;
         var showCustomDateRange = usesDateRange && GetSelectedReportPeriod() == "custom";
@@ -6449,6 +6460,7 @@ public sealed partial class MainPage : Page
         ReportSupplierFilterComboBox.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
         ReportMaterialFilterComboBox.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
         ReportTypeFilterComboBox.Visibility = showInventoryFilters ? Visibility.Visible : Visibility.Collapsed;
+        ReportOrderFiltersPanel.Visibility = isOrderReport ? Visibility.Visible : Visibility.Collapsed;
         ReportCustomDateRangePanel.Visibility = showCustomDateRange ? Visibility.Visible : Visibility.Collapsed;
     }
 
@@ -6534,6 +6546,147 @@ public sealed partial class MainPage : Page
             InfoBarSeverity.Informational);
     }
 
+    private async Task LoadOrderReportFiltersAsync(int loadVersion)
+    {
+        RunReportButton.IsEnabled = false;
+        ResetReportOrderFilterOptions();
+        SetReportStatus("Cargando opciones de filtros de pedidos...", InfoBarSeverity.Informational);
+        try
+        {
+            var options = await _reportCatalogService.GetOrderReportFilterOptionsAsync();
+            if (loadVersion != _reportInventoryFilterLoadVersion
+                || ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition { Id: "orders" })
+            {
+                return;
+            }
+
+            _isLoadingReportOrderFilters = true;
+            try
+            {
+                AddOrderReportFilterOptions(ReportOrderTypeComboBox, options, "Tipo");
+                AddOrderReportFilterOptions(ReportOrderFormulaComboBox, options, "Formula");
+                AddOrderReportFilterOptions(ReportOrderClientComboBox, options, "Cliente");
+                AddOrderReportFilterOptions(ReportOrderUseComboBox, options, "Uso");
+                AddOrderReportFilterOptions(ReportOrderProductComboBox, options, "Producto");
+                AddOrderReportFilterOptions(ReportOrderConstructionComboBox, options, "Obra");
+                ReportOrderNumberTextBox.Text = string.Empty;
+                _reportOrderFiltersLoaded = true;
+            }
+            finally
+            {
+                _isLoadingReportOrderFilters = false;
+            }
+
+            SetReportStatus("Filtros de pedidos listos. Selecciona los criterios que quieras aplicar.", InfoBarSeverity.Informational);
+        }
+        catch (SqlException exception)
+        {
+            if (loadVersion == _reportInventoryFilterLoadVersion)
+            {
+                SetReportStatus(
+                    $"No se pudieron cargar los filtros de pedidos (SQL {exception.Number}): {exception.Message}",
+                    InfoBarSeverity.Error);
+            }
+        }
+        catch (InvalidOperationException exception)
+        {
+            if (loadVersion == _reportInventoryFilterLoadVersion)
+            {
+                SetReportStatus($"No se pudieron cargar los filtros de pedidos: {exception.Message}", InfoBarSeverity.Error);
+            }
+        }
+        finally
+        {
+            if (loadVersion == _reportInventoryFilterLoadVersion)
+            {
+                RunReportButton.IsEnabled = _reportOrderFiltersLoaded;
+                SetOrderReportFilterControlsEnabled(_reportOrderFiltersLoaded);
+            }
+        }
+    }
+
+    private void ResetReportOrderFilterOptions()
+    {
+        _isLoadingReportOrderFilters = true;
+        try
+        {
+            foreach (var comboBox in GetOrderReportFilterComboBoxes())
+            {
+                comboBox.Items.Clear();
+                AddReportInventoryFilterOption(comboBox, "Todos", null);
+                comboBox.SelectedIndex = 0;
+            }
+
+            ReportOrderNumberTextBox.Text = string.Empty;
+        }
+        finally
+        {
+            _isLoadingReportOrderFilters = false;
+        }
+    }
+
+    private static void AddOrderReportFilterOptions(
+        ComboBox comboBox,
+        IReadOnlyDictionary<string, IReadOnlyList<string>> options,
+        string filter)
+    {
+        if (!options.TryGetValue(filter, out var values))
+        {
+            return;
+        }
+
+        foreach (var value in values)
+        {
+            AddReportInventoryFilterOption(comboBox, value, value);
+        }
+    }
+
+    private IEnumerable<ComboBox> GetOrderReportFilterComboBoxes()
+    {
+        yield return ReportOrderTypeComboBox;
+        yield return ReportOrderFormulaComboBox;
+        yield return ReportOrderClientComboBox;
+        yield return ReportOrderUseComboBox;
+        yield return ReportOrderProductComboBox;
+        yield return ReportOrderConstructionComboBox;
+    }
+
+    private void SetOrderReportFilterControlsEnabled(bool isEnabled)
+    {
+        foreach (var comboBox in GetOrderReportFilterComboBoxes())
+        {
+            comboBox.IsEnabled = isEnabled;
+        }
+
+        ReportOrderNumberTextBox.IsEnabled = isEnabled;
+    }
+
+    private void ReportOrderFilterComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_isLoadingReportOrderFilters
+            || !_reportOrderFiltersLoaded
+            || ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition { Id: "orders" })
+        {
+            return;
+        }
+
+        InvalidateCurrentReportResult();
+        SetReportStatus("Filtros actualizados. Presiona Generar para consultar los resultados.", InfoBarSeverity.Informational);
+    }
+
+    private void ReportOrderNumberTextBox_TextChanged(object sender, TextChangedEventArgs e)
+    {
+        if (_isLoadingReportOrderFilters
+            || !_reportOrderFiltersLoaded
+            || ReportDatasetComboBox.SelectedItem is not ReportCatalogDefinition { Id: "orders" })
+        {
+            return;
+        }
+
+        InvalidateCurrentReportResult();
+        SetReportStatus("Filtros actualizados. Presiona Generar para consultar los resultados.", InfoBarSeverity.Informational);
+    }
+
     private static string? GetSelectedReportFilterValue(ComboBox comboBox)
     {
         var value = (comboBox.SelectedItem as ComboBoxItem)?.Tag as string;
@@ -6617,6 +6770,13 @@ public sealed partial class MainPage : Page
         string? selectedSupplier = null;
         string? selectedMaterial = null;
         string? selectedMovementType = null;
+        string? selectedOrderType = null;
+        string? selectedOrderFormula = null;
+        string? selectedOrderClient = null;
+        string? selectedOrderUse = null;
+        string? selectedOrderProduct = null;
+        string? selectedOrderConstruction = null;
+        int? selectedOrderNumber = null;
         if (report.Id == "inventory-movements")
         {
             if (!_reportInventoryFiltersLoaded)
@@ -6630,6 +6790,34 @@ public sealed partial class MainPage : Page
             selectedSupplier = GetSelectedReportFilterValue(ReportSupplierFilterComboBox);
             selectedMaterial = GetSelectedReportFilterValue(ReportMaterialFilterComboBox);
             selectedMovementType = GetSelectedReportFilterValue(ReportTypeFilterComboBox);
+        }
+        else if (report.Id == "orders")
+        {
+            if (!_reportOrderFiltersLoaded)
+            {
+                SetReportStatus("Espera a que se carguen los filtros de pedidos.", InfoBarSeverity.Informational);
+                return;
+            }
+
+            var orderNumberText = ReportOrderNumberTextBox.Text.Trim();
+            if (!string.IsNullOrEmpty(orderNumberText))
+            {
+                if (!int.TryParse(orderNumberText, NumberStyles.None, CultureInfo.InvariantCulture, out var orderNumber)
+                    || orderNumber <= 0)
+                {
+                    SetReportStatus("El número de pedido debe ser un entero positivo.", InfoBarSeverity.Warning);
+                    return;
+                }
+
+                selectedOrderNumber = orderNumber;
+            }
+
+            selectedOrderType = GetSelectedReportFilterValue(ReportOrderTypeComboBox);
+            selectedOrderFormula = GetSelectedReportFilterValue(ReportOrderFormulaComboBox);
+            selectedOrderClient = GetSelectedReportFilterValue(ReportOrderClientComboBox);
+            selectedOrderUse = GetSelectedReportFilterValue(ReportOrderUseComboBox);
+            selectedOrderProduct = GetSelectedReportFilterValue(ReportOrderProductComboBox);
+            selectedOrderConstruction = GetSelectedReportFilterValue(ReportOrderConstructionComboBox);
         }
 
         var startDate = DateTime.Today;
@@ -6661,7 +6849,14 @@ public sealed partial class MainPage : Page
                 endDate.AddDays(1),
                 supplier: selectedSupplier,
                 material: selectedMaterial,
-                movementType: selectedMovementType);
+                movementType: selectedMovementType,
+                orderType: selectedOrderType,
+                orderFormula: selectedOrderFormula,
+                orderClient: selectedOrderClient,
+                orderUse: selectedOrderUse,
+                orderProduct: selectedOrderProduct,
+                orderNumber: selectedOrderNumber,
+                orderConstruction: selectedOrderConstruction);
             InitializeReportColumnEditor(_currentReportResult.Columns);
             RenderReportResult(_currentReportResult);
             var rowCount = _currentReportResult.Rows.Count;

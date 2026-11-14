@@ -296,6 +296,13 @@ public sealed class ReportCatalogService
                 xSurtir
             FROM dbo.Pedidos
             WHERE Fecha >= @StartDate AND Fecha < @EndDate
+                AND (@OrderType IS NULL OR LTRIM(RTRIM(Tipo)) = @OrderType)
+                AND (@OrderFormula IS NULL OR LTRIM(RTRIM(Receta)) = @OrderFormula)
+                AND (@OrderClient IS NULL OR LTRIM(RTRIM(Cliente)) = @OrderClient)
+                AND (@OrderUse IS NULL OR LTRIM(RTRIM(Uso)) = @OrderUse)
+                AND (@OrderProduct IS NULL OR LTRIM(RTRIM(Producto)) = @OrderProduct)
+                AND (@OrderNumber IS NULL OR NumPedido = @OrderNumber)
+                AND (@OrderConstruction IS NULL OR LTRIM(RTRIM(Obra)) = @OrderConstruction)
             ORDER BY Fecha DESC, NumPedido DESC;
             """)
     };
@@ -309,7 +316,14 @@ public sealed class ReportCatalogService
         CancellationToken cancellationToken = default,
         string? supplier = null,
         string? material = null,
-        string? movementType = null)
+        string? movementType = null,
+        string? orderType = null,
+        string? orderFormula = null,
+        string? orderClient = null,
+        string? orderUse = null,
+        string? orderProduct = null,
+        int? orderNumber = null,
+        string? orderConstruction = null)
     {
         var report = Catalog.FirstOrDefault(item =>
             item.Id.Equals(reportId, StringComparison.Ordinal))
@@ -341,6 +355,17 @@ public sealed class ReportCatalogService
             command.Parameters.Add("@MovementType", SqlDbType.Char, 1).Value =
                 string.IsNullOrWhiteSpace(movementType) ? DBNull.Value : movementType.Trim();
         }
+        if (report.Id == "orders")
+        {
+            AddOptionalOrderFilter(command, "@OrderType", orderType);
+            AddOptionalOrderFilter(command, "@OrderFormula", orderFormula);
+            AddOptionalOrderFilter(command, "@OrderClient", orderClient);
+            AddOptionalOrderFilter(command, "@OrderUse", orderUse);
+            AddOptionalOrderFilter(command, "@OrderProduct", orderProduct);
+            command.Parameters.Add("@OrderNumber", SqlDbType.Int).Value =
+                orderNumber.HasValue ? orderNumber.Value : DBNull.Value;
+            AddOptionalOrderFilter(command, "@OrderConstruction", orderConstruction);
+        }
 
         await using var reader = await command.ExecuteReaderAsync(cancellationToken);
         var columns = Enumerable.Range(0, reader.FieldCount)
@@ -371,6 +396,68 @@ public sealed class ReportCatalogService
             ? FormulaReportLayout.CreateResult(report, columns, rows, isTruncated)
             : new ReportCatalogResult(report, columns, rows, isTruncated);
     }
+
+    public async Task<IReadOnlyDictionary<string, IReadOnlyList<string>>> GetOrderReportFilterOptionsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        const string query = """
+            SELECT Filtro, Valor
+            FROM
+            (
+                SELECT N'Tipo' AS Filtro, CONVERT(nvarchar(500), LTRIM(RTRIM(Tipo))) AS Valor
+                FROM dbo.Pedidos
+                WHERE NULLIF(LTRIM(RTRIM(Tipo)), N'') IS NOT NULL
+                UNION
+                SELECT N'Formula', CONVERT(nvarchar(500), LTRIM(RTRIM(Receta)))
+                FROM dbo.Pedidos
+                WHERE NULLIF(LTRIM(RTRIM(Receta)), N'') IS NOT NULL
+                UNION
+                SELECT N'Cliente', CONVERT(nvarchar(500), LTRIM(RTRIM(Cliente)))
+                FROM dbo.Pedidos
+                WHERE NULLIF(LTRIM(RTRIM(Cliente)), N'') IS NOT NULL
+                UNION
+                SELECT N'Uso', CONVERT(nvarchar(500), LTRIM(RTRIM(Uso)))
+                FROM dbo.Pedidos
+                WHERE NULLIF(LTRIM(RTRIM(Uso)), N'') IS NOT NULL
+                UNION
+                SELECT N'Producto', CONVERT(nvarchar(500), LTRIM(RTRIM(Producto)))
+                FROM dbo.Pedidos
+                WHERE NULLIF(LTRIM(RTRIM(Producto)), N'') IS NOT NULL
+                UNION
+                SELECT N'Obra', CONVERT(nvarchar(500), LTRIM(RTRIM(Obra)))
+                FROM dbo.Pedidos
+                WHERE NULLIF(LTRIM(RTRIM(Obra)), N'') IS NOT NULL
+            ) AS Filtros
+            ORDER BY Filtro, Valor;
+            """;
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var command = new SqlCommand(query, connection) { CommandTimeout = 30 };
+        await using var reader = await command.ExecuteReaderAsync(cancellationToken);
+        var options = new Dictionary<string, List<string>>(StringComparer.Ordinal);
+        while (await reader.ReadAsync(cancellationToken))
+        {
+            var filter = reader.GetString(0);
+            var value = reader.GetString(1);
+            if (!options.TryGetValue(filter, out var values))
+            {
+                values = new List<string>();
+                options.Add(filter, values);
+            }
+
+            values.Add(value);
+        }
+
+        return options.ToDictionary(
+            item => item.Key,
+            item => (IReadOnlyList<string>)item.Value,
+            StringComparer.Ordinal);
+    }
+
+    private static void AddOptionalOrderFilter(SqlCommand command, string name, string? value) =>
+        command.Parameters.Add(name, SqlDbType.NVarChar, 500).Value =
+            string.IsNullOrWhiteSpace(value) ? DBNull.Value : value.Trim();
 
     private static string FormatValue(object value) =>
         value switch

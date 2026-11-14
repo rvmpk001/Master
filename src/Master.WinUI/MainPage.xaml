@@ -729,6 +729,7 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
                         <TextBlock Grid.Row="0" Text="Vista segura" Foreground="{ThemeResource PaletteE6EDF7}" />
                         <TextBlock x:Name="ReportPeriodFilterLabel" Grid.Row="0" Grid.Column="1" Text="Periodo predefinido" Foreground="{ThemeResource PaletteE6EDF7}" />
@@ -752,7 +753,46 @@
                             <ComboBoxItem Content="E (Entrada)" Tag="E" />
                             <ComboBoxItem Content="S (Salida)" Tag="S" />
                         </ComboBox>
-                        <Grid x:Name="ReportCustomDateRangePanel" Grid.Row="2" Grid.ColumnSpan="5" ColumnSpacing="12" Visibility="Collapsed">
+                        <Grid x:Name="ReportOrderFiltersPanel" Grid.Row="2" Grid.ColumnSpan="5" ColumnSpacing="12" Visibility="Collapsed">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" Spacing="4">
+                                <TextBlock Text="Tipo" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                <ComboBox x:Name="ReportOrderTypeComboBox" IsEnabled="False" SelectionChanged="ReportOrderFilterComboBox_SelectionChanged" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Spacing="4">
+                                <TextBlock Text="Fórmula" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                <ComboBox x:Name="ReportOrderFormulaComboBox" IsEnabled="False" SelectionChanged="ReportOrderFilterComboBox_SelectionChanged" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" Spacing="4">
+                                <TextBlock Text="Cliente" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                <ComboBox x:Name="ReportOrderClientComboBox" IsEnabled="False" SelectionChanged="ReportOrderFilterComboBox_SelectionChanged" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="3" Spacing="4">
+                                <TextBlock Text="Uso" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                <ComboBox x:Name="ReportOrderUseComboBox" IsEnabled="False" SelectionChanged="ReportOrderFilterComboBox_SelectionChanged" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="4" Spacing="4">
+                                <TextBlock Text="Producto" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                <ComboBox x:Name="ReportOrderProductComboBox" IsEnabled="False" SelectionChanged="ReportOrderFilterComboBox_SelectionChanged" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="5" Spacing="4">
+                                <TextBlock Text="Pedido" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                <TextBox x:Name="ReportOrderNumberTextBox" IsEnabled="False" MaxLength="10" InputScope="Number" TextChanged="ReportOrderNumberTextBox_TextChanged" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="6" Spacing="4">
+                                <TextBlock Text="Obra" Foreground="{ThemeResource PaletteE6EDF7}" />
+                                <ComboBox x:Name="ReportOrderConstructionComboBox" IsEnabled="False" SelectionChanged="ReportOrderFilterComboBox_SelectionChanged" />
+                            </StackPanel>
+                        </Grid>
+                        <Grid x:Name="ReportCustomDateRangePanel" Grid.Row="3" Grid.ColumnSpan="5" ColumnSpacing="12" Visibility="Collapsed">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="*" />
@@ -774,7 +814,7 @@
                                 <DatePicker x:Name="ReportEndDatePicker" Grid.Column="1" MinWidth="205" HorizontalAlignment="Stretch" DateChanged="ReportDatePicker_DateChanged" />
                             </Grid>
                         </Grid>
-                        <StackPanel Grid.Row="3" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
+                        <StackPanel Grid.Row="4" Grid.ColumnSpan="5" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="12">
                             <Button x:Name="RunReportButton" Content="Generar" Click="RunReport_Click" Width="120" Style="{StaticResource DefaultButtonStyle}" />
                             <Button x:Name="ExportExcelReportButton" Content="Excel" Tag="xlsx" Click="ExportReport_Click" Width="120" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" ToolTipService.ToolTip="Exportar como libro de Excel" />
                             <Button x:Name="ExportPdfReportButton" Content="PDF" Tag="pdf" Click="ExportReport_Click" Width="120" IsEnabled="False" Style="{StaticResource DefaultButtonStyle}" ToolTipService.ToolTip="Exportar como documento PDF" />
