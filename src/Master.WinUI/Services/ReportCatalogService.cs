@@ -75,6 +75,29 @@ public sealed class ReportCatalogService
             """,
             usesDateRange: false),
         new(
+            "suppliers",
+            "Reporte general de proveedores",
+            "Directorio general con los datos registrados de cada proveedor.",
+            new[] { "ProveedoresR" },
+            """
+            SELECT TOP (@RowLimit)
+                Cod_Proveedor AS [Código],
+                Proveedor,
+                RFC,
+                Direccion AS [Dirección],
+                Colonia,
+                Telefono AS [Teléfono],
+                CP AS [Código postal],
+                Ciudad,
+                Estado,
+                Residente,
+                email AS [Correo electrónico],
+                Pagina AS [Sitio web]
+            FROM dbo.Proveedores
+            ORDER BY Proveedor, Cod_Proveedor;
+            """,
+            usesDateRange: false),
+        new(
             "remissions",
             "Remisiones",
             "Remisiones emitidas en el periodo.",
