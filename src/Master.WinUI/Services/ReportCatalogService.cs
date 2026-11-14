@@ -50,6 +50,31 @@ public sealed class ReportCatalogService
             """,
             usesDateRange: false),
         new(
+            "clients",
+            "Reporte general de clientes",
+            "Directorio general con los datos registrados de cada cliente.",
+            new[] { "ClientesR" },
+            """
+            SELECT TOP (@RowLimit)
+                Cod_Cliente AS [Código],
+                Cliente,
+                RFC,
+                Direccion AS [Dirección],
+                Colonia,
+                Telefono AS [Teléfono],
+                CP AS [Código postal],
+                Ciudad,
+                Estado,
+                Obra,
+                Residente,
+                Comprador,
+                email AS [Correo electrónico],
+                Pagina AS [Sitio web]
+            FROM dbo.Clientes
+            ORDER BY Cliente, Cod_Cliente;
+            """,
+            usesDateRange: false),
+        new(
             "remissions",
             "Remisiones",
             "Remisiones emitidas en el periodo.",
