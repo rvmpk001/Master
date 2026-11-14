@@ -32,6 +32,24 @@ public sealed class ReportCatalogService
             ORDER BY Fecha_Hora DESC;
             """),
         new(
+            FormulaReportLayout.ReportId,
+            "Reporte general de fórmulas",
+            "Fórmulas activas y sus materiales configurados.",
+            new[] { "FormulasR" },
+            """
+            SELECT TOP (@RowLimit)
+                Cod_Formula, Descripcion,
+                A1, A1C, A2, A2C, A3, A3C, A4, A4C, A5, A5C, A6, A6C, A7, A7C, A8, A8C,
+                C1, C1C, C2, C2C, C3, C3C, C4, C4C, C5, C5C,
+                D1, D1C, D2, D2C, D3, D3C, D4, D4C, D5, D5C, D6, D6C,
+                Agua, AguaC, Agua2, Agua2C, Agua3, Agua3C,
+                Fibra1, Fibra1C, Fibra2, Fibra2C, Fibra3, Fibra3C
+            FROM dbo.Formulas
+            WHERE ISNULL(Estatus, 'A') <> 'C'
+            ORDER BY Cod_Formula, Id_Formula;
+            """,
+            usesDateRange: false),
+        new(
             "remissions",
             "Remisiones",
             "Remisiones emitidas en el periodo.",
@@ -301,7 +319,9 @@ public sealed class ReportCatalogService
             rows.Add(values);
         }
 
-        return new ReportCatalogResult(report, columns, rows, isTruncated);
+        return report.Id == FormulaReportLayout.ReportId
+            ? FormulaReportLayout.CreateResult(report, columns, rows, isTruncated)
+            : new ReportCatalogResult(report, columns, rows, isTruncated);
     }
 
     private static string FormatValue(object value) =>
@@ -312,6 +332,92 @@ public sealed class ReportCatalogService
             IFormattable formattable => formattable.ToString(null, CultureInfo.InvariantCulture),
             _ => Convert.ToString(value, CultureInfo.InvariantCulture) ?? string.Empty
         };
+}
+
+public sealed record FormulaReportCategory(
+    string Column,
+    string Unit,
+    IReadOnlyList<(string MaterialField, string QuantityField)> Slots);
+
+public static class FormulaReportLayout
+{
+    public const string ReportId = "formulas";
+
+    public static IReadOnlyList<FormulaReportCategory> Categories { get; } = new[]
+    {
+        new FormulaReportCategory("Agregados KG", "KG", Enumerable.Range(1, 8).Select(index => ($"A{index}", $"A{index}C")).ToArray()),
+        new FormulaReportCategory("Cemento KG", "KG", Enumerable.Range(1, 5).Select(index => ($"C{index}", $"C{index}C")).ToArray()),
+        new FormulaReportCategory("Aditivos LTS", "LTS", Enumerable.Range(1, 6).Select(index => ($"D{index}", $"D{index}C")).ToArray()),
+        new FormulaReportCategory("Agua LTS", "LTS", new[] { ("Agua", "AguaC"), ("Agua2", "Agua2C"), ("Agua3", "Agua3C") }),
+        new FormulaReportCategory("Fibras KG", "KG", Enumerable.Range(1, 3).Select(index => ($"Fibra{index}", $"Fibra{index}C")).ToArray())
+    };
+
+    public static IReadOnlyList<string> Columns { get; } =
+        new[] { "Código de fórmula", "Descripción" }.Concat(Categories.Select(category => category.Column)).ToArray();
+
+    public static bool TryGetCategory(string column, out FormulaReportCategory category)
+    {
+        category = Categories.FirstOrDefault(item => item.Column.Equals(column, StringComparison.Ordinal))
+            ?? null!;
+        return category is not null;
+    }
+
+    public static IReadOnlyList<(string Material, string Quantity)> ParseEntries(string value) =>
+        value.Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(line =>
+            {
+                var separator = line.IndexOf('\t');
+                return separator < 0
+                    ? (line, string.Empty)
+                    : (line[..separator], line[(separator + 1)..]);
+            })
+            .ToArray();
+
+    public static ReportCatalogResult CreateResult(
+        ReportCatalogDefinition definition,
+        IReadOnlyList<string> sourceColumns,
+        IReadOnlyList<IReadOnlyList<string>> sourceRows,
+        bool isTruncated)
+    {
+        var sourceIndexes = sourceColumns
+            .Select((column, index) => (column, index))
+            .ToDictionary(item => item.column, item => item.index, StringComparer.OrdinalIgnoreCase);
+        var rows = sourceRows.Select(sourceRow =>
+        {
+            var values = new List<string>(Columns.Count)
+            {
+                GetSourceValue("Cod_Formula"),
+                GetSourceValue("Descripcion")
+            };
+            foreach (var category in Categories)
+            {
+                values.Add(string.Join('\n', category.Slots.Select(slot =>
+                {
+                    var material = GetSourceValue(slot.MaterialField);
+                    var quantity = FormatQuantity(GetSourceValue(slot.QuantityField));
+                    return $"{(string.IsNullOrWhiteSpace(material) ? "DESHABILITADA" : material.Trim())}\t{quantity}";
+                })));
+            }
+
+            return (IReadOnlyList<string>)values;
+
+            string GetSourceValue(string name) =>
+                sourceIndexes.TryGetValue(name, out var index) ? sourceRow[index] : string.Empty;
+        }).ToArray();
+
+        return new ReportCatalogResult(definition, Columns, rows, isTruncated);
+    }
+
+    private static string FormatQuantity(string value)
+    {
+        if (decimal.TryParse(value, NumberStyles.Number, CultureInfo.CurrentCulture, out var quantity)
+            || decimal.TryParse(value, NumberStyles.Number, CultureInfo.InvariantCulture, out quantity))
+        {
+            return quantity.ToString("0.00", CultureInfo.InvariantCulture);
+        }
+
+        return string.IsNullOrWhiteSpace(value) ? "0.00" : value.Trim();
+    }
 }
 
 public sealed class ReportCatalogDefinition(

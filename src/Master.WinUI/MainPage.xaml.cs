@@ -6787,7 +6787,8 @@ public sealed partial class MainPage : Page
         ReportResultsHost.Children.Clear();
         var selectedResult = CreateSelectedReportResult(result);
         var isInventoryStock = selectedResult.Definition.Id == "inventory-stock";
-        var columnWidth = isInventoryStock ? 230d : selectedResult.Columns.Count > 10 ? 145d : 180d;
+        var isFormulaReport = selectedResult.Definition.Id == FormulaReportLayout.ReportId;
+        var columnWidth = isInventoryStock ? 230d : isFormulaReport ? 190d : selectedResult.Columns.Count > 10 ? 145d : 180d;
         ReportResultsHost.MinWidth = Math.Max(1000, selectedResult.Columns.Count * columnWidth);
         if (selectedResult.Columns.Count == 0)
         {
@@ -6811,6 +6812,14 @@ public sealed partial class MainPage : Page
                 ReportResultsHost.Children.Add(CreateInventoryStockReportRow(row, columnWidth, isHeader: false));
             }
         }
+        else if (isFormulaReport)
+        {
+            ReportResultsHost.Children.Add(CreateFormulaReportRow(selectedResult.Columns, null, isHeader: true));
+            foreach (var row in selectedResult.Rows)
+            {
+                ReportResultsHost.Children.Add(CreateFormulaReportRow(selectedResult.Columns, row, isHeader: false));
+            }
+        }
         else
         {
             ReportResultsHost.Children.Add(CreateReportResultRow(selectedResult.Columns, columnWidth, isHeader: true));
@@ -6826,11 +6835,136 @@ public sealed partial class MainPage : Page
             {
                 Text = isInventoryStock
                     ? "No se encontraron materiales en los catálogos de existencias."
-                    : "No se encontraron registros en el periodo seleccionado.",
+                    : isFormulaReport
+                        ? "No se encontraron fórmulas activas."
+                        : "No se encontraron registros en el periodo seleccionado.",
                 Margin = new Thickness(12),
                 Foreground = _themeBrushes.GetBrush("#A9B8CC")
             });
         }
+    }
+
+    private Grid CreateFormulaReportRow(
+        IReadOnlyList<string> columns,
+        IReadOnlyList<string>? values,
+        bool isHeader)
+    {
+        var entriesByColumn = isHeader || values is null
+            ? Array.Empty<IReadOnlyList<(string Material, string Quantity)>>()
+            : columns.Select((column, index) =>
+                FormulaReportLayout.TryGetCategory(column, out _)
+                    ? FormulaReportLayout.ParseEntries(values[index])
+                    : Array.Empty<(string Material, string Quantity)>())
+                .ToArray();
+        var lineCount = Math.Max(1, entriesByColumn.Select(entries => entries.Count).DefaultIfEmpty(1).Max());
+        var row = new Grid
+        {
+            Background = _themeBrushes.GetBrush(isHeader ? "#263B5A" : "#1E2D43"),
+            MinHeight = isHeader ? 56 : Math.Max(32, lineCount * 20 + 8),
+            ColumnSpacing = 1
+        };
+
+        for (var index = 0; index < columns.Count; index++)
+        {
+            row.ColumnDefinitions.Add(new ColumnDefinition
+            {
+                Width = new GridLength(index < 2 ? index == 0 ? 120 : 210 : 190)
+            });
+            FrameworkElement content;
+            var columnName = columns[index];
+            if (isHeader)
+            {
+                var heading = new StackPanel { Spacing = 3 };
+                var title = new TextBlock
+                {
+                    Text = columnName,
+                    TextWrapping = TextWrapping.Wrap,
+                    Foreground = _themeBrushes.GetBrush("#F1F5F9"),
+                    FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+                };
+                heading.Children.Add(title);
+                if (FormulaReportLayout.TryGetCategory(columnName, out var category))
+                {
+                    var subheadings = new Grid { ColumnSpacing = 4 };
+                    subheadings.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+                    subheadings.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    subheadings.Children.Add(new TextBlock
+                    {
+                        Text = "Material",
+                        Foreground = _themeBrushes.GetBrush("#C7D2E0"),
+                        FontSize = 10
+                    });
+                    var quantityHeading = new TextBlock
+                    {
+                        Text = category.Unit,
+                        TextAlignment = TextAlignment.Right,
+                        Foreground = _themeBrushes.GetBrush("#C7D2E0"),
+                        FontSize = 10
+                    };
+                    Grid.SetColumn(quantityHeading, 1);
+                    subheadings.Children.Add(quantityHeading);
+                    heading.Children.Add(subheadings);
+                }
+
+                content = heading;
+            }
+            else if (FormulaReportLayout.TryGetCategory(columnName, out _))
+            {
+                var materialList = new StackPanel();
+                foreach (var entry in entriesByColumn[index])
+                {
+                    var materialRow = new Grid { ColumnSpacing = 4 };
+                    materialRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(2, GridUnitType.Star) });
+                    materialRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    materialRow.Children.Add(new TextBlock
+                    {
+                        Text = entry.Material,
+                        TextTrimming = TextTrimming.CharacterEllipsis,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Foreground = _themeBrushes.GetBrush("#E6EDF7")
+                    });
+                    var quantity = new TextBlock
+                    {
+                        Text = entry.Quantity,
+                        TextAlignment = TextAlignment.Right,
+                        VerticalAlignment = VerticalAlignment.Center,
+                        Foreground = _themeBrushes.GetBrush("#E6EDF7")
+                    };
+                    Grid.SetColumn(quantity, 1);
+                    materialRow.Children.Add(quantity);
+                    materialList.Children.Add(materialRow);
+                }
+
+                content = materialList;
+            }
+            else
+            {
+                content = new TextBlock
+                {
+                    Text = values![index],
+                    TextWrapping = TextWrapping.Wrap,
+                    VerticalAlignment = VerticalAlignment.Top,
+                    Foreground = _themeBrushes.GetBrush("#E6EDF7")
+                };
+            }
+
+            var cell = new Border
+            {
+                Padding = new Thickness(8, 4, 8, 4),
+                BorderBrush = _themeBrushes.GetBrush("#40516A"),
+                BorderThickness = new Thickness(0, 0, 0, 1),
+                Child = content
+            };
+            if (!isHeader)
+            {
+                ToolTipService.SetToolTip(cell, values![index]);
+            }
+
+            Grid.SetColumn(cell, index);
+            row.Children.Add(cell);
+        }
+
+        return row;
     }
 
     private Grid CreateInventoryStockReportRow(
