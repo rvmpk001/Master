@@ -654,6 +654,19 @@ public sealed class PlcCommunicationService
     private static bool TryGetValueTagName(string control, out string tagName)
     {
         tagName = string.Empty;
+        const string directTagPrefix = "tag:";
+        if (control.StartsWith(directTagPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var directTagName = control[directTagPrefix.Length..].Trim();
+            if (string.IsNullOrWhiteSpace(directTagName))
+            {
+                return false;
+            }
+
+            tagName = directTagName;
+            return true;
+        }
+
         const string waterControlPrefix = "ctlAgua";
         if (control.StartsWith(waterControlPrefix, StringComparison.OrdinalIgnoreCase))
         {

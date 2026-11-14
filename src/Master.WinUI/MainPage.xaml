@@ -382,10 +382,16 @@
                 <TabViewItem Header="Acciones" IsClosable="False">
                     <StackPanel Padding="8" Spacing="8" HorizontalAlignment="Stretch">
                         <Button x:Name="ProgramActionButton" Content="Programar" Click="ProgramAction_Click" HorizontalAlignment="Stretch" ToolTipService.ToolTip="Prepara la remisión. No guarda datos ni envía órdenes al PLC." Style="{StaticResource DefaultButtonStyle}" />
-                        <Button x:Name="LoadActionButton" Content="Cargar" Click="SimulatedLoad_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Continúa el flujo simulado de la remisión." Style="{StaticResource DefaultButtonStyle}" />
-                        <Button x:Name="DownloadActionButton" Content="Descargar" Click="SimulatedDownload_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Simula la descarga según las cantidades de la receta y genera el PDF." Style="{StaticResource DefaultButtonStyle}" />
-                        <Button x:Name="PauseActionButton" Content="Pausar" Click="SimulatedPause_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Pausa o reanuda el flujo de la remisión." Style="{StaticResource DefaultButtonStyle}" />
-                        <Button x:Name="CancelActionButton" Content="Cancelar" Click="SimulatedCancel_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Cancela el flujo actual. No guarda datos ni envía órdenes al PLC." Style="{StaticResource DefaultButtonStyle}" />
+                        <Button x:Name="LoadActionButton" Content="Cargar" Click="SimulatedLoad_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Ejecuta la secuencia local de carga simulada. No escribe al PLC." Style="{StaticResource DefaultButtonStyle}" />
+                        <Button x:Name="DownloadActionButton" Content="Descargar" Click="SimulatedDownload_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Ejecuta la secuencia local de descarga simulada. No escribe al PLC." Style="{StaticResource DefaultButtonStyle}" />
+                        <Button x:Name="PauseActionButton" Content="Pausar" Click="SimulatedPause_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Pausa o reanuda únicamente la simulación local. No escribe bitPausa." Style="{StaticResource DefaultButtonStyle}" />
+                        <Button x:Name="CancelActionButton" Content="Cancelar" Click="SimulatedCancel_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Cancela únicamente la simulación local. No escribe bitCancelar." Style="{StaticResource DefaultButtonStyle}" />
+                        <Border Background="{ThemeResource Palette26364D}" CornerRadius="4" Padding="8">
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="PLC · señales en solo lectura" FontWeight="SemiBold" FontSize="12" />
+                                <TextBlock x:Name="PlcSignalStatusText" Text="Se consultarán al iniciar sesión." FontSize="11" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </TabViewItem>
                 <TabViewItem Header="Controles" IsClosable="False">

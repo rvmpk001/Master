@@ -36,6 +36,16 @@ public sealed partial class MainPage : Page
         ".bmp"
     };
 
+    private static readonly (string ControlKey, string Label)[] ReadOnlyPlcSignals =
+    {
+        ("tag:bitInicioCarga", "Inicio de carga"),
+        ("tag:bitInicioDescarga", "Inicio de descarga"),
+        ("tag:bitPausa", "Pausa"),
+        ("tag:bitCancelar", "Cancelar"),
+        ("tag:bitFinCarga", "Fin de carga"),
+        ("tag:bitFinBacha", "Fin de bacha")
+    };
+
     private readonly DispatcherQueueTimer _clockTimer;
     private readonly DispatcherQueueTimer _plcStatusTimer;
     private readonly DispatcherQueueTimer _canvasLayoutSaveTimer;
@@ -151,13 +161,18 @@ public sealed partial class MainPage : Page
     private bool _isCanvasLocked;
     private bool _isDesignerCanvasLoaded;
     private bool _isPlcStatusCheckRunning;
+    private bool _plcInterruptionActive;
     private PlcConnectionState? _lastPlcConnectionState;
     private string? _lastPlcStatusDetail;
+    private PlcConnectionStatus? _latestPlcStatus;
     private ReportCatalogResult? _currentReportResult;
     private SimulatedRemission? _simulatedRemission;
     private string[]? _remissionBeforeSimulation;
     private SimulatedProcessState _simulatedProcessState;
     private SimulatedProcessState _stateBeforePause;
+    private CancellationTokenSource? _simulatedProcessCancellation;
+    private TaskCompletionSource<bool>? _simulatedProcessCompletion;
+    private TaskCompletionSource<bool>? _simulationResumeSignal;
 
     public ObservableCollection<MaterialRow> MaterialRows { get; } = new();
     public ObservableCollection<MaterialRowPair> MaterialRowPairs { get; } = new();
@@ -440,6 +455,41 @@ public sealed partial class MainPage : Page
         }
     }
 
+    private void UpdateReadOnlyPlcSignalStatus(PlcConnectionStatus status)
+    {
+        if (status.State != PlcConnectionState.Connected || status.AdditionalTextValues is not { } values)
+        {
+            PlcSignalStatusText.Text = $"Sin lectura PLC ({status.State}): {status.Detail}";
+            return;
+        }
+
+        var readings = new List<string>();
+        var missingSignals = new List<string>();
+        foreach (var (controlKey, label) in ReadOnlyPlcSignals)
+        {
+            if (values.TryGetValue(controlKey, out var value))
+            {
+                readings.Add($"{label}: {value.ToString("0.##", CultureInfo.CurrentCulture)}");
+            }
+            else
+            {
+                missingSignals.Add(label);
+            }
+        }
+
+        if (missingSignals.Count > 0)
+        {
+            readings.Add($"Sin lectura: {string.Join(", ", missingSignals)}");
+        }
+
+        if (status.Detail.Contains("Mapeo parcial", StringComparison.OrdinalIgnoreCase))
+        {
+            readings.Add(status.Detail);
+        }
+
+        PlcSignalStatusText.Text = string.Join(Environment.NewLine, readings);
+    }
+
     private void MainPage_Unloaded(object sender, RoutedEventArgs e)
     {
         _plcStatusTimer.Stop();
@@ -471,11 +521,16 @@ public sealed partial class MainPage : Page
                 .Select(GetCanvasValueControlName)
                 .Where(control => !string.IsNullOrWhiteSpace(control))
                 .Select(control => control!)
+                .Concat(ReadOnlyPlcSignals.Select(signal => signal.ControlKey))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
             var status = await _plcCommunicationService.CheckConnectionAsync(
                 additionalImageControls,
                 additionalValueControls);
+            var wasPlcFlowReady = IsPlcFlowReady(_latestPlcStatus, out _);
+            _latestPlcStatus = status;
+            UpdateReadOnlyPlcSignalStatus(status);
+            HandleSimulatedPlcStatus(status, wasPlcFlowReady);
 
             var imageStatesChanged = false;
             if (_simulatedCanvasImageStates.Count == 0
@@ -1923,6 +1978,7 @@ public sealed partial class MainPage : Page
                 observations.Text.Trim(),
                 selectedRecipe.Values);
             _simulatedProcessState = SimulatedProcessState.Prepared;
+            _plcInterruptionActive = false;
             UpdateSimulatedActionButtons();
             programDialog?.Hide();
         };
@@ -2149,9 +2205,24 @@ public sealed partial class MainPage : Page
             return;
         }
 
+        if (!IsPlcFlowReady(_latestPlcStatus, out var plcInterruption))
+        {
+            ModuleStatusText.Text = $"No se puede iniciar la carga: {plcInterruption}";
+            UpdateSimulatedActionButtons();
+            return;
+        }
+
+        IReadOnlyList<SimulatedDoseStep> sequence;
+        Dictionary<string, decimal> simulatedReadings;
         try
         {
-            LoadSimulatedRecipeReadings(_simulatedRemission.FormulaValues);
+            sequence = CreateSimulatedRecipeSequence(_simulatedRemission.FormulaValues);
+            simulatedReadings = sequence
+                .Where(step => !string.IsNullOrWhiteSpace(step.ControlName))
+                .Select(step => step.ControlName!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToDictionary(controlName => controlName, _ => 0m, StringComparer.OrdinalIgnoreCase);
+            ApplySimulatedCanvasReadings(simulatedReadings, 1m);
         }
         catch (InvalidOperationException exception)
         {
@@ -2159,10 +2230,61 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        await BeginSimulatedCanvasImageCycleAsync();
-        _simulatedProcessState = SimulatedProcessState.LoadReceived;
-        ModuleStatusText.Text = "Fin de carga recibida";
+        _simulatedProcessState = SimulatedProcessState.Loading;
+        ModuleStatusText.Text = "Simulación local: iniciando carga.";
         UpdateSimulatedActionButtons();
+
+        try
+        {
+            await RunSimulatedOperationAsync(async cancellationToken =>
+            {
+                await BeginSimulatedCanvasImageCycleAsync();
+
+                const int stepsPerMaterial = 4;
+                var stepDuration = GetSimulatedStepDuration(sequence.Count, stepsPerMaterial);
+                var completedSteps = 0;
+                var totalSteps = sequence.Count * stepsPerMaterial;
+
+                foreach (var step in sequence)
+                {
+                    var startingValue = step.ControlName is not null
+                        ? simulatedReadings.GetValueOrDefault(step.ControlName)
+                        : 0m;
+                    for (var stepIndex = 1; stepIndex <= stepsPerMaterial; stepIndex++)
+                    {
+                        await DelaySimulatedStepAsync(stepDuration, cancellationToken);
+                        cancellationToken.ThrowIfCancellationRequested();
+                        if (step.ControlName is not null)
+                        {
+                            simulatedReadings[step.ControlName] =
+                                startingValue + step.Quantity * stepIndex / stepsPerMaterial;
+                        }
+
+                        ApplySimulatedCanvasReadings(simulatedReadings, 1m);
+                        completedSteps++;
+                        var progress = completedSteps * 100 / totalSteps;
+                        ModuleStatusText.Text =
+                            $"Simulación local: cargando {step.MaterialName} ({step.Parameter}) — {progress}%.";
+                    }
+                }
+
+                cancellationToken.ThrowIfCancellationRequested();
+                _simulatedProcessState = SimulatedProcessState.LoadReceived;
+                ModuleStatusText.Text = "Fin de carga recibida (simulada).";
+                UpdateSimulatedActionButtons();
+            });
+        }
+        catch (InvalidOperationException exception)
+        {
+            if (_simulatedProcessState == SimulatedProcessState.Cancelling)
+            {
+                return;
+            }
+
+            _simulatedProcessState = SimulatedProcessState.Prepared;
+            ModuleStatusText.Text = $"No se pudo completar la carga simulada: {exception.Message}";
+            UpdateSimulatedActionButtons();
+        }
     }
 
     private async void SimulatedDownload_Click(object sender, RoutedEventArgs e)
@@ -2174,57 +2296,126 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        if (_simulatedProcessState == SimulatedProcessState.LoadReceived)
+        if (_simulatedProcessState == SimulatedProcessState.LoadReceived
+            && !IsPlcFlowReady(_latestPlcStatus, out var plcInterruption))
         {
-            _simulatedProcessState = SimulatedProcessState.Downloading;
-            ModuleStatusText.Text = "Maquina Descargando";
+            ModuleStatusText.Text = $"No se puede iniciar la descarga: {plcInterruption}";
             UpdateSimulatedActionButtons();
-            var loadedReadings = _simulatedCanvasReadings
-                .Where(reading => !reading.Key.Equals("ctlAgregados", StringComparison.OrdinalIgnoreCase))
-                .ToDictionary(reading => reading.Key, reading => reading.Value, StringComparer.OrdinalIgnoreCase);
-            var simulatedImages = _designerCanvasState.Controls
-                .Where(IsCanvasImageControl)
-                .OrderBy(control => control.ImageControl, StringComparer.OrdinalIgnoreCase)
-                .ToArray();
-            const int progressSteps = 20;
-            for (var step = 1; step <= progressSteps; step++)
-            {
-                await Task.Delay(TimeSpan.FromMilliseconds(100));
-                ApplySimulatedCanvasReadings(loadedReadings, (progressSteps - step) / (decimal)progressSteps);
-                var imagesToTurnOff = (int)Math.Ceiling(simulatedImages.Length * step / (double)progressSteps);
-                foreach (var control in simulatedImages.Take(imagesToTurnOff))
-                {
-                    if (_simulatedCanvasImageStates.GetValueOrDefault(control.Id))
-                    {
-                        await SetSimulatedCanvasImageStateAsync(control, false);
-                    }
-                }
-            }
-
-            _simulatedProcessState = SimulatedProcessState.AwaitingReport;
+            return;
         }
 
-        await SaveSimulatedRemissionPdfAsync();
+        try
+        {
+            var sequence = CreateSimulatedRecipeSequence(_simulatedRemission.FormulaValues);
+            await RunSimulatedOperationAsync(async cancellationToken =>
+            {
+                if (_simulatedProcessState == SimulatedProcessState.LoadReceived)
+                {
+                    _simulatedProcessState = SimulatedProcessState.Downloading;
+                    ModuleStatusText.Text = "Simulación local: iniciando descarga.";
+                    UpdateSimulatedActionButtons();
+                    var simulatedReadings = _simulatedCanvasReadings
+                        .Where(reading => !reading.Key.Equals("ctlAgregados", StringComparison.OrdinalIgnoreCase))
+                        .ToDictionary(reading => reading.Key, reading => reading.Value, StringComparer.OrdinalIgnoreCase);
+                    var simulatedImages = _designerCanvasState.Controls
+                        .Where(IsCanvasImageControl)
+                        .OrderBy(control => control.ImageControl, StringComparer.OrdinalIgnoreCase)
+                        .ToArray();
+                    const int stepsPerMaterial = 4;
+                    var stepDuration = GetSimulatedStepDuration(sequence.Count, stepsPerMaterial);
+                    var completedSteps = 0;
+                    var totalSteps = sequence.Count * stepsPerMaterial;
+                    foreach (var doseStep in sequence)
+                    {
+                        ModuleStatusText.Text =
+                            $"Simulación local: descargando {doseStep.MaterialName} ({doseStep.Parameter}).";
+                        var startingValue = doseStep.ControlName is not null
+                            ? simulatedReadings.GetValueOrDefault(doseStep.ControlName)
+                            : 0m;
+                        for (var stepIndex = 1; stepIndex <= stepsPerMaterial; stepIndex++)
+                        {
+                            await DelaySimulatedStepAsync(stepDuration, cancellationToken);
+                            cancellationToken.ThrowIfCancellationRequested();
+                            if (doseStep.ControlName is not null)
+                            {
+                                simulatedReadings[doseStep.ControlName] = Math.Max(
+                                    0m,
+                                    startingValue - doseStep.Quantity * stepIndex / stepsPerMaterial);
+                            }
+
+                            completedSteps++;
+                            ApplySimulatedCanvasReadings(simulatedReadings, 1m);
+                            var progress = completedSteps / (decimal)totalSteps;
+                            var progressPercent = (int)Math.Round(progress * 100m);
+                            ModuleStatusText.Text =
+                                $"Simulación local: descargando {doseStep.MaterialName} ({doseStep.Parameter}) — {progressPercent}%.";
+                            var imagesToTurnOff = (int)Math.Ceiling(simulatedImages.Length * (double)progress);
+                            foreach (var control in simulatedImages.Take(imagesToTurnOff))
+                            {
+                                cancellationToken.ThrowIfCancellationRequested();
+                                if (_simulatedCanvasImageStates.GetValueOrDefault(control.Id))
+                                {
+                                    await SetSimulatedCanvasImageStateAsync(control, false);
+                                }
+                            }
+                        }
+                    }
+
+                    cancellationToken.ThrowIfCancellationRequested();
+                    _simulatedProcessState = SimulatedProcessState.AwaitingReport;
+                    ModuleStatusText.Text = "Descarga simulada completa; guarda el PDF para finalizar.";
+                    UpdateSimulatedActionButtons();
+                }
+
+                await SaveSimulatedRemissionPdfAsync(cancellationToken);
+            });
+        }
+        catch (InvalidOperationException exception)
+        {
+            if (_simulatedProcessState == SimulatedProcessState.Cancelling)
+            {
+                return;
+            }
+
+            ModuleStatusText.Text = $"No se pudo completar la descarga simulada: {exception.Message}";
+            UpdateSimulatedActionButtons();
+        }
     }
 
     private void SimulatedPause_Click(object sender, RoutedEventArgs e)
     {
         if (_simulatedProcessState == SimulatedProcessState.Paused)
         {
+            if (!IsPlcFlowReady(_latestPlcStatus, out var plcInterruption))
+            {
+                ModuleStatusText.Text = $"El flujo permanece interrumpido: {plcInterruption}";
+                UpdateSimulatedActionButtons();
+                return;
+            }
+
+            var resumeSignal = _simulationResumeSignal;
+            if (resumeSignal is null)
+            {
+                ModuleStatusText.Text = "No se pudo reanudar la simulación: falta la señal de espera.";
+                return;
+            }
+
             _simulatedProcessState = _stateBeforePause;
-            ModuleStatusText.Text = _simulatedProcessState == SimulatedProcessState.Prepared
-                ? "Receta preparada para cargarse"
-                : "Fin de carga recibida";
+            _plcInterruptionActive = false;
+            _simulationResumeSignal = null;
+            resumeSignal.TrySetResult(true);
+            ModuleStatusText.Text = "Simulación local reanudada.";
         }
-        else if (_simulatedProcessState is SimulatedProcessState.Prepared or SimulatedProcessState.LoadReceived)
+        else if (_simulatedProcessState is SimulatedProcessState.Loading or SimulatedProcessState.Downloading)
         {
             _stateBeforePause = _simulatedProcessState;
             _simulatedProcessState = SimulatedProcessState.Paused;
-            ModuleStatusText.Text = "Sistema en pausa";
+            _simulationResumeSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            ModuleStatusText.Text = "Simulación local pausada.";
         }
         else
         {
-            ModuleStatusText.Text = "No se puede pausar después de iniciar la descarga.";
+            ModuleStatusText.Text = "La pausa local solo está disponible durante la carga o descarga simulada.";
             return;
         }
 
@@ -2233,6 +2424,19 @@ public sealed partial class MainPage : Page
 
     private async void SimulatedCancel_Click(object sender, RoutedEventArgs e)
     {
+        var cancellation = _simulatedProcessCancellation;
+        var processCompletion = _simulatedProcessCompletion?.Task;
+        cancellation?.Cancel();
+        _simulatedProcessState = SimulatedProcessState.Cancelling;
+        ModuleStatusText.Text = "Cancelando simulación local...";
+        UpdateSimulatedActionButtons();
+        if (processCompletion is not null)
+        {
+            await processCompletion;
+        }
+
+        _simulationResumeSignal?.TrySetResult(true);
+        _simulationResumeSignal = null;
         if (_remissionBeforeSimulation is { Length: 8 } previousValues)
         {
             for (var index = 0; index < previousValues.Length; index++)
@@ -2244,17 +2448,89 @@ public sealed partial class MainPage : Page
         _remissionBeforeSimulation = null;
         _simulatedRemission = null;
         _simulatedProcessState = SimulatedProcessState.Idle;
+        _plcInterruptionActive = false;
         _simulatedCanvasReadings.Clear();
         await ResetSimulatedCanvasImageStatesAsync();
         _dashboardFormulaValues = null;
         RefreshDashboardMaterials();
         RemissionPanel.IsExpanded = true;
-        ModuleStatusText.Text = "Proceso cancelado";
+        ModuleStatusText.Text = "Proceso de simulación cancelado.";
         UpdateSimulatedActionButtons();
     }
 
-    private async Task SaveSimulatedRemissionPdfAsync()
+    private async Task RunSimulatedOperationAsync(Func<CancellationToken, Task> operation)
     {
+        using var cancellation = new CancellationTokenSource();
+        var processCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var startSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        _simulatedProcessCancellation = cancellation;
+        _simulatedProcessCompletion = processCompletion;
+
+        var operationTask = RunAfterStartAsync();
+        startSignal.SetResult(true);
+        try
+        {
+            await operationTask;
+        }
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        {
+        }
+        finally
+        {
+            processCompletion.TrySetResult(true);
+            if (ReferenceEquals(_simulatedProcessCancellation, cancellation))
+            {
+                _simulatedProcessCancellation = null;
+                _simulatedProcessCompletion = null;
+            }
+        }
+
+        async Task RunAfterStartAsync()
+        {
+            await startSignal.Task;
+            await operation(cancellation.Token);
+        }
+    }
+
+    private async Task DelaySimulatedStepAsync(TimeSpan duration, CancellationToken cancellationToken)
+    {
+        var remaining = duration;
+        var maximumSlice = TimeSpan.FromMilliseconds(100);
+        while (remaining > TimeSpan.Zero)
+        {
+            await WaitForSimulationResumeAsync(cancellationToken);
+            var delay = remaining < maximumSlice ? remaining : maximumSlice;
+            await Task.Delay(delay, cancellationToken);
+            if (_simulatedProcessState != SimulatedProcessState.Paused)
+            {
+                remaining -= delay;
+            }
+        }
+    }
+
+    private static TimeSpan GetSimulatedStepDuration(int materialCount, int stepsPerMaterial)
+    {
+        var totalSteps = checked(materialCount * stepsPerMaterial);
+        var minimumDurationPerStep = (TimeSpan.FromSeconds(15).Ticks + totalSteps - 1) / totalSteps;
+        return TimeSpan.FromTicks(Math.Max(TimeSpan.FromMilliseconds(100).Ticks, minimumDurationPerStep));
+    }
+
+    private async Task WaitForSimulationResumeAsync(CancellationToken cancellationToken)
+    {
+        while (_simulatedProcessState == SimulatedProcessState.Paused)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var resumeSignal = _simulationResumeSignal
+                ?? throw new InvalidOperationException("La simulación está pausada sin una señal para reanudar.");
+            await resumeSignal.Task.WaitAsync(cancellationToken);
+        }
+
+        cancellationToken.ThrowIfCancellationRequested();
+    }
+
+    private async Task SaveSimulatedRemissionPdfAsync(CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
         if (_simulatedRemission is not { } remission)
         {
             ModuleStatusText.Text = "No hay una remisión para exportar.";
@@ -2274,9 +2550,13 @@ public sealed partial class MainPage : Page
             picker.SuggestedFileName = $"Remision_{SanitizeFileName(remission.Remission)}";
             InitializeWithWindow.Initialize(picker, WindowNative.GetWindowHandle(window));
             var file = await picker.PickSaveFileAsync();
+            cancellationToken.ThrowIfCancellationRequested();
             if (file is null)
             {
-                ModuleStatusText.Text = "Se canceló el guardado del PDF. Usa DESCARGAR para reintentar.";
+                _simulatedProcessState = SimulatedProcessState.Complete;
+                _remissionBeforeSimulation = null;
+                ModuleStatusText.Text = "Descarga completada; no se guardó el PDF.";
+                RemissionPanel.IsExpanded = true;
                 UpdateSimulatedActionButtons();
                 return;
             }
@@ -2415,32 +2695,113 @@ public sealed partial class MainPage : Page
     private void UpdateSimulatedActionButtons()
     {
         var hasPermission = HasModulePermission("Carga Manual") && HasActionPermission("Carga Manual", "Alta");
+        var plcFlowReady = IsPlcFlowReady(_latestPlcStatus, out _);
         ProgramActionButton.IsEnabled = hasPermission
             && _simulatedProcessState is SimulatedProcessState.Idle or SimulatedProcessState.Complete;
-        LoadActionButton.IsEnabled = _simulatedProcessState == SimulatedProcessState.Prepared;
+        LoadActionButton.IsEnabled =
+            _simulatedProcessState == SimulatedProcessState.Prepared && plcFlowReady;
         DownloadActionButton.Visibility = Visibility.Visible;
         DownloadActionButton.IsEnabled =
-            _simulatedProcessState is SimulatedProcessState.LoadReceived or SimulatedProcessState.AwaitingReport;
+            _simulatedProcessState == SimulatedProcessState.AwaitingReport
+            || (_simulatedProcessState == SimulatedProcessState.LoadReceived && plcFlowReady);
         DownloadActionButton.Content = "Descargar";
         PauseActionButton.IsEnabled =
-            _simulatedProcessState is SimulatedProcessState.Prepared or SimulatedProcessState.LoadReceived or SimulatedProcessState.Paused;
+            _simulatedProcessState is SimulatedProcessState.Loading
+                or SimulatedProcessState.Downloading
+            || (_simulatedProcessState == SimulatedProcessState.Paused && plcFlowReady);
         PauseActionButton.Content = _simulatedProcessState == SimulatedProcessState.Paused
             ? "Reanudar"
             : "Pausar";
         CancelActionButton.IsEnabled =
             _simulatedProcessState is SimulatedProcessState.Prepared
+                or SimulatedProcessState.Loading
                 or SimulatedProcessState.LoadReceived
+                or SimulatedProcessState.Downloading
+                or SimulatedProcessState.Paused;
+        _plcStatusTimer.Interval =
+            _simulatedProcessState is SimulatedProcessState.Loading
+                or SimulatedProcessState.Downloading
                 or SimulatedProcessState.Paused
-                or SimulatedProcessState.AwaitingReport;
+                ? TimeSpan.FromSeconds(1)
+                : TimeSpan.FromSeconds(5);
+    }
+
+    private void HandleSimulatedPlcStatus(PlcConnectionStatus status, bool wasPlcFlowReady)
+    {
+        var plcFlowReady = IsPlcFlowReady(status, out var plcInterruption);
+        if (!plcFlowReady)
+        {
+            if (_simulatedProcessState is SimulatedProcessState.Loading or SimulatedProcessState.Downloading)
+            {
+                _stateBeforePause = _simulatedProcessState;
+                _simulatedProcessState = SimulatedProcessState.Paused;
+                _simulationResumeSignal ??=
+                    new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                _plcInterruptionActive = true;
+                ModuleStatusText.Text = $"Flujo interrumpido: {plcInterruption}. Reconecta el PLC para reanudar.";
+            }
+            else if (_simulatedProcessState == SimulatedProcessState.Paused
+                && _stateBeforePause is SimulatedProcessState.Loading or SimulatedProcessState.Downloading)
+            {
+                _plcInterruptionActive = true;
+                ModuleStatusText.Text = $"Flujo interrumpido: {plcInterruption}. Reconecta el PLC para reanudar.";
+            }
+            else if (_simulatedProcessState is SimulatedProcessState.Prepared or SimulatedProcessState.LoadReceived)
+            {
+                ModuleStatusText.Text = $"Flujo detenido: {plcInterruption}.";
+            }
+        }
+        else if (_plcInterruptionActive && _simulatedProcessState == SimulatedProcessState.Paused)
+        {
+            ModuleStatusText.Text = "PLC reconectado. El flujo sigue interrumpido; pulsa Reanudar para continuar.";
+        }
+        else if (!wasPlcFlowReady && _simulatedProcessState == SimulatedProcessState.Prepared)
+        {
+            ModuleStatusText.Text = "PLC conectado. La receta está lista para iniciar la carga.";
+        }
+        else if (!wasPlcFlowReady && _simulatedProcessState == SimulatedProcessState.LoadReceived)
+        {
+            ModuleStatusText.Text = "PLC conectado. La carga simulada está lista para descargar.";
+        }
+
+        UpdateSimulatedActionButtons();
+    }
+
+    private static bool IsPlcFlowReady(PlcConnectionStatus? status, out string interruption)
+    {
+        if (status?.State != PlcConnectionState.Connected)
+        {
+            interruption = status is null
+                ? "PLC sin verificar."
+                : $"PLC desactivado o sin comunicación ({status.State}): {status.Detail}";
+            return false;
+        }
+
+        var missingSignals = ReadOnlyPlcSignals
+            .Where(signal => status.AdditionalTextValues?.ContainsKey(signal.ControlKey) != true)
+            .Select(signal => signal.Label)
+            .ToArray();
+        if (missingSignals.Length > 0)
+        {
+            interruption = $"PLC conectado, pero faltan señales: {string.Join(", ", missingSignals)}";
+            return false;
+        }
+
+        interruption = string.Empty;
+        return true;
     }
 
     private bool IsSimulatedReadingsActive =>
-        _simulatedProcessState is SimulatedProcessState.LoadReceived
+        _simulatedProcessState is SimulatedProcessState.Loading
+            or SimulatedProcessState.LoadReceived
             or SimulatedProcessState.Downloading
             or SimulatedProcessState.AwaitingReport
+            or SimulatedProcessState.Cancelling
             or SimulatedProcessState.Complete
         || (_simulatedProcessState == SimulatedProcessState.Paused
-            && _stateBeforePause == SimulatedProcessState.LoadReceived);
+            && (_stateBeforePause is SimulatedProcessState.Loading
+                or SimulatedProcessState.LoadReceived
+                or SimulatedProcessState.Downloading));
 
     private async Task BeginSimulatedCanvasImageCycleAsync()
     {
@@ -2490,57 +2851,67 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private void LoadSimulatedRecipeReadings(IReadOnlyDictionary<string, string> formulaValues)
+    private IReadOnlyList<SimulatedDoseStep> CreateSimulatedRecipeSequence(
+        IReadOnlyDictionary<string, string> formulaValues)
     {
-        var readings = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-        foreach (var control in _designerCanvasState.Controls)
+        if (HasFormulaMaterialMismatch(formulaValues, _dashboardMachineConfiguration))
         {
-            var controlName = GetCanvasValueControlName(control);
-            var binding = GetDashboardMaterialBinding(control);
-            if (controlName is null || binding is null)
-            {
-                continue;
-            }
+            throw new InvalidOperationException(
+                "La configuración actual de materiales ya no coincide con la receta preparada.");
+        }
 
-            var (parameter, _) = binding.Value;
-            var materialName = _dashboardMachineConfiguration.GetValueOrDefault(parameter)?.Trim();
+        var sequence = new List<SimulatedDoseStep>();
+        foreach (var (nameField, quantityField) in GetFormulaMaterialFields())
+        {
+            var materialName = formulaValues.GetValueOrDefault(nameField)?.Trim();
             if (string.IsNullOrWhiteSpace(materialName)
-                || materialName.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase)
-                || readings.ContainsKey(controlName))
+                || materialName.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase))
             {
                 continue;
             }
 
-            var quantityField = GetDashboardFormulaQuantityField(parameter);
-            var rawQuantity = quantityField is null
-                ? null
-                : formulaValues.GetValueOrDefault(quantityField)?.Trim();
+            var parameter = GetMachineMaterialParameter(nameField);
+            var rawQuantity = formulaValues.GetValueOrDefault(quantityField)?.Trim();
             if (!TryParseSimulatedQuantity(rawQuantity, out var quantity))
             {
                 throw new InvalidOperationException(
                     $"No se pudo simular la lectura de {materialName}: la cantidad '{rawQuantity}' no es válida.");
             }
 
-            readings.Add(controlName, quantity);
+            if (quantity <= 0)
+            {
+                continue;
+            }
+
+            var controlName = _designerCanvasState.Controls
+                .Where(control => GetDashboardMaterialBinding(control) is { } binding
+                    && binding.Parameter.Equals(parameter, StringComparison.OrdinalIgnoreCase))
+                .Select(GetCanvasValueControlName)
+                .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name)
+                    && !name.Equals("ctlAgregados", StringComparison.OrdinalIgnoreCase));
+            sequence.Add(new SimulatedDoseStep(parameter, materialName, quantity, controlName));
         }
 
-        ApplySimulatedCanvasReadings(
-            readings.Where(reading => !reading.Key.Equals("ctlAgregados", StringComparison.OrdinalIgnoreCase))
-                .ToDictionary(reading => reading.Key, reading => reading.Value, StringComparer.OrdinalIgnoreCase),
-            1m);
+        if (sequence.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "La receta no tiene materiales habilitados con una cantidad mayor que cero.");
+        }
+
+        return sequence;
     }
 
     private void ApplySimulatedCanvasReadings(
         IReadOnlyDictionary<string, decimal> loadedReadings,
-        decimal remainingFraction)
+        decimal valueFraction)
     {
         _simulatedCanvasReadings.Clear();
         decimal total = 0;
         foreach (var (controlName, loadedValue) in loadedReadings)
         {
-            var remainingValue = loadedValue * remainingFraction;
-            _simulatedCanvasReadings[controlName] = remainingValue;
-            total += remainingValue;
+            var value = loadedValue * valueFraction;
+            _simulatedCanvasReadings[controlName] = value;
+            total += value;
         }
 
         if (_designerCanvasState.Controls.Any(control =>
@@ -2689,14 +3060,22 @@ public sealed partial class MainPage : Page
         string Observations,
         IReadOnlyDictionary<string, string> FormulaValues);
 
+    private sealed record SimulatedDoseStep(
+        string Parameter,
+        string MaterialName,
+        decimal Quantity,
+        string? ControlName);
+
     private enum SimulatedProcessState
     {
         Idle,
         Prepared,
+        Loading,
         LoadReceived,
         Paused,
         Downloading,
         AwaitingReport,
+        Cancelling,
         Complete
     }
 
