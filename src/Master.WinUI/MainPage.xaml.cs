@@ -475,41 +475,6 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private void UpdateReadOnlyPlcSignalStatus(PlcConnectionStatus status)
-    {
-        if (status.State != PlcConnectionState.Connected || status.AdditionalTextValues is not { } values)
-        {
-            PlcSignalStatusText.Text = $"Sin lectura PLC ({status.State}): {status.Detail}";
-            return;
-        }
-
-        var readings = new List<string>();
-        var missingSignals = new List<string>();
-        foreach (var (controlKey, label) in ReadOnlyPlcSignals)
-        {
-            if (values.TryGetValue(controlKey, out var value))
-            {
-                readings.Add($"{label}: {value.ToString("0.##", CultureInfo.CurrentCulture)}");
-            }
-            else
-            {
-                missingSignals.Add(label);
-            }
-        }
-
-        if (missingSignals.Count > 0)
-        {
-            readings.Add($"Sin lectura: {string.Join(", ", missingSignals)}");
-        }
-
-        if (status.Detail.Contains("Mapeo parcial", StringComparison.OrdinalIgnoreCase))
-        {
-            readings.Add(status.Detail);
-        }
-
-        PlcSignalStatusText.Text = string.Join(Environment.NewLine, readings);
-    }
-
     private void MainPage_Unloaded(object sender, RoutedEventArgs e)
     {
         _plcStatusTimer.Stop();
@@ -550,7 +515,6 @@ public sealed partial class MainPage : Page
                 additionalValueControls);
             var wasPlcFlowReady = IsPlcFlowReady(_latestPlcStatus, out _);
             _latestPlcStatus = status;
-            UpdateReadOnlyPlcSignalStatus(status);
             HandleProcessPlcStatus(status, wasPlcFlowReady);
 
             var imageStatesChanged = false;

@@ -386,12 +386,6 @@
                         <Button x:Name="DownloadActionButton" Content="Descargar" Click="DownloadAction_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Inicia la descarga en el PLC. Al terminar, guarda el PDF de la remisión." Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="PauseActionButton" Content="Pausar" Click="PauseAction_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="No disponible: la lógica de pausa del PLC no está confirmada." Style="{StaticResource DefaultButtonStyle}" />
                         <Button x:Name="CancelActionButton" Content="Cancelar" Click="CancelAction_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Envía la orden de cancelación al PLC (bitCancelar). Antes de enviar nada al PLC solo reinicia la remisión local." Style="{StaticResource DefaultButtonStyle}" />
-                        <Border Background="{ThemeResource Palette26364D}" CornerRadius="4" Padding="8">
-                            <StackPanel Spacing="4">
-                                <TextBlock Text="PLC · señales en solo lectura" FontWeight="SemiBold" FontSize="12" />
-                                <TextBlock x:Name="PlcSignalStatusText" Text="Se consultarán al iniciar sesión." FontSize="11" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
-                            </StackPanel>
-                        </Border>
                     </StackPanel>
                 </TabViewItem>
                 <TabViewItem Header="Controles" IsClosable="False">
