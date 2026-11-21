@@ -9,6 +9,11 @@ internal static class Program
 {
     private static int Main(string[] args)
     {
+        if (args.Length > 0 && args[0].Equals("--write", StringComparison.Ordinal))
+        {
+            return RunWrite(args);
+        }
+
         if (args.Length is not (9 or 10))
         {
             Console.Error.WriteLine("ERROR|InvalidArguments|Se esperaban nueve parámetros PLC y, opcionalmente, direcciones MI.");
@@ -146,6 +151,222 @@ internal static class Program
         }
 
         return exitCode;
+    }
+
+    // ------------------------------------------------------------------
+    // Modo escritura: Master.PlcProbe.exe --write <8 parámetros seriales> TIPO:DIRECCIÓN VALOR
+    // Escribe UN operando, lo lee de vuelta y confirma por stdout: WRITTEN|TIPO:DIR=valor
+    // Solo MI, MB, ML y MF. Las salidas físicas (Output) NO se escriben desde aquí.
+    // ------------------------------------------------------------------
+    private static int RunWrite(string[] args)
+    {
+        if (args.Length != 11)
+        {
+            Console.Error.WriteLine(
+                "ERROR|InvalidArguments|Modo --write: se esperaban 8 parámetros seriales, TIPO:DIRECCIÓN y VALOR.");
+            return 1;
+        }
+
+        var settingsArgs = new string[9];
+        Array.Copy(args, 1, settingsArgs, 0, 8);
+        settingsArgs[8] = "0"; // AnalogInitial no se usa al escribir
+
+        if (!TryParseSettings(settingsArgs, out var settings, out var error)
+            || !TryParseWriteTarget(args[9], args[10], out var target, out error))
+        {
+            Console.Error.WriteLine($"ERROR|InvalidSettings|{error}");
+            return 1;
+        }
+
+        Serial? serial = null;
+        PLC? plc = null;
+        var exitCode = 1;
+        var errorMessage = string.Empty;
+        var output = string.Empty;
+
+        try
+        {
+            PLCFactory.WorkWithXmlInternally = true;
+            serial = new Serial(
+                settings.PortName,
+                settings.BaudRate,
+                settings.Retry,
+                settings.Timeout,
+                settings.DataBits,
+                settings.Parity,
+                settings.StopBits,
+                autoDetectComParams: false);
+            plc = PLCFactory.GetPLC(serial, settings.PlcAddress, forceJazz: false);
+
+            if (!plc.PLCChannel.Connected)
+            {
+                errorMessage = "ERROR|Disconnected|El canal serial no confirmó conexión con el PLC.";
+            }
+            else
+            {
+                var writeRequests = new ReadWriteRequest[] { BuildWriteRequest(target) };
+                plc.ReadWrite(ref writeRequests);
+
+                // Verificación: leer de vuelta el mismo operando.
+                var readBack = new ReadWriteRequest[]
+                {
+                    new ReadOperands(1, target.OperandType, target.Address)
+                };
+                plc.ReadWrite(ref readBack);
+
+                if (readBack[0].ResponseValues is not Array { Length: > 0 } response
+                    || response.GetValue(0) is null)
+                {
+                    errorMessage =
+                        $"ERROR|NoResponse|Se envió la escritura a {target.OperandType}{target.Address} " +
+                        "pero no se pudo leer de vuelta para verificarla.";
+                }
+                else
+                {
+                    var actual = Convert.ToDouble(response.GetValue(0), CultureInfo.InvariantCulture);
+                    var tolerance = target.OperandType == OperandTypes.MF
+                        ? 1e-4 * Math.Max(1.0, Math.Abs(target.Value))
+                        : 0.0;
+                    if (Math.Abs(actual - target.Value) > tolerance)
+                    {
+                        errorMessage =
+                            $"ERROR|VerifyMismatch|{target.OperandType}{target.Address}: se escribió " +
+                            $"{target.Value.ToString("R", CultureInfo.InvariantCulture)} pero se leyó " +
+                            $"{actual.ToString("R", CultureInfo.InvariantCulture)}.";
+                    }
+                    else
+                    {
+                        output = $"WRITTEN|{target.OperandType}:{target.Address}=" +
+                                 actual.ToString("R", CultureInfo.InvariantCulture);
+                        exitCode = 0;
+                    }
+                }
+            }
+        }
+        catch (ComDriveExceptions exception)
+        {
+            errorMessage = $"ERROR|{exception.ErrorCode}|{exception.Message}";
+            exitCode = exception.ErrorCode == ComDriveExceptions.ComDriveException.PortInUse ? 2 : 1;
+        }
+        catch (Exception exception)
+        {
+            errorMessage = $"ERROR|{exception.GetType().Name}|{exception.Message}";
+        }
+        finally
+        {
+            try
+            {
+                if (plc is not null)
+                {
+                    plc.Disconnect();
+                }
+                else
+                {
+                    serial?.Disconnect();
+                }
+            }
+            catch (Exception exception)
+            {
+                exitCode = 1;
+                errorMessage = $"ERROR|Disconnect|No se pudo liberar el puerto PLC: {exception.Message}";
+            }
+        }
+
+        if (exitCode == 0)
+        {
+            Console.Out.WriteLine(output);
+        }
+        else
+        {
+            Console.Error.WriteLine(errorMessage);
+        }
+
+        return exitCode;
+    }
+
+    private static ReadWriteRequest BuildWriteRequest(PlcWriteTarget target)
+    {
+        // VERIFICAR contra la documentación / IntelliSense de Unitronics.ComDriver:
+        // la firma de WriteOperands y el tipo CLR esperado para los valores pueden variar
+        // según la versión de la DLL. El 4.º argumento es object[] (confirmado por el compilador).
+        // Esta es la ÚNICA función que depende de esa firma; ajustar solo aquí.
+        switch (target.OperandType)
+        {
+            case OperandTypes.MI:
+                return new WriteOperands(1, OperandTypes.MI, target.Address, new object[] { (short)target.Value });
+            case OperandTypes.ML:
+                return new WriteOperands(1, OperandTypes.ML, target.Address, new object[] { (int)target.Value });
+            case OperandTypes.MF:
+                return new WriteOperands(1, OperandTypes.MF, target.Address, new object[] { (float)target.Value });
+            case OperandTypes.MB:
+                return new WriteOperands(1, OperandTypes.MB, target.Address, new object[] { target.Value != 0 });
+            default:
+                throw new InvalidOperationException($"Operando {target.OperandType} no permitido para escritura.");
+        }
+    }
+
+    private static bool TryParseWriteTarget(
+        string targetText,
+        string valueText,
+        out PlcWriteTarget target,
+        out string error)
+    {
+        target = default;
+        error = string.Empty;
+
+        var parts = targetText.Split(':');
+        if (parts.Length != 2
+            || !Enum.TryParse(parts[0], ignoreCase: true, out OperandTypes operandType)
+            || !Enum.IsDefined(typeof(OperandTypes), operandType)
+            || operandType is not (OperandTypes.MI or OperandTypes.MB or OperandTypes.MF or OperandTypes.ML))
+        {
+            error = $"Destino de escritura '{targetText}' no válido. Solo se permite MI, MB, ML o MF (formato TIPO:DIRECCIÓN).";
+            return false;
+        }
+
+        if (!ushort.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var address))
+        {
+            error = $"La dirección de escritura '{parts[1]}' no es válida.";
+            return false;
+        }
+
+        if (!double.TryParse(valueText, NumberStyles.Float, CultureInfo.InvariantCulture, out var value)
+            || double.IsNaN(value)
+            || double.IsInfinity(value))
+        {
+            error = $"El valor '{valueText}' no es un número válido.";
+            return false;
+        }
+
+        var inRange = operandType switch
+        {
+            OperandTypes.MB => value == 0 || value == 1,
+            OperandTypes.MI => value >= short.MinValue && value <= short.MaxValue && Math.Floor(value) == value,
+            OperandTypes.ML => value >= int.MinValue && value <= int.MaxValue && Math.Floor(value) == value,
+            _ => Math.Abs(value) <= float.MaxValue
+        };
+        if (!inRange)
+        {
+            error = $"El valor {valueText} está fuera del rango o formato de {operandType}.";
+            return false;
+        }
+
+        target = new PlcWriteTarget(operandType, address, value);
+        return true;
+    }
+
+    private readonly struct PlcWriteTarget
+    {
+        public PlcWriteTarget(OperandTypes operandType, ushort address, double value)
+        {
+            OperandType = operandType;
+            Address = address;
+            Value = value;
+        }
+
+        public OperandTypes OperandType { get; }
+        public ushort Address { get; }
+        public double Value { get; }
     }
 
     private static bool TryParseAdditionalReadRequests(

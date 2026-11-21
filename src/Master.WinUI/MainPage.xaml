@@ -382,10 +382,10 @@
                 <TabViewItem Header="Acciones" IsClosable="False">
                     <StackPanel Padding="8" Spacing="8" HorizontalAlignment="Stretch">
                         <Button x:Name="ProgramActionButton" Content="Programar" Click="ProgramAction_Click" HorizontalAlignment="Stretch" ToolTipService.ToolTip="Prepara la remisión. No guarda datos ni envía órdenes al PLC." Style="{StaticResource DefaultButtonStyle}" />
-                        <Button x:Name="LoadActionButton" Content="Cargar" Click="SimulatedLoad_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Ejecuta la secuencia local de carga simulada. No escribe al PLC." Style="{StaticResource DefaultButtonStyle}" />
-                        <Button x:Name="DownloadActionButton" Content="Descargar" Click="SimulatedDownload_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Ejecuta la secuencia local de descarga simulada. No escribe al PLC." Style="{StaticResource DefaultButtonStyle}" />
-                        <Button x:Name="PauseActionButton" Content="Pausar" Click="SimulatedPause_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Pausa o reanuda únicamente la simulación local. No escribe bitPausa." Style="{StaticResource DefaultButtonStyle}" />
-                        <Button x:Name="CancelActionButton" Content="Cancelar" Click="SimulatedCancel_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Cancela únicamente la simulación local. No escribe bitCancelar." Style="{StaticResource DefaultButtonStyle}" />
+                        <Button x:Name="LoadActionButton" Content="Cargar" Click="LoadAction_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Envía la receta al PLC e inicia la carga (escribe al PLC)." Style="{StaticResource DefaultButtonStyle}" />
+                        <Button x:Name="DownloadActionButton" Content="Descargar" Click="DownloadAction_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Inicia la descarga en el PLC. Al terminar, guarda el PDF de la remisión." Style="{StaticResource DefaultButtonStyle}" />
+                        <Button x:Name="PauseActionButton" Content="Pausar" Click="PauseAction_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="No disponible: la lógica de pausa del PLC no está confirmada." Style="{StaticResource DefaultButtonStyle}" />
+                        <Button x:Name="CancelActionButton" Content="Cancelar" Click="CancelAction_Click" HorizontalAlignment="Stretch" IsEnabled="False" ToolTipService.ToolTip="Envía la orden de cancelación al PLC (bitCancelar). Antes de enviar nada al PLC solo reinicia la remisión local." Style="{StaticResource DefaultButtonStyle}" />
                         <Border Background="{ThemeResource Palette26364D}" CornerRadius="4" Padding="8">
                             <StackPanel Spacing="4">
                                 <TextBlock Text="PLC · señales en solo lectura" FontWeight="SemiBold" FontSize="12" />
@@ -517,13 +517,11 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
-                <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <TextBlock x:Name="CurrentUserText" Text="USUARIO:" FontSize="10" FontWeight="SemiBold" VerticalAlignment="Center" />
             <TextBlock x:Name="CurrentRoleText" Grid.Column="1" Text="TIPO:" FontSize="10" FontWeight="SemiBold" Margin="24,0,0,0" VerticalAlignment="Center" />
             <TextBlock x:Name="SystemStatusText" Grid.Column="2" Text="Esperando inicio de sesión" Foreground="{ThemeResource PaletteFBBF24}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-            <Button x:Name="LogoutButton" Grid.Column="3" Content="Cerrar sesión" Click="LogoutButton_Click" Visibility="Collapsed" Margin="0,0,12,0" />
-            <TextBlock x:Name="ClockText" Grid.Column="4" FontSize="10" VerticalAlignment="Center" />
+            <TextBlock x:Name="ClockText" Grid.Column="3" FontSize="10" VerticalAlignment="Center" />
         </Grid>
 
         <Grid x:Name="InventoryFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">

@@ -1,7 +1,10 @@
 {
   "profiles": {
     "Master.WinUI": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "environmentVariables": {
+        "BLAPACI_PLC_WRITES": "1"
+      }
     }
   }
 }

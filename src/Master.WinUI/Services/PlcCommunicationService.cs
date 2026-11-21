@@ -49,6 +49,25 @@ public sealed class PlcCommunicationService
     private readonly SemaphoreSlim _plcOperationLock = new(1, 1);
     private readonly PlcTagService _plcTagService = new();
 
+    // ---- Escritura real al PLC (separada de la verificación/lectura) ----
+    private readonly Dictionary<string, PlcWritableTag> _writableTags = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Interruptor maestro. Debe ser false hasta que el proceso real esté habilitado.</summary>
+    public bool WritesEnabled { get; set; }
+
+    /// <summary>
+    /// Autorización e interbloqueos de la aplicación. Devuelve null si la escritura puede
+    /// continuar, o el motivo del rechazo.
+    /// </summary>
+    public Func<PlcWriteRequest, string?>? WriteGuard { get; set; }
+
+    /// <summary>Declara un tag de dbo.Tags como escribible, con su rango permitido (valor de ingeniería).</summary>
+    public void AllowWrite(PlcWritableTag tag)
+    {
+        ArgumentNullException.ThrowIfNull(tag);
+        _writableTags[tag.TagName] = tag;
+    }
+
     public async Task<PlcCommunicationSettings> GetSettingsAsync(CancellationToken cancellationToken = default)
     {
         const string query = """
@@ -320,6 +339,264 @@ public sealed class PlcCommunicationService
         }
 
         await transaction.CommitAsync(cancellationToken);
+    }
+
+    public async Task<PlcWriteResult> WriteAsync(
+        PlcWriteRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        if (!WritesEnabled)
+        {
+            return RejectWrite(request, "La escritura al PLC está deshabilitada.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.RequestedBy) || string.IsNullOrWhiteSpace(request.Reason))
+        {
+            return RejectWrite(request, "Se requiere usuario y motivo para escribir al PLC.");
+        }
+
+        if (!_writableTags.TryGetValue(request.TagName, out var writable))
+        {
+            return RejectWrite(request, $"El tag '{request.TagName}' no está autorizado para escritura.");
+        }
+
+        if (double.IsNaN(request.Value) || double.IsInfinity(request.Value)
+            || request.Value < writable.Min || request.Value > writable.Max)
+        {
+            return RejectWrite(
+                request,
+                $"Valor fuera del rango permitido [{writable.Min}, {writable.Max}] para '{request.TagName}'.");
+        }
+
+        var guardReason = WriteGuard?.Invoke(request);
+        if (guardReason is not null)
+        {
+            return RejectWrite(request, $"Interbloqueo: {guardReason}");
+        }
+
+        PlcCommunicationSettings settings;
+        try
+        {
+            settings = await GetSettingsAsync(cancellationToken);
+        }
+        catch (SqlException exception)
+        {
+            return RejectWrite(request, $"No se pudo leer la configuración PLC (SQL {exception.Number}): {exception.Message}");
+        }
+        catch (InvalidOperationException exception)
+        {
+            return RejectWrite(request, $"La configuración PLC no es válida: {exception.Message}");
+        }
+
+        if (!TryCreateProbeOptions(settings, out var options, out var validationError))
+        {
+            return RejectWrite(request, validationError);
+        }
+
+        PlcReadOperand operand;
+        ushort address;
+        double multiplier;
+        try
+        {
+            var tags = await _plcTagService.GetTagsAsync(cancellationToken);
+            var matching = tags
+                .Where(candidate => candidate.Name.Equals(request.TagName, StringComparison.OrdinalIgnoreCase))
+                .Take(2)
+                .ToArray();
+            if (matching.Length != 1)
+            {
+                return RejectWrite(request, matching.Length == 0
+                    ? $"No existe el tag '{request.TagName}' en dbo.Tags."
+                    : $"El tag '{request.TagName}' está duplicado en dbo.Tags.");
+            }
+
+            var tag = matching[0];
+            if (!tag.IsEnabled)
+            {
+                return RejectWrite(request, $"El tag '{request.TagName}' está deshabilitado en dbo.Tags.");
+            }
+
+            if (tag.PlcAddress is not >= 0 || !TryGetReadOperand(tag.AddressType, out operand))
+            {
+                return RejectWrite(request, $"El tag '{request.TagName}' no tiene una dirección PLC válida.");
+            }
+
+            if (operand == PlcReadOperand.Output)
+            {
+                return RejectWrite(request, "No se permite escribir salidas físicas directamente; use un bit/registro de comando (MB/MI).");
+            }
+
+            address = (ushort)tag.PlcAddress.Value;
+            multiplier = tag.Multiplier ?? 1;
+        }
+        catch (SqlException exception)
+        {
+            return RejectWrite(request, $"No se pudieron leer los tags PLC (SQL {exception.Number}): {exception.Message}");
+        }
+
+        if (multiplier == 0)
+        {
+            return RejectWrite(request, $"El multiplicador del tag '{request.TagName}' es 0.");
+        }
+
+        // La lectura hace raw * multiplicador; al escribir se invierte.
+        var rawValue = request.Value / multiplier;
+        if (operand != PlcReadOperand.MF)
+        {
+            var rounded = Math.Round(rawValue);
+            if (Math.Abs(rawValue - rounded) > 1e-4)
+            {
+                return RejectWrite(request, $"El valor {request.Value} no es representable como entero para '{request.TagName}'.");
+            }
+
+            rawValue = rounded;
+        }
+
+        await _plcOperationLock.WaitAsync(cancellationToken);
+        try
+        {
+            var result = await RunWriteProbeAsync(options, operand, address, rawValue, multiplier, cancellationToken);
+            Trace.TraceInformation(
+                "PLC WRITE tag={0} {1}{2} value={3} user={4} reason={5} ok={6} uncertain={7} detail={8}",
+                request.TagName, operand, address, request.Value, request.RequestedBy, request.Reason,
+                result.Success, result.OutcomeUncertain, result.Detail);
+            return result;
+        }
+        finally
+        {
+            _plcOperationLock.Release();
+        }
+    }
+
+    private static PlcWriteResult RejectWrite(PlcWriteRequest request, string reason)
+    {
+        Trace.TraceWarning(
+            "PLC WRITE RECHAZADA tag={0} value={1} user={2}: {3}",
+            request.TagName, request.Value, request.RequestedBy, reason);
+        return PlcWriteResult.Rejected(reason);
+    }
+
+    private static async Task<PlcWriteResult> RunWriteProbeAsync(
+        PlcProbeOptions options,
+        PlcReadOperand operand,
+        ushort address,
+        double rawValue,
+        double multiplier,
+        CancellationToken cancellationToken)
+    {
+        var executablePath = Path.Combine(AppContext.BaseDirectory, "PlcProbe", "Master.PlcProbe.exe");
+        if (!File.Exists(executablePath))
+        {
+            return PlcWriteResult.Rejected($"No se encontró el auxiliar de comunicación PLC: {executablePath}");
+        }
+
+        using var process = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = executablePath,
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                WorkingDirectory = Path.GetDirectoryName(executablePath)!
+            }
+        };
+        var arguments = process.StartInfo.ArgumentList;
+        arguments.Add("--write");
+        arguments.Add(options.PlcAddress.ToString(CultureInfo.InvariantCulture));
+        arguments.Add(options.Port);
+        arguments.Add(options.Velocity);
+        arguments.Add(options.DataBits);
+        arguments.Add(options.Parity);
+        arguments.Add(options.StopBits);
+        arguments.Add(options.Timeout.ToString(CultureInfo.InvariantCulture));
+        arguments.Add(options.Retry.ToString(CultureInfo.InvariantCulture));
+        arguments.Add($"{operand}:{address}");
+        arguments.Add(rawValue.ToString("R", CultureInfo.InvariantCulture));
+
+        try
+        {
+            if (!process.Start())
+            {
+                return PlcWriteResult.Rejected("Windows no pudo iniciar el auxiliar de comunicación PLC.");
+            }
+
+            var outputTask = process.StandardOutput.ReadToEndAsync();
+            var errorTask = process.StandardError.ReadToEndAsync();
+            // Escritura + lectura de verificación: el doble de solicitudes que una lectura.
+            var timeoutMilliseconds = Math.Min(
+                30_000L,
+                Math.Max(8_000L, (long)options.Timeout * (options.Retry + 1L) * 2L + 3_000L));
+            using var timeoutSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            timeoutSource.CancelAfter(TimeSpan.FromMilliseconds(timeoutMilliseconds));
+
+            try
+            {
+                await process.WaitForExitAsync(timeoutSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                if (!process.HasExited)
+                {
+                    process.Kill(entireProcessTree: true);
+                }
+
+                await process.WaitForExitAsync(CancellationToken.None);
+                return PlcWriteResult.Unknown(
+                    $"El auxiliar PLC no respondió a tiempo ({timeoutMilliseconds} ms) o se canceló. " +
+                    "El valor pudo haberse escrito: verifíquelo antes de reintentar.");
+            }
+
+            var standardOutput = (await outputTask).Trim();
+            var standardError = (await errorTask).Trim();
+
+            if (process.ExitCode == 0 && standardOutput.StartsWith("WRITTEN|", StringComparison.Ordinal))
+            {
+                var separator = standardOutput.IndexOf('=');
+                if (separator > 0
+                    && double.TryParse(
+                        standardOutput.AsSpan(separator + 1),
+                        NumberStyles.Float,
+                        CultureInfo.InvariantCulture,
+                        out var readBackRaw))
+                {
+                    return new PlcWriteResult(
+                        true,
+                        $"Escritura verificada en {operand}{address}.",
+                        readBackRaw * multiplier);
+                }
+
+                return PlcWriteResult.Unknown($"Respuesta ilegible del auxiliar PLC: '{standardOutput}'.");
+            }
+
+            var detail = string.IsNullOrWhiteSpace(standardError)
+                ? $"El auxiliar PLC terminó con código {process.ExitCode} sin confirmar la escritura."
+                : standardError;
+
+            // Solo estos errores garantizan que NO se escribió nada; el resto se trata como incierto.
+            var definitelyNotWritten =
+                detail.Contains("|InvalidSettings|", StringComparison.Ordinal)
+                || detail.Contains("|InvalidArguments|", StringComparison.Ordinal)
+                || detail.Contains("|Disconnected|", StringComparison.Ordinal)
+                || detail.Contains("|PortInUse|", StringComparison.Ordinal);
+
+            return new PlcWriteResult(false, detail, null, OutcomeUncertain: !definitelyNotWritten);
+        }
+        catch (Win32Exception exception)
+        {
+            return PlcWriteResult.Rejected($"No se pudo iniciar el auxiliar de comunicación PLC: {exception.Message}");
+        }
+        catch (IOException exception)
+        {
+            return PlcWriteResult.Unknown($"Error al ejecutar el auxiliar de comunicación PLC: {exception.Message}");
+        }
+        catch (InvalidOperationException exception)
+        {
+            return PlcWriteResult.Rejected($"No se pudo iniciar el proceso auxiliar PLC: {exception.Message}");
+        }
     }
 
     private static async Task<PlcConnectionStatus> CheckConnectionAsync(
@@ -874,4 +1151,19 @@ public sealed record PlcConnectionStatus(
             ushort? registerAddress,
             string detail) =>
             new(state, port, registerAddress, detail);
+}
+
+public sealed record PlcWritableTag(string TagName, double Min, double Max);
+
+public sealed record PlcWriteRequest(string TagName, double Value, string RequestedBy, string Reason);
+
+public sealed record PlcWriteResult(
+    bool Success,
+    string Detail,
+    double? ReadBackValue = null,
+    bool OutcomeUncertain = false)
+{
+    public static PlcWriteResult Rejected(string detail) => new(false, detail);
+
+    public static PlcWriteResult Unknown(string detail) => new(false, detail, null, true);
 }

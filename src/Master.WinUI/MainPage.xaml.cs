@@ -46,6 +46,13 @@ public sealed partial class MainPage : Page
         ("tag:bitFinBacha", "Fin de bacha")
     };
 
+    // Señales de confirmación opcionales (ver add_tags.sql). No son requisito para IsPlcFlowReady.
+    private static readonly string[] OptionalPlcSignals =
+    {
+        "tag:bitBachaEnProceso",
+        "tag:bitDescargaIniciada"
+    };
+
     private readonly DispatcherQueueTimer _clockTimer;
     private readonly DispatcherQueueTimer _plcStatusTimer;
     private readonly DispatcherQueueTimer _canvasLayoutSaveTimer;
@@ -73,13 +80,10 @@ public sealed partial class MainPage : Page
     private readonly DesignerCanvasState _designerCanvasState = new();
     private readonly Dictionary<string, TextBlock> _canvasValueCaptions = new(StringComparer.Ordinal);
     private readonly Dictionary<string, TextBlock> _canvasValueTexts = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, bool> _simulatedCanvasImageStates = new(StringComparer.Ordinal);
     private IReadOnlyDictionary<string, string> _dashboardMachineConfiguration =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, string>? _dashboardFormulaValues;
     private bool _hasDashboardMaterialData;
-    private readonly Dictionary<string, decimal> _simulatedCanvasReadings =
-        new(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, AdditionalImageConfigurationRecord> _additionalImageConfigurations =
         new Dictionary<string, AdditionalImageConfigurationRecord>(StringComparer.OrdinalIgnoreCase);
     private IReadOnlyDictionary<string, AdditionalImageConfigurationRecord> _pumpImageConfigurations =
@@ -168,7 +172,6 @@ public sealed partial class MainPage : Page
     private bool _isCanvasLocked;
     private bool _isDesignerCanvasLoaded;
     private bool _isPlcStatusCheckRunning;
-    private bool _plcInterruptionActive;
     private PlcConnectionState? _lastPlcConnectionState;
     private string? _lastPlcStatusDetail;
     private PlcConnectionStatus? _latestPlcStatus;
@@ -181,13 +184,13 @@ public sealed partial class MainPage : Page
     private bool _isLoadingReportProductionFilters;
     private bool _reportProductionFiltersLoaded;
     private int _reportInventoryFilterLoadVersion;
-    private SimulatedRemission? _simulatedRemission;
-    private string[]? _remissionBeforeSimulation;
-    private SimulatedProcessState _simulatedProcessState;
-    private SimulatedProcessState _stateBeforePause;
-    private CancellationTokenSource? _simulatedProcessCancellation;
-    private TaskCompletionSource<bool>? _simulatedProcessCompletion;
-    private TaskCompletionSource<bool>? _simulationResumeSignal;
+    private ActiveRemission? _activeRemission;
+    private string[]? _remissionBeforeProcess;
+    private PlantProcessState _processState;
+    private bool _processCommandBusy;
+    private bool _plcLinkLostDuringProcess;
+    private bool _batchSeenActive;
+    private PlcProcessService? _plcProcessService;
 
     public ObservableCollection<MaterialRow> MaterialRows { get; } = new();
     public ObservableCollection<MaterialRowPair> MaterialRowPairs { get; } = new();
@@ -539,6 +542,7 @@ public sealed partial class MainPage : Page
                 .Where(control => !string.IsNullOrWhiteSpace(control))
                 .Select(control => control!)
                 .Concat(ReadOnlyPlcSignals.Select(signal => signal.ControlKey))
+                .Concat(OptionalPlcSignals)
                 .Distinct(StringComparer.OrdinalIgnoreCase)
                 .ToArray();
             var status = await _plcCommunicationService.CheckConnectionAsync(
@@ -547,11 +551,10 @@ public sealed partial class MainPage : Page
             var wasPlcFlowReady = IsPlcFlowReady(_latestPlcStatus, out _);
             _latestPlcStatus = status;
             UpdateReadOnlyPlcSignalStatus(status);
-            HandleSimulatedPlcStatus(status, wasPlcFlowReady);
+            HandleProcessPlcStatus(status, wasPlcFlowReady);
 
             var imageStatesChanged = false;
-            if (_simulatedCanvasImageStates.Count == 0
-                && status.State == PlcConnectionState.Connected
+            if (status.State == PlcConnectionState.Connected
                 && status.AdditionalImageValues is { } additionalImageValues)
             {
                 foreach (var control in _designerCanvasState.Controls.Where(control =>
@@ -589,20 +592,12 @@ public sealed partial class MainPage : Page
             var additionalTextValues = status.State == PlcConnectionState.Connected
                 ? status.AdditionalTextValues
                 : null;
-            var useSimulatedReadings = IsSimulatedReadingsActive;
             foreach (var control in _designerCanvasState.Controls.Where(control =>
                          GetCanvasValueControlName(control) is not null))
             {
                 var controlName = GetCanvasValueControlName(control);
                 if (controlName is null)
                 {
-                    continue;
-                }
-
-                if (useSimulatedReadings
-                    && _simulatedCanvasReadings.TryGetValue(controlName, out var simulatedValue))
-                {
-                    SetCanvasValue(control, simulatedValue.ToString("0.##", CultureInfo.CurrentCulture));
                     continue;
                 }
 
@@ -633,7 +628,7 @@ public sealed partial class MainPage : Page
 
             SetSystemStatus(message, color, status.Detail);
             if ((_lastPlcConnectionState != status.State || _lastPlcStatusDetail != status.Detail)
-                && _simulatedProcessState == SimulatedProcessState.Idle)
+                && _processState == PlantProcessState.Idle)
             {
                 ModuleStatusText.Text = $"Estado PLC: {status.Detail}";
                 _lastPlcConnectionState = status.State;
@@ -1716,7 +1711,7 @@ public sealed partial class MainPage : Page
             }
 
             _dashboardFormulaValues = (recipes.SelectedItem as ProgramFormulaOption)?.Values
-                ?? _simulatedRemission?.FormulaValues;
+                ?? _activeRemission?.FormulaValues;
             RefreshDashboardMaterials();
 
             var hasSelectedRecipe = recipes.SelectedItem is ProgramFormulaOption;
@@ -1946,7 +1941,7 @@ public sealed partial class MainPage : Page
 
             SetProgramStatus(string.Join(
                 Environment.NewLine,
-                "Validación local correcta (modo de prueba).",
+                "Receta validada.",
                 $"Receta: {selectedRecipe!.Code} — {selectedRecipe.Description}",
                 $"Cantidad: {validatedQuantity.ToString(CultureInfo.CurrentCulture)}",
                 $"Cliente: {validatedClient.Client}",
@@ -1958,7 +1953,7 @@ public sealed partial class MainPage : Page
                 $"Pedidos / surtidos / por surtir: {validatedOrderedQuantity.ToString(CultureInfo.CurrentCulture)} / " +
                 $"{validatedSuppliedQuantity.ToString(CultureInfo.CurrentCulture)} / " +
                 $"{validatedToSupplyQuantity.ToString(CultureInfo.CurrentCulture)}",
-                "Validación local solamente: no se guardó ni se envió ninguna orden al PLC."),
+                "Aún no se ha enviado nada al PLC: pulsa Cargar para iniciar."),
                 InfoBarSeverity.Success);
             RemissionRows[0].Valor = remissionNumber.Text.Trim();
             RemissionRows[1].Valor = selectedRecipe!.Code;
@@ -1969,13 +1964,12 @@ public sealed partial class MainPage : Page
             RemissionRows[6].Valor = selectedTruck!.Unit;
             RemissionRows[7].Valor = orders.Text.Trim();
             RemissionPanel.IsExpanded = true;
-            await ResetSimulatedCanvasImageStatesAsync();
             _dashboardFormulaValues = selectedRecipe!.Values;
-            _simulatedCanvasReadings.Clear();
+            _batchSeenActive = false;
             RefreshDashboardMaterials();
             ModuleStatusText.Text = "Receta preparada para cargarse";
-            _remissionBeforeSimulation ??= RemissionRows.Select(row => row.Valor).ToArray();
-            _simulatedRemission = new SimulatedRemission(
+            _remissionBeforeProcess ??= RemissionRows.Select(row => row.Valor).ToArray();
+            _activeRemission = new ActiveRemission(
                 remissionNumber.Text.Trim(),
                 selectedRecipe.Code,
                 selectedRecipe.Description,
@@ -1995,9 +1989,9 @@ public sealed partial class MainPage : Page
                 validatedToSupplyQuantity.ToString(CultureInfo.CurrentCulture),
                 observations.Text.Trim(),
                 selectedRecipe.Values);
-            _simulatedProcessState = SimulatedProcessState.Prepared;
-            _plcInterruptionActive = false;
-            UpdateSimulatedActionButtons();
+            _processState = PlantProcessState.Prepared;
+            _plcLinkLostDuringProcess = false;
+            UpdateProcessActionButtons();
             programDialog?.Hide();
         };
         lastLoadButton.Click += async (_, _) => await LoadLatestDownloadAsync();
@@ -2054,7 +2048,7 @@ public sealed partial class MainPage : Page
         };
         programDialog.Closed += (_, _) =>
         {
-            _dashboardFormulaValues = _simulatedRemission?.FormulaValues;
+            _dashboardFormulaValues = _activeRemission?.FormulaValues;
             RefreshDashboardMaterials();
         };
         var dialogOperation = programDialog.ShowAsync();
@@ -2215,9 +2209,14 @@ public sealed partial class MainPage : Page
         }
     }
 
-    private async void SimulatedLoad_Click(object sender, RoutedEventArgs e)
+    private async void LoadAction_Click(object sender, RoutedEventArgs e)
     {
-        if (_simulatedProcessState != SimulatedProcessState.Prepared || _simulatedRemission is null)
+        if (_processCommandBusy)
+        {
+            return;
+        }
+
+        if (_processState != PlantProcessState.Prepared || _activeRemission is null)
         {
             ModuleStatusText.Text = "Primero prepara una remisión.";
             return;
@@ -2226,236 +2225,214 @@ public sealed partial class MainPage : Page
         if (!IsPlcFlowReady(_latestPlcStatus, out var plcInterruption))
         {
             ModuleStatusText.Text = $"No se puede iniciar la carga: {plcInterruption}";
-            UpdateSimulatedActionButtons();
+            UpdateProcessActionButtons();
             return;
         }
 
-        IReadOnlyList<SimulatedDoseStep> sequence;
-        Dictionary<string, decimal> simulatedReadings;
+        IReadOnlyList<PlcRecipeLine> recipe;
         try
         {
-            sequence = CreateSimulatedRecipeSequence(_simulatedRemission.FormulaValues);
-            simulatedReadings = sequence
-                .Where(step => !string.IsNullOrWhiteSpace(step.ControlName))
-                .Select(step => step.ControlName!)
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(controlName => controlName, _ => 0m, StringComparer.OrdinalIgnoreCase);
-            ApplySimulatedCanvasReadings(simulatedReadings, 1m);
+            recipe = CreateRecipeLines(_activeRemission.FormulaValues);
         }
         catch (InvalidOperationException exception)
         {
-            ModuleStatusText.Text = $"No se pudo simular la carga: {exception.Message}";
+            ModuleStatusText.Text = $"No se puede enviar la receta al PLC: {exception.Message}";
             return;
         }
 
-        _simulatedProcessState = SimulatedProcessState.Loading;
-        ModuleStatusText.Text = "Simulación local: iniciando carga.";
-        UpdateSimulatedActionButtons();
+        var remission = _activeRemission.Remission;
+        _processCommandBusy = true;
+        _batchSeenActive = false;
+        _processState = PlantProcessState.StartingLoad;
+        ModuleStatusText.Text = "Enviando la receta e iniciando la carga en el PLC...";
+        UpdateProcessActionButtons();
 
+        PlcProcessResult result;
         try
         {
-            await RunSimulatedOperationAsync(async cancellationToken =>
-            {
-                await BeginSimulatedCanvasImageCycleAsync();
-
-                const int stepsPerMaterial = 4;
-                var stepDuration = GetSimulatedStepDuration(sequence.Count, stepsPerMaterial);
-                var completedSteps = 0;
-                var totalSteps = sequence.Count * stepsPerMaterial;
-
-                foreach (var step in sequence)
-                {
-                    var startingValue = step.ControlName is not null
-                        ? simulatedReadings.GetValueOrDefault(step.ControlName)
-                        : 0m;
-                    for (var stepIndex = 1; stepIndex <= stepsPerMaterial; stepIndex++)
-                    {
-                        await DelaySimulatedStepAsync(stepDuration, cancellationToken);
-                        cancellationToken.ThrowIfCancellationRequested();
-                        if (step.ControlName is not null)
-                        {
-                            simulatedReadings[step.ControlName] =
-                                startingValue + step.Quantity * stepIndex / stepsPerMaterial;
-                        }
-
-                        ApplySimulatedCanvasReadings(simulatedReadings, 1m);
-                        completedSteps++;
-                        var progress = completedSteps * 100 / totalSteps;
-                        ModuleStatusText.Text =
-                            $"Simulación local: cargando {step.MaterialName} ({step.Parameter}) — {progress}%.";
-                    }
-                }
-
-                cancellationToken.ThrowIfCancellationRequested();
-                _simulatedProcessState = SimulatedProcessState.LoadReceived;
-                ModuleStatusText.Text = "Fin de carga recibida (simulada).";
-                UpdateSimulatedActionButtons();
-            });
+            result = await PlcProcess.StartLoadAsync(recipe, _authenticatedUsername, remission);
         }
-        catch (InvalidOperationException exception)
+        catch (Exception exception)
         {
-            if (_simulatedProcessState == SimulatedProcessState.Cancelling)
-            {
-                return;
-            }
-
-            _simulatedProcessState = SimulatedProcessState.Prepared;
-            ModuleStatusText.Text = $"No se pudo completar la carga simulada: {exception.Message}";
-            UpdateSimulatedActionButtons();
+            result = PlcProcessResult.Uncertain($"Error al enviar la carga: {exception.Message}");
         }
+        finally
+        {
+            _processCommandBusy = false;
+        }
+
+        if (result.Success)
+        {
+            _processState = PlantProcessState.Loading;
+            ModuleStatusText.Text = $"Carga en curso. {result.Message}";
+        }
+        else if (result.OutcomeUncertain)
+        {
+            // El comando pudo haberse enviado: se vigila el PLC y el operador puede cancelar.
+            _processState = PlantProcessState.Loading;
+            ModuleStatusText.Text = $"Carga SIN CONFIRMAR: {result.Message}";
+        }
+        else
+        {
+            _processState = PlantProcessState.Prepared;
+            ModuleStatusText.Text = $"No se inició la carga: {result.Message}";
+        }
+
+        UpdateProcessActionButtons();
     }
 
-    private async void SimulatedDownload_Click(object sender, RoutedEventArgs e)
+    private async void DownloadAction_Click(object sender, RoutedEventArgs e)
     {
-        if (_simulatedRemission is null
-            || _simulatedProcessState is not (SimulatedProcessState.LoadReceived or SimulatedProcessState.AwaitingReport))
+        if (_processCommandBusy)
+        {
+            return;
+        }
+
+        if (_activeRemission is null
+            || _processState is not (PlantProcessState.LoadReceived or PlantProcessState.AwaitingReport))
         {
             ModuleStatusText.Text = "Se requiere una remisión preparada y una carga recibida.";
             return;
         }
 
-        if (_simulatedProcessState == SimulatedProcessState.LoadReceived
-            && !IsPlcFlowReady(_latestPlcStatus, out var plcInterruption))
+        if (_processState == PlantProcessState.AwaitingReport)
         {
-            ModuleStatusText.Text = $"No se puede iniciar la descarga: {plcInterruption}";
-            UpdateSimulatedActionButtons();
+            await SaveRemissionPdfAsync(CancellationToken.None);
             return;
         }
 
+        if (!IsPlcFlowReady(_latestPlcStatus, out var plcInterruption))
+        {
+            ModuleStatusText.Text = $"No se puede iniciar la descarga: {plcInterruption}";
+            UpdateProcessActionButtons();
+            return;
+        }
+
+        var remission = _activeRemission.Remission;
+        _processCommandBusy = true;
+        _processState = PlantProcessState.StartingDischarge;
+        ModuleStatusText.Text = "Enviando la orden de descarga al PLC...";
+        UpdateProcessActionButtons();
+
+        PlcProcessResult result;
         try
         {
-            var sequence = CreateSimulatedRecipeSequence(_simulatedRemission.FormulaValues);
-            await RunSimulatedOperationAsync(async cancellationToken =>
-            {
-                if (_simulatedProcessState == SimulatedProcessState.LoadReceived)
-                {
-                    _simulatedProcessState = SimulatedProcessState.Downloading;
-                    ModuleStatusText.Text = "Simulación local: iniciando descarga.";
-                    UpdateSimulatedActionButtons();
-                    var simulatedReadings = _simulatedCanvasReadings
-                        .Where(reading => !reading.Key.Equals("ctlAgregados", StringComparison.OrdinalIgnoreCase))
-                        .ToDictionary(reading => reading.Key, reading => reading.Value, StringComparer.OrdinalIgnoreCase);
-                    var simulatedImages = _designerCanvasState.Controls
-                        .Where(IsCanvasImageControl)
-                        .OrderBy(control => control.ImageControl, StringComparer.OrdinalIgnoreCase)
-                        .ToArray();
-                    const int stepsPerMaterial = 4;
-                    var stepDuration = GetSimulatedStepDuration(sequence.Count, stepsPerMaterial);
-                    var completedSteps = 0;
-                    var totalSteps = sequence.Count * stepsPerMaterial;
-                    foreach (var doseStep in sequence)
-                    {
-                        ModuleStatusText.Text =
-                            $"Simulación local: descargando {doseStep.MaterialName} ({doseStep.Parameter}).";
-                        var startingValue = doseStep.ControlName is not null
-                            ? simulatedReadings.GetValueOrDefault(doseStep.ControlName)
-                            : 0m;
-                        for (var stepIndex = 1; stepIndex <= stepsPerMaterial; stepIndex++)
-                        {
-                            await DelaySimulatedStepAsync(stepDuration, cancellationToken);
-                            cancellationToken.ThrowIfCancellationRequested();
-                            if (doseStep.ControlName is not null)
-                            {
-                                simulatedReadings[doseStep.ControlName] = Math.Max(
-                                    0m,
-                                    startingValue - doseStep.Quantity * stepIndex / stepsPerMaterial);
-                            }
-
-                            completedSteps++;
-                            ApplySimulatedCanvasReadings(simulatedReadings, 1m);
-                            var progress = completedSteps / (decimal)totalSteps;
-                            var progressPercent = (int)Math.Round(progress * 100m);
-                            ModuleStatusText.Text =
-                                $"Simulación local: descargando {doseStep.MaterialName} ({doseStep.Parameter}) — {progressPercent}%.";
-                            var imagesToTurnOff = (int)Math.Ceiling(simulatedImages.Length * (double)progress);
-                            foreach (var control in simulatedImages.Take(imagesToTurnOff))
-                            {
-                                cancellationToken.ThrowIfCancellationRequested();
-                                if (_simulatedCanvasImageStates.GetValueOrDefault(control.Id))
-                                {
-                                    await SetSimulatedCanvasImageStateAsync(control, false);
-                                }
-                            }
-                        }
-                    }
-
-                    cancellationToken.ThrowIfCancellationRequested();
-                    _simulatedProcessState = SimulatedProcessState.AwaitingReport;
-                    ModuleStatusText.Text = "Descarga simulada completa; guarda el PDF para finalizar.";
-                    UpdateSimulatedActionButtons();
-                }
-
-                await SaveSimulatedRemissionPdfAsync(cancellationToken);
-            });
+            result = await PlcProcess.StartDischargeAsync(_authenticatedUsername, remission);
         }
-        catch (InvalidOperationException exception)
+        catch (Exception exception)
         {
-            if (_simulatedProcessState == SimulatedProcessState.Cancelling)
-            {
-                return;
-            }
-
-            ModuleStatusText.Text = $"No se pudo completar la descarga simulada: {exception.Message}";
-            UpdateSimulatedActionButtons();
+            result = PlcProcessResult.Uncertain($"Error al enviar la descarga: {exception.Message}");
         }
-    }
-
-    private void SimulatedPause_Click(object sender, RoutedEventArgs e)
-    {
-        if (_simulatedProcessState == SimulatedProcessState.Paused)
+        finally
         {
-            if (!IsPlcFlowReady(_latestPlcStatus, out var plcInterruption))
-            {
-                ModuleStatusText.Text = $"El flujo permanece interrumpido: {plcInterruption}";
-                UpdateSimulatedActionButtons();
-                return;
-            }
-
-            var resumeSignal = _simulationResumeSignal;
-            if (resumeSignal is null)
-            {
-                ModuleStatusText.Text = "No se pudo reanudar la simulación: falta la señal de espera.";
-                return;
-            }
-
-            _simulatedProcessState = _stateBeforePause;
-            _plcInterruptionActive = false;
-            _simulationResumeSignal = null;
-            resumeSignal.TrySetResult(true);
-            ModuleStatusText.Text = "Simulación local reanudada.";
+            _processCommandBusy = false;
         }
-        else if (_simulatedProcessState is SimulatedProcessState.Loading or SimulatedProcessState.Downloading)
+
+        if (result.Success)
         {
-            _stateBeforePause = _simulatedProcessState;
-            _simulatedProcessState = SimulatedProcessState.Paused;
-            _simulationResumeSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ModuleStatusText.Text = "Simulación local pausada.";
+            _processState = PlantProcessState.Downloading;
+            ModuleStatusText.Text = $"Descarga en curso. {result.Message}";
+        }
+        else if (result.OutcomeUncertain)
+        {
+            _processState = PlantProcessState.Downloading;
+            ModuleStatusText.Text = $"Descarga SIN CONFIRMAR: {result.Message}";
         }
         else
         {
-            ModuleStatusText.Text = "La pausa local solo está disponible durante la carga o descarga simulada.";
+            _processState = PlantProcessState.LoadReceived;
+            ModuleStatusText.Text = $"No se inició la descarga: {result.Message}";
+        }
+
+        UpdateProcessActionButtons();
+    }
+
+    private void PauseAction_Click(object sender, RoutedEventArgs e)
+    {
+        ModuleStatusText.Text =
+            "La pausa no está disponible: la lógica de pausa del PLC no está confirmada. " +
+            "Usa Cancelar para detener el proceso.";
+    }
+
+    private async void CancelAction_Click(object sender, RoutedEventArgs e)
+    {
+        if (_processCommandBusy)
+        {
             return;
         }
 
-        UpdateSimulatedActionButtons();
-    }
-
-    private async void SimulatedCancel_Click(object sender, RoutedEventArgs e)
-    {
-        var cancellation = _simulatedProcessCancellation;
-        var processCompletion = _simulatedProcessCompletion?.Task;
-        cancellation?.Cancel();
-        _simulatedProcessState = SimulatedProcessState.Cancelling;
-        ModuleStatusText.Text = "Cancelando simulación local...";
-        UpdateSimulatedActionButtons();
-        if (processCompletion is not null)
+        if (_processState == PlantProcessState.Prepared)
         {
-            await processCompletion;
+            ResetProcessState("Remisión descartada. No se había enviado nada al PLC.");
+            return;
         }
 
-        _simulationResumeSignal?.TrySetResult(true);
-        _simulationResumeSignal = null;
-        if (_remissionBeforeSimulation is { Length: 8 } previousValues)
+        if (_processState is not (PlantProcessState.Loading
+            or PlantProcessState.LoadReceived
+            or PlantProcessState.Downloading))
+        {
+            return;
+        }
+
+        var dialog = new ContentDialog
+        {
+            Title = "Cancelar proceso",
+            Content = "Se enviará la orden de cancelación al PLC y se detendrá la carga o descarga en curso. ¿Continuar?",
+            PrimaryButtonText = "Cancelar proceso",
+            CloseButtonText = "Volver",
+            DefaultButton = ContentDialogButton.Close,
+            RequestedTheme = RequestedTheme,
+            XamlRoot = XamlRoot
+        };
+        if (await dialog.ShowAsync() != ContentDialogResult.Primary)
+        {
+            return;
+        }
+
+        if (_processCommandBusy
+            || _processState is not (PlantProcessState.Loading
+                or PlantProcessState.LoadReceived
+                or PlantProcessState.Downloading))
+        {
+            UpdateProcessActionButtons();
+            return;
+        }
+
+        var previousState = _processState;
+        var remission = _activeRemission?.Remission ?? string.Empty;
+        _processCommandBusy = true;
+        _processState = PlantProcessState.Cancelling;
+        ModuleStatusText.Text = "Enviando la cancelación al PLC...";
+        UpdateProcessActionButtons();
+
+        PlcProcessResult result;
+        try
+        {
+            result = await PlcProcess.CancelAsync(_authenticatedUsername, remission);
+        }
+        catch (Exception exception)
+        {
+            result = PlcProcessResult.Uncertain($"Error al enviar la cancelación: {exception.Message}");
+        }
+        finally
+        {
+            _processCommandBusy = false;
+        }
+
+        if (!result.Success)
+        {
+            _processState = previousState;
+            ModuleStatusText.Text = $"No se confirmó la cancelación: {result.Message}";
+            UpdateProcessActionButtons();
+            return;
+        }
+
+        ResetProcessState($"Proceso cancelado en el PLC. {result.Message}");
+    }
+
+    private void ResetProcessState(string message)
+    {
+        if (_remissionBeforeProcess is { Length: 8 } previousValues)
         {
             for (var index = 0; index < previousValues.Length; index++)
             {
@@ -2463,93 +2440,211 @@ public sealed partial class MainPage : Page
             }
         }
 
-        _remissionBeforeSimulation = null;
-        _simulatedRemission = null;
-        _simulatedProcessState = SimulatedProcessState.Idle;
-        _plcInterruptionActive = false;
-        _simulatedCanvasReadings.Clear();
-        await ResetSimulatedCanvasImageStatesAsync();
+        _remissionBeforeProcess = null;
+        _activeRemission = null;
+        _processState = PlantProcessState.Idle;
+        _plcLinkLostDuringProcess = false;
+        _batchSeenActive = false;
         _dashboardFormulaValues = null;
         RefreshDashboardMaterials();
         RemissionPanel.IsExpanded = true;
-        ModuleStatusText.Text = "Proceso de simulación cancelado.";
-        UpdateSimulatedActionButtons();
+        ModuleStatusText.Text = message;
+        UpdateProcessActionButtons();
     }
 
-    private async Task RunSimulatedOperationAsync(Func<CancellationToken, Task> operation)
-    {
-        using var cancellation = new CancellationTokenSource();
-        var processCompletion = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var startSignal = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _simulatedProcessCancellation = cancellation;
-        _simulatedProcessCompletion = processCompletion;
+    private PlcProcessService PlcProcess => _plcProcessService ??= CreatePlcProcessService();
 
-        var operationTask = RunAfterStartAsync();
-        startSignal.SetResult(true);
-        try
+    private PlcProcessService CreatePlcProcessService()
+    {
+        return new PlcProcessService(_plcCommunicationService)
         {
-            await operationTask;
+            Preflight = EvaluateProcessPreflight
+        };
+    }
+
+    private string? EvaluateProcessPreflight(PlcProcessCommand command)
+    {
+        if (!HasModulePermission("Carga Manual") || !HasActionPermission("Carga Manual", "Alta"))
+        {
+            return "El usuario no tiene permiso para operar la carga manual.";
         }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+
+        if (command == PlcProcessCommand.Cancel)
         {
+            return null;
         }
-        finally
+
+        return IsPlcFlowReady(_latestPlcStatus, out var interruption)
+            ? null
+            : $"PLC no listo: {interruption}";
+    }
+
+    private IReadOnlyList<PlcRecipeLine> CreateRecipeLines(IReadOnlyDictionary<string, string> formulaValues)
+    {
+        if (HasFormulaMaterialMismatch(formulaValues, _dashboardMachineConfiguration))
         {
-            processCompletion.TrySetResult(true);
-            if (ReferenceEquals(_simulatedProcessCancellation, cancellation))
+            throw new InvalidOperationException(
+                "La configuración actual de materiales ya no coincide con la receta preparada.");
+        }
+
+        var lines = new List<PlcRecipeLine>();
+        foreach (var (nameField, quantityField) in GetFormulaMaterialFields())
+        {
+            var materialName = formulaValues.GetValueOrDefault(nameField)?.Trim();
+            if (string.IsNullOrWhiteSpace(materialName)
+                || materialName.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase))
             {
-                _simulatedProcessCancellation = null;
-                _simulatedProcessCompletion = null;
+                continue;
+            }
+
+            var rawQuantity = formulaValues.GetValueOrDefault(quantityField)?.Trim();
+            if (!TryParseRecipeQuantity(rawQuantity, out var quantity))
+            {
+                throw new InvalidOperationException(
+                    $"La cantidad '{rawQuantity}' de {materialName} no es válida.");
+            }
+
+            if (quantity <= 0)
+            {
+                continue;
+            }
+
+            lines.Add(new PlcRecipeLine(nameField, materialName, quantity));
+        }
+
+        if (lines.Count == 0)
+        {
+            throw new InvalidOperationException(
+                "La receta no tiene materiales habilitados con una cantidad mayor que cero.");
+        }
+
+        return lines;
+    }
+
+    private void UpdateProcessActionButtons()
+    {
+        var hasPermission = HasModulePermission("Carga Manual") && HasActionPermission("Carga Manual", "Alta");
+        var plcFlowReady = IsPlcFlowReady(_latestPlcStatus, out _);
+        var idle = !_processCommandBusy;
+        ProgramActionButton.IsEnabled = hasPermission
+            && idle
+            && (_processState is PlantProcessState.Idle or PlantProcessState.Complete);
+        LoadActionButton.IsEnabled =
+            idle && _processState == PlantProcessState.Prepared && plcFlowReady;
+        DownloadActionButton.Visibility = Visibility.Visible;
+        DownloadActionButton.IsEnabled = idle
+            && (_processState == PlantProcessState.AwaitingReport
+                || (_processState == PlantProcessState.LoadReceived && plcFlowReady));
+        DownloadActionButton.Content = _processState == PlantProcessState.AwaitingReport
+            ? "Guardar PDF"
+            : "Descargar";
+        // La pausa no tiene lógica confirmada en el PLC: se mantiene deshabilitada.
+        PauseActionButton.IsEnabled = false;
+        PauseActionButton.Content = "Pausar";
+        CancelActionButton.IsEnabled = idle
+            && (_processState is PlantProcessState.Prepared
+                or PlantProcessState.Loading
+                or PlantProcessState.LoadReceived
+                or PlantProcessState.Downloading);
+        _plcStatusTimer.Interval =
+            _processState is PlantProcessState.StartingLoad
+                or PlantProcessState.Loading
+                or PlantProcessState.StartingDischarge
+                or PlantProcessState.Downloading
+                or PlantProcessState.Cancelling
+                ? TimeSpan.FromMilliseconds(500)
+                : TimeSpan.FromSeconds(5);
+    }
+
+    private static bool? TryReadSignal(PlcConnectionStatus status, string controlKey) =>
+        status.AdditionalTextValues is { } values && values.TryGetValue(controlKey, out var value)
+            ? value != 0
+            : null;
+
+    private void HandleProcessPlcStatus(PlcConnectionStatus status, bool wasPlcFlowReady)
+    {
+        var plcFlowReady = IsPlcFlowReady(status, out var plcInterruption);
+        var processActive = _processState is PlantProcessState.StartingLoad
+            or PlantProcessState.Loading
+            or PlantProcessState.LoadReceived
+            or PlantProcessState.StartingDischarge
+            or PlantProcessState.Downloading
+            or PlantProcessState.Cancelling;
+
+        if (!plcFlowReady)
+        {
+            if (processActive)
+            {
+                _plcLinkLostDuringProcess = true;
+                ModuleStatusText.Text =
+                    $"Comunicación con el PLC interrumpida: {plcInterruption}. " +
+                    "El PLC continúa su secuencia por su cuenta; usa Cancelar si es necesario.";
+            }
+            else if (_processState == PlantProcessState.Prepared)
+            {
+                ModuleStatusText.Text = $"Flujo detenido: {plcInterruption}.";
+            }
+        }
+        else
+        {
+            if (_plcLinkLostDuringProcess && processActive)
+            {
+                _plcLinkLostDuringProcess = false;
+                ModuleStatusText.Text = "Comunicación con el PLC restablecida.";
+            }
+            else if (!wasPlcFlowReady && _processState == PlantProcessState.Prepared)
+            {
+                ModuleStatusText.Text = "PLC conectado. La receta está lista para iniciar la carga.";
+            }
+            else if (!wasPlcFlowReady && _processState == PlantProcessState.LoadReceived)
+            {
+                ModuleStatusText.Text = "PLC conectado. La carga está lista para descargar.";
+            }
+
+            // Señal opcional (add_tags.sql). Si no existe, batchActive es null y solo se usan los pulsos.
+            var batchActive = TryReadSignal(status, "tag:bitBachaEnProceso");
+            if (batchActive == true
+                && _processState is PlantProcessState.Loading
+                    or PlantProcessState.LoadReceived
+                    or PlantProcessState.Downloading)
+            {
+                _batchSeenActive = true;
+            }
+
+            var batchConsistent = batchActive is null || _batchSeenActive;
+            switch (_processState)
+            {
+                case PlantProcessState.Loading
+                    when TryReadSignal(status, "tag:bitFinCarga") == true && batchConsistent:
+                    _processState = PlantProcessState.LoadReceived;
+                    ModuleStatusText.Text = "Fin de carga recibido del PLC. Listo para descargar.";
+                    break;
+
+                case PlantProcessState.Downloading
+                    when (TryReadSignal(status, "tag:bitFinBacha") == true && batchConsistent)
+                        || (_batchSeenActive && batchActive == false):
+                    _processState = PlantProcessState.AwaitingReport;
+                    ModuleStatusText.Text = "Descarga completa; guarda el PDF para finalizar.";
+                    break;
+
+                case PlantProcessState.Loading or PlantProcessState.LoadReceived
+                    when _batchSeenActive && batchActive == false:
+                    _processState = PlantProcessState.Prepared;
+                    _batchSeenActive = false;
+                    ModuleStatusText.Text =
+                        "El PLC detuvo la bacha antes de completarse (cancelación o paro en el PLC). " +
+                        "La receta sigue preparada.";
+                    break;
             }
         }
 
-        async Task RunAfterStartAsync()
-        {
-            await startSignal.Task;
-            await operation(cancellation.Token);
-        }
+        UpdateProcessActionButtons();
     }
 
-    private async Task DelaySimulatedStepAsync(TimeSpan duration, CancellationToken cancellationToken)
-    {
-        var remaining = duration;
-        var maximumSlice = TimeSpan.FromMilliseconds(100);
-        while (remaining > TimeSpan.Zero)
-        {
-            await WaitForSimulationResumeAsync(cancellationToken);
-            var delay = remaining < maximumSlice ? remaining : maximumSlice;
-            await Task.Delay(delay, cancellationToken);
-            if (_simulatedProcessState != SimulatedProcessState.Paused)
-            {
-                remaining -= delay;
-            }
-        }
-    }
-
-    private static TimeSpan GetSimulatedStepDuration(int materialCount, int stepsPerMaterial)
-    {
-        var totalSteps = checked(materialCount * stepsPerMaterial);
-        var minimumDurationPerStep = (TimeSpan.FromSeconds(15).Ticks + totalSteps - 1) / totalSteps;
-        return TimeSpan.FromTicks(Math.Max(TimeSpan.FromMilliseconds(100).Ticks, minimumDurationPerStep));
-    }
-
-    private async Task WaitForSimulationResumeAsync(CancellationToken cancellationToken)
-    {
-        while (_simulatedProcessState == SimulatedProcessState.Paused)
-        {
-            cancellationToken.ThrowIfCancellationRequested();
-            var resumeSignal = _simulationResumeSignal
-                ?? throw new InvalidOperationException("La simulación está pausada sin una señal para reanudar.");
-            await resumeSignal.Task.WaitAsync(cancellationToken);
-        }
-
-        cancellationToken.ThrowIfCancellationRequested();
-    }
-
-    private async Task SaveSimulatedRemissionPdfAsync(CancellationToken cancellationToken)
+    private async Task SaveRemissionPdfAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (_simulatedRemission is not { } remission)
+        if (_activeRemission is not { } remission)
         {
             ModuleStatusText.Text = "No hay una remisión para exportar.";
             return;
@@ -2571,54 +2666,54 @@ public sealed partial class MainPage : Page
             cancellationToken.ThrowIfCancellationRequested();
             if (file is null)
             {
-                _simulatedProcessState = SimulatedProcessState.Complete;
-                _remissionBeforeSimulation = null;
+                _processState = PlantProcessState.Complete;
+                _remissionBeforeProcess = null;
                 ModuleStatusText.Text = "Descarga completada; no se guardó el PDF.";
                 RemissionPanel.IsExpanded = true;
-                UpdateSimulatedActionButtons();
+                UpdateProcessActionButtons();
                 return;
             }
 
-            var report = BuildSimulatedRemissionReport(remission);
+            var report = BuildRemissionReport(remission);
             await File.WriteAllBytesAsync(file.Path, _reportExportService.BuildPdf(report));
-            _simulatedProcessState = SimulatedProcessState.Complete;
-            _remissionBeforeSimulation = null;
+            _processState = PlantProcessState.Complete;
+            _remissionBeforeProcess = null;
             ModuleStatusText.Text = "Remision Completa";
             RemissionPanel.IsExpanded = true;
-            UpdateSimulatedActionButtons();
+            UpdateProcessActionButtons();
         }
         catch (COMException exception)
         {
             ModuleStatusText.Text = $"No se pudo abrir el selector de PDF: {exception.Message}";
-            UpdateSimulatedActionButtons();
+            UpdateProcessActionButtons();
         }
         catch (IOException exception)
         {
             ModuleStatusText.Text = $"No se pudo guardar el PDF: {exception.Message}";
-            UpdateSimulatedActionButtons();
+            UpdateProcessActionButtons();
         }
         catch (UnauthorizedAccessException exception)
         {
             ModuleStatusText.Text = $"No hay permiso para guardar el PDF: {exception.Message}";
-            UpdateSimulatedActionButtons();
+            UpdateProcessActionButtons();
         }
         catch (InvalidOperationException exception)
         {
             ModuleStatusText.Text = $"No se pudo generar el PDF: {exception.Message}";
-            UpdateSimulatedActionButtons();
+            UpdateProcessActionButtons();
         }
         catch (ArgumentException exception)
         {
             ModuleStatusText.Text = $"Los datos de la remisión no son válidos para PDF: {exception.Message}";
-            UpdateSimulatedActionButtons();
+            UpdateProcessActionButtons();
         }
     }
 
-    private static ReportCatalogResult BuildSimulatedRemissionReport(SimulatedRemission remission)
+    private static ReportCatalogResult BuildRemissionReport(ActiveRemission remission)
     {
         var rows = new List<IReadOnlyList<string>>
         {
-            new[] { "Estado", "Remisión completa (SIMULACIÓN; no representa producción real)" },
+            new[] { "Estado", "Remisión completa" },
             new[] { "No. remisión", remission.Remission },
             new[] { "Código de receta", remission.RecipeCode },
             new[] { "Descripción", remission.Description },
@@ -2637,7 +2732,7 @@ public sealed partial class MainPage : Page
             new[] { "Surtidos (m³)", remission.SuppliedQuantity },
             new[] { "Por surtir (m³)", remission.ToSupplyQuantity },
             new[] { "Observaciones", remission.Observations },
-            new[] { "Materiales", "Valores del catálogo de receta; no son pesajes reales" }
+            new[] { "Materiales", "Valores de receta enviados al PLC (los pesajes reales los registra el PLC)" }
         };
 
         foreach (var (nameField, quantityField) in GetFormulaMaterialFields())
@@ -2710,81 +2805,6 @@ public sealed partial class MainPage : Page
         return false;
     }
 
-    private void UpdateSimulatedActionButtons()
-    {
-        var hasPermission = HasModulePermission("Carga Manual") && HasActionPermission("Carga Manual", "Alta");
-        var plcFlowReady = IsPlcFlowReady(_latestPlcStatus, out _);
-        ProgramActionButton.IsEnabled = hasPermission
-            && _simulatedProcessState is SimulatedProcessState.Idle or SimulatedProcessState.Complete;
-        LoadActionButton.IsEnabled =
-            _simulatedProcessState == SimulatedProcessState.Prepared && plcFlowReady;
-        DownloadActionButton.Visibility = Visibility.Visible;
-        DownloadActionButton.IsEnabled =
-            _simulatedProcessState == SimulatedProcessState.AwaitingReport
-            || (_simulatedProcessState == SimulatedProcessState.LoadReceived && plcFlowReady);
-        DownloadActionButton.Content = "Descargar";
-        PauseActionButton.IsEnabled =
-            _simulatedProcessState is SimulatedProcessState.Loading
-                or SimulatedProcessState.Downloading
-            || (_simulatedProcessState == SimulatedProcessState.Paused && plcFlowReady);
-        PauseActionButton.Content = _simulatedProcessState == SimulatedProcessState.Paused
-            ? "Reanudar"
-            : "Pausar";
-        CancelActionButton.IsEnabled =
-            _simulatedProcessState is SimulatedProcessState.Prepared
-                or SimulatedProcessState.Loading
-                or SimulatedProcessState.LoadReceived
-                or SimulatedProcessState.Downloading
-                or SimulatedProcessState.Paused;
-        _plcStatusTimer.Interval =
-            _simulatedProcessState is SimulatedProcessState.Loading
-                or SimulatedProcessState.Downloading
-                or SimulatedProcessState.Paused
-                ? TimeSpan.FromSeconds(1)
-                : TimeSpan.FromSeconds(5);
-    }
-
-    private void HandleSimulatedPlcStatus(PlcConnectionStatus status, bool wasPlcFlowReady)
-    {
-        var plcFlowReady = IsPlcFlowReady(status, out var plcInterruption);
-        if (!plcFlowReady)
-        {
-            if (_simulatedProcessState is SimulatedProcessState.Loading or SimulatedProcessState.Downloading)
-            {
-                _stateBeforePause = _simulatedProcessState;
-                _simulatedProcessState = SimulatedProcessState.Paused;
-                _simulationResumeSignal ??=
-                    new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                _plcInterruptionActive = true;
-                ModuleStatusText.Text = $"Flujo interrumpido: {plcInterruption}. Reconecta el PLC para reanudar.";
-            }
-            else if (_simulatedProcessState == SimulatedProcessState.Paused
-                && _stateBeforePause is SimulatedProcessState.Loading or SimulatedProcessState.Downloading)
-            {
-                _plcInterruptionActive = true;
-                ModuleStatusText.Text = $"Flujo interrumpido: {plcInterruption}. Reconecta el PLC para reanudar.";
-            }
-            else if (_simulatedProcessState is SimulatedProcessState.Prepared or SimulatedProcessState.LoadReceived)
-            {
-                ModuleStatusText.Text = $"Flujo detenido: {plcInterruption}.";
-            }
-        }
-        else if (_plcInterruptionActive && _simulatedProcessState == SimulatedProcessState.Paused)
-        {
-            ModuleStatusText.Text = "PLC reconectado. El flujo sigue interrumpido; pulsa Reanudar para continuar.";
-        }
-        else if (!wasPlcFlowReady && _simulatedProcessState == SimulatedProcessState.Prepared)
-        {
-            ModuleStatusText.Text = "PLC conectado. La receta está lista para iniciar la carga.";
-        }
-        else if (!wasPlcFlowReady && _simulatedProcessState == SimulatedProcessState.LoadReceived)
-        {
-            ModuleStatusText.Text = "PLC conectado. La carga simulada está lista para descargar.";
-        }
-
-        UpdateSimulatedActionButtons();
-    }
-
     private static bool IsPlcFlowReady(PlcConnectionStatus? status, out string interruption)
     {
         if (status?.State != PlcConnectionState.Connected)
@@ -2809,147 +2829,7 @@ public sealed partial class MainPage : Page
         return true;
     }
 
-    private bool IsSimulatedReadingsActive =>
-        _simulatedProcessState is SimulatedProcessState.Loading
-            or SimulatedProcessState.LoadReceived
-            or SimulatedProcessState.Downloading
-            or SimulatedProcessState.AwaitingReport
-            or SimulatedProcessState.Cancelling
-            or SimulatedProcessState.Complete
-        || (_simulatedProcessState == SimulatedProcessState.Paused
-            && (_stateBeforePause is SimulatedProcessState.Loading
-                or SimulatedProcessState.LoadReceived
-                or SimulatedProcessState.Downloading));
-
-    private async Task BeginSimulatedCanvasImageCycleAsync()
-    {
-        var imageControls = _designerCanvasState.Controls
-            .Where(IsCanvasImageControl)
-            .ToArray();
-        _simulatedCanvasImageStates.Clear();
-        foreach (var control in imageControls)
-        {
-            _simulatedCanvasImageStates.Add(control.Id, true);
-        }
-
-        foreach (var control in imageControls)
-        {
-            await SetSimulatedCanvasImageStateAsync(control, true);
-        }
-    }
-
-    private async Task SetSimulatedCanvasImageStateAsync(
-        DesignerCanvasControlState control,
-        bool isOn)
-    {
-        _simulatedCanvasImageStates[control.Id] = isOn;
-        var container = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
-            candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
-        if (container?.Child is Image image)
-        {
-            await SetAdditionalImageSourceAsync(image, control, isOn);
-        }
-    }
-
-    private async Task ResetSimulatedCanvasImageStatesAsync()
-    {
-        var imageControls = _designerCanvasState.Controls
-            .Where(IsCanvasImageControl)
-            .Where(control => _simulatedCanvasImageStates.ContainsKey(control.Id))
-            .ToArray();
-        _simulatedCanvasImageStates.Clear();
-        foreach (var control in imageControls)
-        {
-            var container = DesignCanvas.Children.OfType<Border>().FirstOrDefault(candidate =>
-                candidate.Tag is DesignerCanvasControlState state && state.Id == control.Id);
-            if (container?.Child is Image image)
-            {
-                await SetAdditionalImageSourceAsync(image, control, control.IsOn);
-            }
-        }
-    }
-
-    private IReadOnlyList<SimulatedDoseStep> CreateSimulatedRecipeSequence(
-        IReadOnlyDictionary<string, string> formulaValues)
-    {
-        if (HasFormulaMaterialMismatch(formulaValues, _dashboardMachineConfiguration))
-        {
-            throw new InvalidOperationException(
-                "La configuración actual de materiales ya no coincide con la receta preparada.");
-        }
-
-        var sequence = new List<SimulatedDoseStep>();
-        foreach (var (nameField, quantityField) in GetFormulaMaterialFields())
-        {
-            var materialName = formulaValues.GetValueOrDefault(nameField)?.Trim();
-            if (string.IsNullOrWhiteSpace(materialName)
-                || materialName.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase))
-            {
-                continue;
-            }
-
-            var parameter = GetMachineMaterialParameter(nameField);
-            var rawQuantity = formulaValues.GetValueOrDefault(quantityField)?.Trim();
-            if (!TryParseSimulatedQuantity(rawQuantity, out var quantity))
-            {
-                throw new InvalidOperationException(
-                    $"No se pudo simular la lectura de {materialName}: la cantidad '{rawQuantity}' no es válida.");
-            }
-
-            if (quantity <= 0)
-            {
-                continue;
-            }
-
-            var controlName = _designerCanvasState.Controls
-                .Where(control => GetDashboardMaterialBinding(control) is { } binding
-                    && binding.Parameter.Equals(parameter, StringComparison.OrdinalIgnoreCase))
-                .Select(GetCanvasValueControlName)
-                .FirstOrDefault(name => !string.IsNullOrWhiteSpace(name)
-                    && !name.Equals("ctlAgregados", StringComparison.OrdinalIgnoreCase));
-            sequence.Add(new SimulatedDoseStep(parameter, materialName, quantity, controlName));
-        }
-
-        if (sequence.Count == 0)
-        {
-            throw new InvalidOperationException(
-                "La receta no tiene materiales habilitados con una cantidad mayor que cero.");
-        }
-
-        return sequence;
-    }
-
-    private void ApplySimulatedCanvasReadings(
-        IReadOnlyDictionary<string, decimal> loadedReadings,
-        decimal valueFraction)
-    {
-        _simulatedCanvasReadings.Clear();
-        decimal total = 0;
-        foreach (var (controlName, loadedValue) in loadedReadings)
-        {
-            var value = loadedValue * valueFraction;
-            _simulatedCanvasReadings[controlName] = value;
-            total += value;
-        }
-
-        if (_designerCanvasState.Controls.Any(control =>
-                string.Equals(GetCanvasValueControlName(control), "ctlAgregados", StringComparison.OrdinalIgnoreCase)))
-        {
-            _simulatedCanvasReadings["ctlAgregados"] = total;
-        }
-
-        foreach (var control in _designerCanvasState.Controls)
-        {
-            var controlName = GetCanvasValueControlName(control);
-            if (controlName is not null
-                && _simulatedCanvasReadings.TryGetValue(controlName, out var value))
-            {
-                SetCanvasValue(control, value.ToString("0.##", CultureInfo.CurrentCulture));
-            }
-        }
-    }
-
-    private static bool TryParseSimulatedQuantity(string? text, out decimal quantity)
+    private static bool TryParseRecipeQuantity(string? text, out decimal quantity)
     {
         if (string.IsNullOrWhiteSpace(text))
         {
@@ -3057,7 +2937,7 @@ public sealed partial class MainPage : Page
         string Description,
         IReadOnlyDictionary<string, string> Values);
 
-    private sealed record SimulatedRemission(
+    private sealed record ActiveRemission(
         string Remission,
         string RecipeCode,
         string Description,
@@ -3078,19 +2958,14 @@ public sealed partial class MainPage : Page
         string Observations,
         IReadOnlyDictionary<string, string> FormulaValues);
 
-    private sealed record SimulatedDoseStep(
-        string Parameter,
-        string MaterialName,
-        decimal Quantity,
-        string? ControlName);
-
-    private enum SimulatedProcessState
+    private enum PlantProcessState
     {
         Idle,
         Prepared,
+        StartingLoad,
         Loading,
         LoadReceived,
-        Paused,
+        StartingDischarge,
         Downloading,
         AwaitingReport,
         Cancelling,
@@ -10939,7 +10814,6 @@ public sealed partial class MainPage : Page
             _authenticatedUsername = user.Username;
             _authenticatedName = user.Name;
             _accessLogRecordId = user.AccessRecordId;
-            LogoutButton.Visibility = Visibility.Visible;
             SetSystemStatus("Sesión iniciada • verificando configuración...", "#FBBF24");
             await RefreshCurrentUserPermissionsAsync();
             LoginShell.Visibility = Visibility.Collapsed;
@@ -10962,42 +10836,6 @@ public sealed partial class MainPage : Page
             LoginButton.IsEnabled = true;
             LoginProgress.IsActive = false;
             LoginProgress.Visibility = Visibility.Collapsed;
-        }
-    }
-
-    private async void LogoutButton_Click(object sender, RoutedEventArgs e)
-    {
-        LogoutButton.IsEnabled = false;
-        try
-        {
-            await CompleteAccessSessionAsync();
-            _authenticatedUserId = null;
-            _authenticatedUsername = string.Empty;
-            _authenticatedName = null;
-            _currentUserPermissions = Array.Empty<AccessPermissionEntry>();
-            UsernameTextBox.Text = string.Empty;
-            PasswordInput.Password = string.Empty;
-            CurrentUserText.Text = "USUARIO:";
-            CurrentRoleText.Text = "TIPO:";
-            LogoutButton.Visibility = Visibility.Collapsed;
-            DashboardShell.Visibility = Visibility.Collapsed;
-            LoginShell.Visibility = Visibility.Visible;
-            _plcStatusTimer.Stop();
-            SetSystemStatus("Esperando inicio de sesión", "#FBBF24");
-        }
-        catch (SqlException exception)
-        {
-            await ShowAccessLogErrorAsync(
-                "No se pudo cerrar la sesión",
-                $"No se pudo registrar la salida en BlapaciSQL (SQL {exception.Number}): {exception.Message}");
-        }
-        catch (AccessLogException exception)
-        {
-            await ShowAccessLogErrorAsync("No se pudo cerrar la sesión", exception.Message);
-        }
-        finally
-        {
-            LogoutButton.IsEnabled = true;
         }
     }
 
@@ -11327,7 +11165,7 @@ public sealed partial class MainPage : Page
         ProgramActionButton.IsEnabled =
             HasModulePermission("Carga Manual")
             && HasActionPermission("Carga Manual", "Alta")
-            && (_simulatedProcessState is SimulatedProcessState.Idle or SimulatedProcessState.Complete);
+            && (_processState is PlantProcessState.Idle or PlantProcessState.Complete);
 
         foreach (var menu in MainMenuBar.Items.OfType<MenuBarItem>())
         {
