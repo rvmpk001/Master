@@ -266,7 +266,6 @@ public sealed partial class MainPage : Page
         }
 
         InitializeComponent();
-        Loaded += (_, _) => AttachComboBoxesInVisualTree(this);
         foreach (var (column, _, input) in GetManualLoadMaterialInputs())
         {
             input.TextChanged += (_, _) => ClearManualLoadMaterialHighlightWhenValid(column, input);
@@ -1587,35 +1586,6 @@ public sealed partial class MainPage : Page
         ManualLoadOverlay.Visibility = Visibility.Collapsed;
     }
 
-    private void AttachComboBoxesInVisualTree(DependencyObject root)
-    {
-        if (root is ComboBox combo)
-        {
-            EnableComboBoxDropDownOnTapped(combo);
-        }
-
-        var childCount = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
-        for (var index = 0; index < childCount; index++)
-        {
-            AttachComboBoxesInVisualTree(
-                Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, index));
-        }
-    }
-
-    private static void EnableComboBoxDropDownOnTapped(ComboBox combo)
-    {
-        combo.Tapped -= ComboBox_Tapped;
-        combo.Tapped += ComboBox_Tapped;
-    }
-
-    private static void ComboBox_Tapped(object sender, TappedRoutedEventArgs e)
-    {
-        if (sender is ComboBox combo && combo.IsEnabled)
-        {
-            combo.IsDropDownOpen = true;
-        }
-    }
-
     private async void ProgramAction_Click(object sender, RoutedEventArgs e)
     {
         if (!await RefreshCurrentUserPermissionsAsync()
@@ -1651,37 +1621,37 @@ public sealed partial class MainPage : Page
         var trucks = new ComboBox
         {
             DisplayMemberPath = "Unit",
-            IsEditable = true,
+            IsEditable = false,
             PlaceholderText = "Selecciona camión",
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         var operators = new ComboBox
         {
             DisplayMemberPath = "Name",
-            IsEditable = true,
+            IsEditable = false,
             PlaceholderText = "Selecciona chofer",
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         var capacity = new TextBox { IsReadOnly = true };
-        var orders = new ComboBox { IsEditable = true, PlaceholderText = "Selecciona pedido", HorizontalAlignment = HorizontalAlignment.Stretch };
+        var orders = new ComboBox { IsEditable = false, PlaceholderText = "Selecciona pedido", HorizontalAlignment = HorizontalAlignment.Stretch };
         var orderStatus = new TextBox { IsReadOnly = true };
         var products = new ComboBox
         {
-            IsEditable = true,
+            IsEditable = false,
             IsEnabled = false,
             PlaceholderText = "Selecciona producto",
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         var paymentConditions = new ComboBox
         {
-            IsEditable = true,
+            IsEditable = false,
             IsEnabled = false,
             PlaceholderText = "Selecciona condición",
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         var dischargeTypes = new ComboBox
         {
-            IsEditable = true,
+            IsEditable = false,
             IsEnabled = false,
             PlaceholderText = "Selecciona tipo",
             HorizontalAlignment = HorizontalAlignment.Stretch
@@ -1693,21 +1663,6 @@ public sealed partial class MainPage : Page
         var toSupplyQuantity = new NumberBox { Value = 0, Minimum = 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
         var observations = new TextBox { AcceptsReturn = true, Height = 72, TextWrapping = TextWrapping.Wrap };
         var status = new InfoBar { IsOpen = false, IsClosable = false };
-        foreach (var combo in new[]
-        {
-            recipes,
-            clients,
-            construction,
-            trucks,
-            operators,
-            orders,
-            products,
-            paymentConditions,
-            dischargeTypes
-        })
-        {
-            EnableComboBoxDropDownOnTapped(combo);
-        }
         SetProgramStatus("Cargando catálogos...", InfoBarSeverity.Informational);
         ContentDialog? programDialog = null;
         var orderStatusRequestId = 0;
@@ -1923,6 +1878,12 @@ public sealed partial class MainPage : Page
             var selectedTruck = trucks.SelectedItem as TruckRecord;
             var selectedOperator = operators.SelectedItem as OperatorRecord;
             var selectedOrder = orders.SelectedItem as string;
+            var productValue = products.SelectedItem as string
+                ?? (!string.IsNullOrWhiteSpace(products.Text) ? products.Text.Trim() : string.Empty);
+            var paymentValue = paymentConditions.SelectedItem as string
+                ?? (!string.IsNullOrWhiteSpace(paymentConditions.Text) ? paymentConditions.Text.Trim() : string.Empty);
+            var dischargeValue = dischargeTypes.SelectedItem as string
+                ?? (!string.IsNullOrWhiteSpace(dischargeTypes.Text) ? dischargeTypes.Text.Trim() : string.Empty);
             if (selectedRecipe is null)
             {
                 validationErrors.Add("Selecciona una receta.");
@@ -1969,7 +1930,7 @@ public sealed partial class MainPage : Page
                 operators.BorderBrush = _themeBrushes.GetBrush("#40516A");
             }
 
-            if (string.IsNullOrWhiteSpace(products.Text))
+            if (string.IsNullOrWhiteSpace(productValue))
             {
                 validationErrors.Add("Selecciona un producto.");
                 products.BorderThickness = new Thickness(2);
@@ -1981,7 +1942,7 @@ public sealed partial class MainPage : Page
                 products.BorderBrush = _themeBrushes.GetBrush("#40516A");
             }
 
-            if (string.IsNullOrWhiteSpace(paymentConditions.Text))
+            if (string.IsNullOrWhiteSpace(paymentValue))
             {
                 validationErrors.Add("Selecciona las condiciones de pago.");
                 paymentConditions.BorderThickness = new Thickness(2);
@@ -1993,7 +1954,7 @@ public sealed partial class MainPage : Page
                 paymentConditions.BorderBrush = _themeBrushes.GetBrush("#40516A");
             }
 
-            if (string.IsNullOrWhiteSpace(dischargeTypes.Text))
+            if (string.IsNullOrWhiteSpace(dischargeValue))
             {
                 validationErrors.Add("Selecciona el tipo de descarga.");
                 dischargeTypes.BorderThickness = new Thickness(2);
@@ -2113,9 +2074,9 @@ public sealed partial class MainPage : Page
                 operators.Text.Trim(),
                 orders.Text.Trim(),
                 orderStatus.Text.Trim(),
-                products.Text.Trim(),
-                paymentConditions.Text.Trim(),
-                dischargeTypes.Text.Trim(),
+                productValue,
+                paymentValue,
+                dischargeValue,
                 dispatcher.Text.Trim(),
                 validatedOrderedQuantity.ToString(CultureInfo.CurrentCulture),
                 validatedSuppliedQuantity.ToString(CultureInfo.CurrentCulture),
