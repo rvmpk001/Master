@@ -1772,7 +1772,7 @@
                                             <ComboBox x:Name="ManualLoadRemissionDischargeComboBox" Header="TIPO DESCARGA" ItemsSource="{x:Bind OrderDischargeTypes}" IsEditable="True" PlaceholderText="Selecciona tipo" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             <TextBox x:Name="ManualLoadRemissionDispatcherTextBox" Header="DESPACHADOR" Text="1" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                             <TextBox x:Name="ManualLoadRemissionTextBox" Header="REMISIÓN" MaxLength="50" IsReadOnly="True" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <ComboBox x:Name="ManualLoadRemissionTruckComboBox" Header="CAMIÓN" ItemsSource="{x:Bind ManualLoadTrucks}" DisplayMemberPath="Unit" PlaceholderText="Selecciona camión" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionTruckComboBox" Header="CAMIÓN" ItemsSource="{x:Bind ManualLoadTrucks}" DisplayMemberPath="Unit" PlaceholderText="Selecciona camión" SelectionChanged="ManualLoadRemissionTruck_SelectionChanged" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                         </StackPanel>
                                     </Border>
                                     <Border Grid.Column="1" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="10" Background="{ThemeResource Palette172337}">

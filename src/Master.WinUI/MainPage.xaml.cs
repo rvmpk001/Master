@@ -266,6 +266,7 @@ public sealed partial class MainPage : Page
         }
 
         InitializeComponent();
+        Loaded += (_, _) => AttachComboBoxesInVisualTree(this);
         foreach (var (column, _, input) in GetManualLoadMaterialInputs())
         {
             input.TextChanged += (_, _) => ClearManualLoadMaterialHighlightWhenValid(column, input);
@@ -1586,6 +1587,35 @@ public sealed partial class MainPage : Page
         ManualLoadOverlay.Visibility = Visibility.Collapsed;
     }
 
+    private void AttachComboBoxesInVisualTree(DependencyObject root)
+    {
+        if (root is ComboBox combo)
+        {
+            EnableComboBoxDropDownOnTapped(combo);
+        }
+
+        var childCount = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChildrenCount(root);
+        for (var index = 0; index < childCount; index++)
+        {
+            AttachComboBoxesInVisualTree(
+                Microsoft.UI.Xaml.Media.VisualTreeHelper.GetChild(root, index));
+        }
+    }
+
+    private static void EnableComboBoxDropDownOnTapped(ComboBox combo)
+    {
+        combo.Tapped -= ComboBox_Tapped;
+        combo.Tapped += ComboBox_Tapped;
+    }
+
+    private static void ComboBox_Tapped(object sender, TappedRoutedEventArgs e)
+    {
+        if (sender is ComboBox combo && combo.IsEnabled)
+        {
+            combo.IsDropDownOpen = true;
+        }
+    }
+
     private async void ProgramAction_Click(object sender, RoutedEventArgs e)
     {
         if (!await RefreshCurrentUserPermissionsAsync()
@@ -1663,6 +1693,21 @@ public sealed partial class MainPage : Page
         var toSupplyQuantity = new NumberBox { Value = 0, Minimum = 0, SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Compact };
         var observations = new TextBox { AcceptsReturn = true, Height = 72, TextWrapping = TextWrapping.Wrap };
         var status = new InfoBar { IsOpen = false, IsClosable = false };
+        foreach (var combo in new[]
+        {
+            recipes,
+            clients,
+            construction,
+            trucks,
+            operators,
+            orders,
+            products,
+            paymentConditions,
+            dischargeTypes
+        })
+        {
+            EnableComboBoxDropDownOnTapped(combo);
+        }
         SetProgramStatus("Cargando catálogos...", InfoBarSeverity.Informational);
         ContentDialog? programDialog = null;
         var orderStatusRequestId = 0;
@@ -1711,6 +1756,59 @@ public sealed partial class MainPage : Page
             if (trucks.SelectedItem is TruckRecord selectedTruck)
             {
                 capacity.Text = selectedTruck.Capacity;
+                trucks.BorderThickness = new Thickness(1);
+                trucks.BorderBrush = _themeBrushes.GetBrush("#40516A");
+
+                var truckInitials = selectedTruck.Initials?.Trim();
+                var truckName = selectedTruck.Name?.Trim();
+                var matchingOperator = (operators.ItemsSource as IEnumerable<OperatorRecord>)?
+                    .FirstOrDefault(operatorRecord =>
+                        !string.IsNullOrWhiteSpace(truckInitials) &&
+                        string.Equals(operatorRecord.Initials?.Trim(), truckInitials, StringComparison.OrdinalIgnoreCase))
+                    ?? (operators.ItemsSource as IEnumerable<OperatorRecord>)?
+                        .FirstOrDefault(operatorRecord =>
+                            !string.IsNullOrWhiteSpace(truckName) &&
+                            string.Equals(operatorRecord.Name?.Trim(), truckName, StringComparison.OrdinalIgnoreCase));
+
+                operators.SelectedItem = matchingOperator;
+                operators.Text = matchingOperator?.Name ?? string.Empty;
+                if (matchingOperator is not null)
+                {
+                    operators.BorderThickness = new Thickness(1);
+                    operators.BorderBrush = _themeBrushes.GetBrush("#40516A");
+                }
+            }
+        };
+        operators.SelectionChanged += (_, _) =>
+        {
+            if (operators.SelectedItem is OperatorRecord)
+            {
+                operators.BorderThickness = new Thickness(1);
+                operators.BorderBrush = _themeBrushes.GetBrush("#40516A");
+            }
+        };
+        products.SelectionChanged += (_, _) =>
+        {
+            if (!string.IsNullOrWhiteSpace(products.Text))
+            {
+                products.BorderThickness = new Thickness(1);
+                products.BorderBrush = _themeBrushes.GetBrush("#40516A");
+            }
+        };
+        paymentConditions.SelectionChanged += (_, _) =>
+        {
+            if (!string.IsNullOrWhiteSpace(paymentConditions.Text))
+            {
+                paymentConditions.BorderThickness = new Thickness(1);
+                paymentConditions.BorderBrush = _themeBrushes.GetBrush("#40516A");
+            }
+        };
+        dischargeTypes.SelectionChanged += (_, _) =>
+        {
+            if (!string.IsNullOrWhiteSpace(dischargeTypes.Text))
+            {
+                dischargeTypes.BorderThickness = new Thickness(1);
+                dischargeTypes.BorderBrush = _themeBrushes.GetBrush("#40516A");
             }
         };
         orders.SelectionChanged += async (_, _) =>
@@ -1823,6 +1921,7 @@ public sealed partial class MainPage : Page
             var validationErrors = new List<string>();
             var selectedRecipe = recipes.SelectedItem as ProgramFormulaOption;
             var selectedTruck = trucks.SelectedItem as TruckRecord;
+            var selectedOperator = operators.SelectedItem as OperatorRecord;
             var selectedOrder = orders.SelectedItem as string;
             if (selectedRecipe is null)
             {
@@ -1849,6 +1948,61 @@ public sealed partial class MainPage : Page
             if (selectedTruck is null || string.IsNullOrWhiteSpace(selectedTruck.Unit))
             {
                 validationErrors.Add("Selecciona un camión de la lista.");
+                trucks.BorderThickness = new Thickness(2);
+                trucks.BorderBrush = _themeBrushes.GetBrush("#FF8A80");
+            }
+            else
+            {
+                trucks.BorderThickness = new Thickness(1);
+                trucks.BorderBrush = _themeBrushes.GetBrush("#40516A");
+            }
+
+            if (selectedOperator is null || string.IsNullOrWhiteSpace(operators.Text.Trim()))
+            {
+                validationErrors.Add("Selecciona un chofer de la lista.");
+                operators.BorderThickness = new Thickness(2);
+                operators.BorderBrush = _themeBrushes.GetBrush("#FF8A80");
+            }
+            else
+            {
+                operators.BorderThickness = new Thickness(1);
+                operators.BorderBrush = _themeBrushes.GetBrush("#40516A");
+            }
+
+            if (string.IsNullOrWhiteSpace(products.Text))
+            {
+                validationErrors.Add("Selecciona un producto.");
+                products.BorderThickness = new Thickness(2);
+                products.BorderBrush = _themeBrushes.GetBrush("#FF8A80");
+            }
+            else
+            {
+                products.BorderThickness = new Thickness(1);
+                products.BorderBrush = _themeBrushes.GetBrush("#40516A");
+            }
+
+            if (string.IsNullOrWhiteSpace(paymentConditions.Text))
+            {
+                validationErrors.Add("Selecciona las condiciones de pago.");
+                paymentConditions.BorderThickness = new Thickness(2);
+                paymentConditions.BorderBrush = _themeBrushes.GetBrush("#FF8A80");
+            }
+            else
+            {
+                paymentConditions.BorderThickness = new Thickness(1);
+                paymentConditions.BorderBrush = _themeBrushes.GetBrush("#40516A");
+            }
+
+            if (string.IsNullOrWhiteSpace(dischargeTypes.Text))
+            {
+                validationErrors.Add("Selecciona el tipo de descarga.");
+                dischargeTypes.BorderThickness = new Thickness(2);
+                dischargeTypes.BorderBrush = _themeBrushes.GetBrush("#FF8A80");
+            }
+            else
+            {
+                dischargeTypes.BorderThickness = new Thickness(1);
+                dischargeTypes.BorderBrush = _themeBrushes.GetBrush("#40516A");
             }
 
             if (!TryGetPositiveDecimal(quantity, out var validatedQuantity))
@@ -1875,19 +2029,21 @@ public sealed partial class MainPage : Page
             SetProgramStatus("Validando los materiales de la fórmula contra las tolvas...", InfoBarSeverity.Informational);
             programButton.IsEnabled = false;
             IReadOnlyDictionary<string, string> currentMachineConfiguration;
+            IReadOnlyList<InventoryMaterial> currentInventory;
             try
             {
                 var machineConfiguration = await _machineConfigurationService.GetConfigurationAsync();
                 currentMachineConfiguration = machineConfiguration.Values;
+                currentInventory = await _inventoryService.GetInventoryAsync();
             }
             catch (SqlException exception)
             {
-                SetProgramStatus($"No se pudieron validar los materiales de las tolvas (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
+                SetProgramStatus($"No se pudieron validar los materiales e existencias (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
                 return;
             }
             catch (InvalidOperationException exception)
             {
-                SetProgramStatus($"No se pudieron validar los materiales de las tolvas: {exception.Message}", InfoBarSeverity.Error);
+                SetProgramStatus($"No se pudieron validar los materiales e existencias: {exception.Message}", InfoBarSeverity.Error);
                 return;
             }
             finally
@@ -1901,6 +2057,19 @@ public sealed partial class MainPage : Page
                     "Error de materiales: Los materiales configurados en la fórmula no corresponden a los que se encuentran actualmente en las tolvas.",
                     InfoBarSeverity.Error);
                 return;
+            }
+
+            var inventoryShortages = GetFormulaInventoryShortages(
+                    selectedRecipe.Values,
+                    currentInventory,
+                    validatedQuantity);
+            if (inventoryShortages.Count > 0)
+            {
+                    SetProgramStatus(
+                        "No hay existencia suficiente para esta carga: " +
+                        string.Join("; ", inventoryShortages),
+                        InfoBarSeverity.Error);
+                    return;
             }
 
             SetProgramStatus(string.Join(
@@ -2189,6 +2358,39 @@ public sealed partial class MainPage : Page
         if (!IsPlcFlowReady(_latestPlcStatus, out var plcInterruption))
         {
             ModuleStatusText.Text = $"No se puede iniciar la carga: {plcInterruption}";
+            UpdateProcessActionButtons();
+            return;
+        }
+
+        try
+        {
+            var inventory = await _inventoryService.GetInventoryAsync();
+            if (TryParseProgramNumber(_activeRemission.Quantity, out var loadQuantity))
+            {
+                var shortages = GetFormulaInventoryShortages(
+                    _activeRemission.FormulaValues,
+                    inventory,
+                    Convert.ToDecimal(loadQuantity, CultureInfo.InvariantCulture));
+                if (shortages.Count > 0)
+                {
+                    ModuleStatusText.Text =
+                        "No hay existencia suficiente para esta carga: " +
+                        string.Join("; ", shortages);
+                    UpdateProcessActionButtons();
+                    return;
+                }
+            }
+        }
+        catch (SqlException exception)
+        {
+            ModuleStatusText.Text =
+                $"No se pudo validar la existencia de materiales (SQL {exception.Number}): {exception.Message}";
+            UpdateProcessActionButtons();
+            return;
+        }
+        catch (InvalidOperationException exception)
+        {
+            ModuleStatusText.Text = $"No se pudo validar la existencia de materiales: {exception.Message}";
             UpdateProcessActionButtons();
             return;
         }
@@ -2746,6 +2948,56 @@ public sealed partial class MainPage : Page
         yield return ("Fibra3", "Fibra3C");
     }
 
+    private static IReadOnlyList<string> GetFormulaInventoryShortages(
+        IReadOnlyDictionary<string, string> formulaValues,
+        IReadOnlyList<InventoryMaterial> inventory,
+        decimal loadQuantity)
+    {
+        var stockByName = inventory
+            .GroupBy(item => item.Name.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => ParseInventoryQuantity(group.First().Quantity),
+                StringComparer.OrdinalIgnoreCase);
+
+        var shortages = new List<string>();
+        foreach (var (nameField, quantityField) in GetFormulaMaterialFields())
+        {
+            var materialName = formulaValues.GetValueOrDefault(nameField)?.Trim();
+            var rawQuantity = formulaValues.GetValueOrDefault(quantityField)?.Trim();
+            if (string.IsNullOrWhiteSpace(materialName)
+                || materialName.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase)
+                || !TryParseRecipeQuantity(rawQuantity, out var recipeQuantity)
+                || recipeQuantity <= 0)
+            {
+                continue;
+            }
+
+            var requiredQuantity = recipeQuantity * loadQuantity;
+            stockByName.TryGetValue(materialName, out var availableQuantity);
+            if (availableQuantity < requiredQuantity)
+            {
+                shortages.Add(
+                    $"{materialName}: requiere {requiredQuantity.ToString("0.###", CultureInfo.CurrentCulture)}, " +
+                    $"disponible {availableQuantity.ToString("0.###", CultureInfo.CurrentCulture)}");
+            }
+        }
+
+        return shortages;
+    }
+
+    private static decimal ParseInventoryQuantity(string? text)
+    {
+        if (decimal.TryParse(text, NumberStyles.Number, CultureInfo.InvariantCulture, out var invariantQuantity))
+        {
+            return invariantQuantity;
+        }
+
+        return decimal.TryParse(text, NumberStyles.Number, CultureInfo.CurrentCulture, out var currentQuantity)
+            ? currentQuantity
+            : 0;
+    }
+
     private static bool HasFormulaMaterialMismatch(
         IReadOnlyDictionary<string, string> formulaValues,
         IReadOnlyDictionary<string, string> machineConfiguration)
@@ -3258,6 +3510,23 @@ public sealed partial class MainPage : Page
         }
     }
 
+    private void ManualLoadRemissionTruck_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (ManualLoadRemissionTruckComboBox.SelectedItem is not TruckRecord selectedTruck)
+        {
+            return;
+        }
+
+        var matchingOperator = ManualLoadOperators.FirstOrDefault(operatorRecord =>
+            (!string.IsNullOrWhiteSpace(selectedTruck.Initials) &&
+             string.Equals(operatorRecord.Initials, selectedTruck.Initials, StringComparison.OrdinalIgnoreCase)))
+            ?? ManualLoadOperators.FirstOrDefault(operatorRecord =>
+                !string.IsNullOrWhiteSpace(selectedTruck.Name) &&
+                string.Equals(operatorRecord.Name, selectedTruck.Name, StringComparison.OrdinalIgnoreCase));
+
+        ManualLoadRemissionOperatorComboBox.SelectedItem = matchingOperator;
+    }
+
     private void ClearManualLoadOrderFields()
     {
         ManualLoadQuantityNumberBox.Value = 0;
@@ -3275,6 +3544,8 @@ public sealed partial class MainPage : Page
         ManualLoadRemissionPaymentComboBox.Text = string.Empty;
         ManualLoadRemissionDischargeComboBox.SelectedItem = null;
         ManualLoadRemissionDischargeComboBox.Text = string.Empty;
+        ManualLoadRemissionOperatorComboBox.SelectedItem = null;
+        ManualLoadRemissionTruckComboBox.SelectedItem = null;
         ManualLoadOrderedQuantityNumberBox.Value = 0;
         ManualLoadSuppliedQuantityNumberBox.Value = 0;
         ManualLoadToSupplyQuantityNumberBox.Value = 0;
