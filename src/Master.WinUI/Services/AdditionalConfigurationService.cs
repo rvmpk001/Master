@@ -181,6 +181,144 @@ public sealed class AdditionalConfigurationService
             throw;
         }
     }
+
+    public async Task AddOptionAsync(string name, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        var normalizedName = name.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            throw new InvalidOperationException("Escribe el nombre de la opción.");
+        }
+
+        if (normalizedName.Length > 50)
+        {
+            throw new InvalidOperationException("El nombre no puede superar 50 caracteres.");
+        }
+
+        if (normalizedName.Equals("AGREGAR / BORRAR", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Ese nombre está reservado para la edición del catálogo.");
+        }
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken);
+
+        try
+        {
+            const string existsQuery = """
+                SELECT COUNT(*)
+                FROM dbo.Adicionales WITH (UPDLOCK, HOLDLOCK)
+                WHERE LTRIM(RTRIM(Nombre)) = @Name;
+                """;
+            await using (var existsCommand = new SqlCommand(existsQuery, connection, transaction))
+            {
+                existsCommand.Parameters.Add("@Name", SqlDbType.NVarChar, 50).Value = normalizedName;
+                if (Convert.ToInt32(await existsCommand.ExecuteScalarAsync(cancellationToken)) > 0)
+                {
+                    throw new InvalidOperationException($"La opción '{normalizedName}' ya existe.");
+                }
+            }
+
+            const string insertQuery = """
+                INSERT INTO dbo.Adicionales (Nombre)
+                VALUES (@Name);
+                """;
+            await using (var insertCommand = new SqlCommand(insertQuery, connection, transaction))
+            {
+                insertCommand.Parameters.Add("@Name", SqlDbType.NVarChar, 50).Value = normalizedName;
+                if (await insertCommand.ExecuteNonQueryAsync(cancellationToken) != 1)
+                {
+                    throw new InvalidOperationException("No se pudo agregar la opción.");
+                }
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+    }
+
+    public async Task DeleteOptionAsync(string name, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(name);
+        var normalizedName = name.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedName))
+        {
+            throw new InvalidOperationException("Selecciona una opción para borrar.");
+        }
+
+        await using var connection = _connectionFactory.CreateConnection();
+        await connection.OpenAsync(cancellationToken);
+        await using var transaction = (SqlTransaction)await connection.BeginTransactionAsync(
+            IsolationLevel.Serializable,
+            cancellationToken);
+
+        try
+        {
+            const string countQuery = """
+                SELECT COUNT(*)
+                FROM dbo.Adicionales WITH (UPDLOCK, HOLDLOCK);
+                """;
+            await using (var countCommand = new SqlCommand(countQuery, connection, transaction))
+            {
+                if (Convert.ToInt32(await countCommand.ExecuteScalarAsync(cancellationToken)) <= 1)
+                {
+                    throw new InvalidOperationException("No se puede borrar la última opción de Adicionales.");
+                }
+            }
+
+            var parameterNames = string.Join(", ", Parameters.Select((_, index) => $"@Param{index}"));
+            var referencesQuery = $"""
+                SELECT COUNT(*)
+                FROM dbo.ConfigMaq WITH (UPDLOCK, HOLDLOCK)
+                WHERE Param IN ({parameterNames})
+                  AND LTRIM(RTRIM(Valor_Param)) = @Name;
+                """;
+            await using (var referencesCommand = new SqlCommand(referencesQuery, connection, transaction))
+            {
+                for (var index = 0; index < Parameters.Length; index++)
+                {
+                    referencesCommand.Parameters.Add($"@Param{index}", SqlDbType.NVarChar, 3).Value =
+                        Parameters[index];
+                }
+
+                referencesCommand.Parameters.Add("@Name", SqlDbType.NVarChar, 50).Value = normalizedName;
+                if (Convert.ToInt32(await referencesCommand.ExecuteScalarAsync(cancellationToken)) > 0)
+                {
+                    throw new InvalidOperationException(
+                        "No se puede borrar una opción asignada a uno o más campos de la configuración.");
+                }
+            }
+
+            const string deleteQuery = """
+                DELETE FROM dbo.Adicionales
+                WHERE LTRIM(RTRIM(Nombre)) = @Name;
+                """;
+            await using (var deleteCommand = new SqlCommand(deleteQuery, connection, transaction))
+            {
+                deleteCommand.Parameters.Add("@Name", SqlDbType.NVarChar, 50).Value = normalizedName;
+                if (await deleteCommand.ExecuteNonQueryAsync(cancellationToken) != 1)
+                {
+                    throw new InvalidOperationException(
+                        "La opción ya no existe en la base de datos. Actualiza la lista.");
+                }
+            }
+
+            await transaction.CommitAsync(cancellationToken);
+        }
+        catch
+        {
+            await transaction.RollbackAsync(CancellationToken.None);
+            throw;
+        }
+    }
 }
 
 public sealed record AdditionalConfigurationSnapshot(

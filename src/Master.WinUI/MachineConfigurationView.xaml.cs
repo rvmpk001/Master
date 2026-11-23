@@ -384,7 +384,7 @@ public sealed partial class MachineConfigurationView : UserControl
 
     private async Task ShowMaterialEditorAsync(string category)
     {
-        if (HasPermission?.Invoke("Alta") != true && HasPermission?.Invoke("Baja") != true)
+        if (HasPermission?.Invoke("Alta") != true && !CanDeleteMaterial())
         {
             SetStatus("Tu perfil no tiene permiso para agregar ni borrar materiales.", InfoBarSeverity.Error);
             return;
@@ -429,12 +429,12 @@ public sealed partial class MachineConfigurationView : UserControl
             {
                 confirmDelete.IsChecked = false;
                 confirmDelete.IsEnabled = list.SelectedItem is string selected
-                    && HasPermission?.Invoke("Baja") == true
+                    && CanDeleteMaterial()
                     && !selected.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase);
                 dialog.IsSecondaryButtonEnabled = false;
             };
             confirmDelete.Checked += (_, _) => dialog.IsSecondaryButtonEnabled =
-                HasPermission?.Invoke("Baja") == true && list.SelectedItem is not null;
+                CanDeleteMaterial() && list.SelectedItem is not null;
             confirmDelete.Unchecked += (_, _) => dialog.IsSecondaryButtonEnabled = false;
 
             dialog.PrimaryButtonClick += async (_, args) =>
@@ -477,7 +477,7 @@ public sealed partial class MachineConfigurationView : UserControl
                 var deferral = args.GetDeferral();
                 try
                 {
-                    if (HasPermission?.Invoke("Baja") != true)
+                    if (!CanDeleteMaterial())
                     {
                         message.Text = "Tu perfil no tiene permiso para borrar materiales.";
                         message.Foreground = Brush("#FF8A80");
@@ -522,6 +522,10 @@ public sealed partial class MachineConfigurationView : UserControl
             SetStatus($"No se pudo abrir el editor de {CategoryTitles[category]} (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
         }
     }
+
+    private bool CanDeleteMaterial() =>
+        HasPermission?.Invoke("Baja") == true
+        || HasPermission?.Invoke("Editar") == true;
 
     private async Task RefreshCategoryAsync(string category, ObservableCollection<string> names)
     {

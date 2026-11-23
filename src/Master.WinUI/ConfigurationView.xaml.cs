@@ -90,6 +90,7 @@ public sealed partial class ConfigurationView : UserControl
     private readonly AccessConfigurationService _accessConfigurationService = new();
     private readonly ThemeBrushSet _themeBrushes = new();
     private readonly Dictionary<string, ComboBox> _additionalSelectors = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<ComboBox, string> _additionalSelectedValues = new();
     private readonly AdditionalConfigurationService _additionalConfigurationService = new();
     private readonly OrderService _orderService = new();
     private readonly OrderConfigurationService _orderConfigurationService = new();
@@ -144,6 +145,8 @@ public sealed partial class ConfigurationView : UserControl
     private StackPanel? _orderConfigurationHost;
     private StackPanel? _orderSchedulesHost;
     private bool _backupToolsOnly;
+
+    private static readonly AdditionalOptionEditorItem AdditionalOptionEditor = new();
 
     public event EventHandler? CloseRequested;
     public event EventHandler? AccessPermissionsSaved;
@@ -726,25 +729,7 @@ public sealed partial class ConfigurationView : UserControl
         try
         {
             var configuration = await _additionalConfigurationService.GetConfigurationAsync();
-            foreach (var (parameter, selector) in _additionalSelectors)
-            {
-                selector.ItemsSource = configuration.Options;
-                if (!configuration.Selections.TryGetValue(parameter, out var selectedValue))
-                {
-                    throw new InvalidOperationException(
-                        $"Falta el parámetro '{parameter}' en dbo.ConfigMaq.");
-                }
-
-                if (!configuration.Options.Contains(selectedValue, StringComparer.OrdinalIgnoreCase))
-                {
-                    throw new InvalidOperationException(
-                        $"El valor '{selectedValue}' de '{parameter}' no existe en dbo.Adicionales.");
-                }
-
-                selector.SelectedItem = configuration.Options.First(option =>
-                    string.Equals(option, selectedValue, StringComparison.OrdinalIgnoreCase));
-                selector.IsEnabled = true;
-            }
+            ApplyAdditionalConfiguration(configuration);
 
             ShowStatus("Opciones cargadas desde dbo.Adicionales y dbo.ConfigMaq.", InfoBarSeverity.Success);
         }
@@ -755,6 +740,264 @@ public sealed partial class ConfigurationView : UserControl
         catch (InvalidOperationException exception)
         {
             ShowStatus($"No se pudieron cargar los adicionales: {exception.Message}", InfoBarSeverity.Error);
+        }
+    }
+
+    private void ApplyAdditionalConfiguration(AdditionalConfigurationSnapshot configuration)
+    {
+        foreach (var (parameter, selector) in _additionalSelectors)
+        {
+            if (!configuration.Selections.TryGetValue(parameter, out var selectedValue))
+            {
+                throw new InvalidOperationException($"Falta el parámetro '{parameter}' en dbo.ConfigMaq.");
+            }
+
+            var option = configuration.Options.FirstOrDefault(candidate =>
+                string.Equals(candidate, selectedValue, StringComparison.OrdinalIgnoreCase));
+            if (option is null)
+            {
+                throw new InvalidOperationException(
+                    $"El valor '{selectedValue}' de '{parameter}' no existe en dbo.Adicionales.");
+            }
+
+            SetAdditionalSelectorOptions(selector, configuration.Options, option);
+        }
+    }
+
+    private void ApplyAdditionalOptions(IReadOnlyList<string> options)
+    {
+        foreach (var selector in _additionalSelectors.Values)
+        {
+            var selectedValue = selector.SelectedItem as string
+                ?? (_additionalSelectedValues.TryGetValue(selector, out var previousValue)
+                    ? previousValue
+                    : null);
+            var option = options.FirstOrDefault(candidate =>
+                string.Equals(candidate, selectedValue, StringComparison.OrdinalIgnoreCase));
+            if (option is null)
+            {
+                throw new InvalidOperationException(
+                    $"La opción seleccionada ya no existe en dbo.Adicionales. Selecciona otra opción.");
+            }
+
+            SetAdditionalSelectorOptions(selector, options, option);
+        }
+    }
+
+    private void SetAdditionalSelectorOptions(
+        ComboBox selector,
+        IReadOnlyList<string> options,
+        string selectedOption)
+    {
+        selector.SelectionChanged -= AdditionalSelector_SelectionChanged;
+        selector.ItemsSource = options.Cast<object>().Append(AdditionalOptionEditor).ToArray();
+        selector.SelectedItem = selectedOption;
+        selector.IsEnabled = true;
+        _additionalSelectedValues[selector] = selectedOption;
+        selector.SelectionChanged += AdditionalSelector_SelectionChanged;
+    }
+
+    private bool CanDeleteAdditionalOption() =>
+        HasProfileAction?.Invoke("Adicionales", "Baja") == true
+        || CanSaveConfigurationTab?.Invoke(8) == true;
+
+    private async void AdditionalSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (sender is not ComboBox selector)
+        {
+            return;
+        }
+
+        if (ReferenceEquals(selector.SelectedItem, AdditionalOptionEditor))
+        {
+            if (_additionalSelectedValues.TryGetValue(selector, out var previousValue))
+            {
+                selector.SelectedItem = previousValue;
+            }
+
+            await ShowAdditionalOptionsEditorAsync();
+            return;
+        }
+
+        if (selector.SelectedItem is string selectedValue)
+        {
+            _additionalSelectedValues[selector] = selectedValue;
+        }
+    }
+
+    private async Task ShowAdditionalOptionsEditorAsync()
+    {
+        var canAdd = HasProfileAction?.Invoke("Adicionales", "Alta") == true;
+        var canDelete = CanDeleteAdditionalOption();
+        if (!canAdd && !canDelete)
+        {
+            ShowStatus("Tu perfil no tiene permiso para agregar ni borrar opciones de Adicionales.", InfoBarSeverity.Error);
+            return;
+        }
+
+        try
+        {
+            var configuration = await _additionalConfigurationService.GetConfigurationAsync();
+            var options = configuration.Options.ToList();
+            var list = new ListView
+            {
+                ItemsSource = options,
+                SelectionMode = ListViewSelectionMode.Single,
+                MinHeight = 150,
+                MaxHeight = 280
+            };
+            var input = new TextBox { MaxLength = 50, PlaceholderText = "Nombre de la opción" };
+            var confirmDelete = new CheckBox
+            {
+                Content = "Confirmo borrar la opción seleccionada",
+                IsEnabled = false
+            };
+            var message = new TextBlock
+            {
+                TextWrapping = TextWrapping.Wrap,
+                Foreground = _themeBrushes.GetBrush("#A9B8CC")
+            };
+            var content = new StackPanel { Spacing = 8, MinWidth = 300 };
+            content.Children.Add(list);
+            content.Children.Add(input);
+            content.Children.Add(confirmDelete);
+            content.Children.Add(message);
+
+            var dialog = new ContentDialog
+            {
+                Title = "Edición de Textos",
+                Content = content,
+                PrimaryButtonText = "Agregar",
+                SecondaryButtonText = "Borrar",
+                CloseButtonText = "Cerrar",
+                DefaultButton = ContentDialogButton.Primary,
+                XamlRoot = XamlRoot,
+                MinWidth = 320,
+                IsPrimaryButtonEnabled = false,
+                IsSecondaryButtonEnabled = false
+            };
+            input.TextChanged += (_, _) =>
+                dialog.IsPrimaryButtonEnabled =
+                    HasProfileAction?.Invoke("Adicionales", "Alta") == true
+                    && !string.IsNullOrWhiteSpace(input.Text);
+            list.SelectionChanged += (_, _) =>
+            {
+                confirmDelete.IsChecked = false;
+                confirmDelete.IsEnabled = list.SelectedItem is string
+                    && CanDeleteAdditionalOption();
+                dialog.IsSecondaryButtonEnabled = false;
+            };
+            confirmDelete.Checked += (_, _) =>
+                dialog.IsSecondaryButtonEnabled =
+                    CanDeleteAdditionalOption()
+                    && list.SelectedItem is string;
+            confirmDelete.Unchecked += (_, _) => dialog.IsSecondaryButtonEnabled = false;
+
+            dialog.PrimaryButtonClick += async (_, args) =>
+            {
+                args.Cancel = true;
+                var deferral = args.GetDeferral();
+                try
+                {
+                    if (HasProfileAction?.Invoke("Adicionales", "Alta") != true)
+                    {
+                        message.Text = "Tu perfil no tiene permiso para agregar opciones.";
+                        message.Foreground = _themeBrushes.GetBrush("#FF8A80");
+                        return;
+                    }
+
+                    await _additionalConfigurationService.AddOptionAsync(input.Text);
+                    configuration = await _additionalConfigurationService.GetConfigurationAsync();
+                    options = configuration.Options.ToList();
+                    list.ItemsSource = options;
+                    ApplyAdditionalOptions(configuration.Options);
+                    input.Text = string.Empty;
+                    message.Text = "Opción agregada a dbo.Adicionales.";
+                    message.Foreground = _themeBrushes.GetBrush("#72D49A");
+                }
+                catch (SqlException exception)
+                {
+                    message.Text = $"No se pudo agregar la opción (SQL {exception.Number}): {exception.Message}";
+                    message.Foreground = _themeBrushes.GetBrush("#FF8A80");
+                }
+                catch (InvalidOperationException exception)
+                {
+                    message.Text = exception.Message;
+                    message.Foreground = _themeBrushes.GetBrush("#FF8A80");
+                }
+                finally
+                {
+                    deferral.Complete();
+                }
+            };
+            dialog.SecondaryButtonClick += async (_, args) =>
+            {
+                args.Cancel = true;
+                var deferral = args.GetDeferral();
+                try
+                {
+                    if (!CanDeleteAdditionalOption())
+                    {
+                        message.Text = "Tu perfil no tiene permiso para borrar opciones.";
+                        message.Foreground = _themeBrushes.GetBrush("#FF8A80");
+                        return;
+                    }
+
+                    if (list.SelectedItem is not string selected)
+                    {
+                        message.Text = "Selecciona una opción para borrar.";
+                        message.Foreground = _themeBrushes.GetBrush("#FF8A80");
+                        return;
+                    }
+
+                    if (_additionalSelectors.Values.Any(selector =>
+                        string.Equals(
+                            selector.SelectedItem as string,
+                            selected,
+                            StringComparison.OrdinalIgnoreCase)))
+                    {
+                        message.Text =
+                            "No se puede borrar una opción seleccionada en la configuración actual.";
+                        message.Foreground = _themeBrushes.GetBrush("#FF8A80");
+                        return;
+                    }
+
+                    await _additionalConfigurationService.DeleteOptionAsync(selected);
+                    configuration = await _additionalConfigurationService.GetConfigurationAsync();
+                    options = configuration.Options.ToList();
+                    list.ItemsSource = options;
+                    ApplyAdditionalOptions(configuration.Options);
+                    message.Text = "Opción borrada.";
+                    message.Foreground = _themeBrushes.GetBrush("#72D49A");
+                    confirmDelete.IsChecked = false;
+                    confirmDelete.IsEnabled = false;
+                    dialog.IsSecondaryButtonEnabled = false;
+                }
+                catch (SqlException exception)
+                {
+                    message.Text = $"No se pudo borrar la opción (SQL {exception.Number}): {exception.Message}";
+                    message.Foreground = _themeBrushes.GetBrush("#FF8A80");
+                }
+                catch (InvalidOperationException exception)
+                {
+                    message.Text = exception.Message;
+                    message.Foreground = _themeBrushes.GetBrush("#FF8A80");
+                }
+                finally
+                {
+                    deferral.Complete();
+                }
+            };
+
+            await dialog.ShowAsync();
+        }
+        catch (SqlException exception)
+        {
+            ShowStatus($"No se pudo abrir la edición de Adicionales (SQL {exception.Number}): {exception.Message}", InfoBarSeverity.Error);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ShowStatus($"No se pudo abrir la edición de Adicionales: {exception.Message}", InfoBarSeverity.Error);
         }
     }
 
@@ -3125,7 +3368,7 @@ public sealed partial class ConfigurationView : UserControl
             {
                 var selections = _additionalSelectors.Select(selector =>
                 {
-                    var value = selector.Value.SelectedItem?.ToString();
+                    var value = selector.Value.SelectedItem as string;
                     if (string.IsNullOrWhiteSpace(value))
                     {
                         throw new InvalidOperationException(
@@ -3353,6 +3596,11 @@ public sealed partial class ConfigurationView : UserControl
         public TextBlock FormatText { get; } = formatText;
         public string Format { get; set; } = string.Empty;
         public int IdMensaje { get; set; }
+    }
+
+    private sealed record AdditionalOptionEditorItem
+    {
+        public override string ToString() => "AGREGAR / BORRAR";
     }
 
     private async void BrowseImage_Click(object sender, RoutedEventArgs e)
