@@ -6070,11 +6070,32 @@ public sealed partial class MainPage : Page
     {
         var content = new Grid { RowSpacing = 4 };
         content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
-        content.Children.Add(new TextBlock
+        var header = new Grid { ColumnSpacing = 6 };
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(84) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(78) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        header.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(105) });
+        var titleBlock = new TextBlock
         {
             Text = title,
-            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
-        });
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumnSpan(titleBlock, 4);
+        var hopperStatusLabel = new TextBlock
+        {
+            Text = "Estado de Tolvas",
+            FontSize = 10,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            TextAlignment = TextAlignment.Center,
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(hopperStatusLabel, 4);
+        header.Children.Add(titleBlock);
+        header.Children.Add(hopperStatusLabel);
+        content.Children.Add(header);
         for (var index = 1; index <= count; index++)
         {
             content.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
