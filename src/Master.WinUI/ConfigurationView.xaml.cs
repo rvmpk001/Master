@@ -1089,13 +1089,26 @@ public sealed partial class ConfigurationView : UserControl
 
     private void BuildTab(int index, Action<StackPanel> build)
     {
+        var compactImageConfiguration = index is 4 or 5 or 6;
         var content = new StackPanel
         {
-            Padding = new Thickness(16),
-            Spacing = 14,
+            Padding = new Thickness(compactImageConfiguration ? 10 : 16),
+            Spacing = compactImageConfiguration ? 8 : 14,
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         build(content);
+        if (compactImageConfiguration)
+        {
+            var imageHost = index switch
+            {
+                4 => ImagesOnContentHost,
+                5 => ImagesOffContentHost,
+                _ => ImageSizesContentHost
+            };
+            imageHost.Content = content;
+            return;
+        }
+
         var scrollViewer = new ScrollViewer
         {
             Content = content,
@@ -2078,12 +2091,12 @@ public sealed partial class ConfigurationView : UserControl
         host.Children.Add(new TextBlock
         {
             Text = isOn ? "Imágenes On" : "Imágenes Off",
-            FontSize = 18,
+            FontSize = 16,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
         });
         var columns = new Grid
         {
-            ColumnSpacing = 16,
+            ColumnSpacing = 10,
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         for (var index = 0; index < 4; index++)
@@ -2093,7 +2106,7 @@ public sealed partial class ConfigurationView : UserControl
         }
 
         var columnPanels = Enumerable.Range(0, 4)
-            .Select(_ => new StackPanel { Spacing = 12 })
+            .Select(_ => new StackPanel { Spacing = 10 })
             .ToArray();
 
         AddImagePathSection(columnPanels[0], "Válvulas", fields,
@@ -2144,7 +2157,7 @@ public sealed partial class ConfigurationView : UserControl
         Dictionary<string, TextBox> fields,
         params (string Label, string Control)[] imageFields)
     {
-        var section = AddSection(host, title);
+        var section = AddSection(host, title, compact: true);
         foreach (var (label, control) in imageFields)
         {
             AddCompactPathField(section, label, control, fields);
@@ -2159,9 +2172,8 @@ public sealed partial class ConfigurationView : UserControl
     {
         var row = new Grid
         {
-            ColumnSpacing = 6,
-            HorizontalAlignment = HorizontalAlignment.Stretch,
-            Margin = new Thickness(0, 2, 0, 2)
+            ColumnSpacing = 4,
+            HorizontalAlignment = HorizontalAlignment.Stretch
         };
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(58) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -2171,19 +2183,23 @@ public sealed partial class ConfigurationView : UserControl
         {
             Text = label,
             VerticalAlignment = VerticalAlignment.Center,
-            TextTrimming = TextTrimming.CharacterEllipsis
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            FontSize = 12
         };
         ToolTipService.SetToolTip(labelControl, label);
         var path = new TextBox
         {
             HorizontalAlignment = HorizontalAlignment.Stretch,
-            MinWidth = 0
+            MinWidth = 0,
+            FontSize = 13,
+            Height = 40
         };
         fields.Add(control, path);
         var browse = new Button
         {
             Content = "...",
             Width = 36,
+            Height = 36,
             Padding = new Thickness(0),
             Tag = path
         };
@@ -2203,13 +2219,13 @@ public sealed partial class ConfigurationView : UserControl
         host.Children.Add(new TextBlock
         {
             Text = "Tamaño Imagen",
-            FontSize = 18,
+            FontSize = 16,
             FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
         });
 
         var columns = new Grid
         {
-            ColumnSpacing = 16,
+            ColumnSpacing = 10,
             HorizontalAlignment = HorizontalAlignment.Stretch
         };
         for (var index = 0; index < 4; index++)
@@ -2219,7 +2235,7 @@ public sealed partial class ConfigurationView : UserControl
         }
 
         var columnPanels = Enumerable.Range(0, 4)
-            .Select(_ => new StackPanel { Spacing = 12 })
+            .Select(_ => new StackPanel { Spacing = 8 })
             .ToArray();
 
         AddImageSizeSection(columnPanels[0], "Válvulas",
@@ -2269,7 +2285,7 @@ public sealed partial class ConfigurationView : UserControl
         string title,
         params (string Label, string Control)[] imageFields)
     {
-        var fields = AddSection(host, title);
+        var fields = AddSection(host, title, compact: true);
         foreach (var (label, control) in imageFields)
         {
             AddImageSizeField(fields, label, control);
@@ -2294,12 +2310,13 @@ public sealed partial class ConfigurationView : UserControl
         {
             Text = label,
             VerticalAlignment = VerticalAlignment.Center,
-            TextTrimming = TextTrimming.CharacterEllipsis
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            FontSize = 13
         };
         var widthLabel = new TextBlock { Text = "W:", VerticalAlignment = VerticalAlignment.Center };
-        var width = new TextBox { MinWidth = 0, Width = 58, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var width = new TextBox { MinWidth = 0, Width = 64, Height = 40, FontSize = 14, HorizontalAlignment = HorizontalAlignment.Stretch };
         var heightLabel = new TextBlock { Text = "H:", VerticalAlignment = VerticalAlignment.Center };
-        var height = new TextBox { MinWidth = 0, Width = 58, HorizontalAlignment = HorizontalAlignment.Stretch };
+        var height = new TextBox { MinWidth = 0, Width = 64, Height = 40, FontSize = 14, HorizontalAlignment = HorizontalAlignment.Stretch };
 
         Grid.SetColumn(widthLabel, 1);
         Grid.SetColumn(width, 2);
@@ -2341,17 +2358,6 @@ public sealed partial class ConfigurationView : UserControl
                 AddMessageField(column, index);
             }
 
-            var formats = new StackPanel { Spacing = 12, Margin = new Thickness(0, 10, 0, 0) };
-            for (var index = columnIndex * 5 + 1; index <= columnIndex * 5 + 5; index++)
-            {
-                var formatText = _messageFields[$"Mensaje{index}"].FormatText;
-                formatText.Margin = new Thickness(0, 2, 0, 2);
-                formatText.TextTrimming = TextTrimming.CharacterEllipsis;
-                ToolTipService.SetToolTip(formatText, formatText.Text);
-                formats.Children.Add(formatText);
-            }
-
-            column.Children.Add(formats);
             Grid.SetColumn(column, columnIndex);
             columns.Children.Add(column);
         }
@@ -2393,7 +2399,8 @@ public sealed partial class ConfigurationView : UserControl
             Content = "A",
             Width = 36,
             Padding = new Thickness(0),
-            Tag = control
+            Tag = control,
+            Visibility = Visibility.Collapsed
         };
         Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(formatButton, $"Editar formato de Mensaje {messageNumber}");
         ToolTipService.SetToolTip(formatButton, $"Editar formato de Mensaje {messageNumber}");
@@ -2841,21 +2848,26 @@ public sealed partial class ConfigurationView : UserControl
         _accessLayoutGrid.MinHeight = isCompact ? 520 : 460;
     }
 
-    private StackPanel AddSection(Panel host, string title)
+    private StackPanel AddSection(Panel host, string title, bool compact = false)
     {
-        var section = CreateSection(title);
+        var section = CreateSection(title, compact);
         host.Children.Add(section.Root);
         return section.Content;
     }
 
-    private AccessSection CreateSection(string title)
+    private AccessSection CreateSection(string title, bool compact = false)
     {
-        var content = new StackPanel { Spacing = 10 };
-        var section = new StackPanel { Spacing = 8 };
-        section.Children.Add(new TextBlock { Text = title, FontSize = 16, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
+        var content = new StackPanel { Spacing = compact ? 3 : 10 };
+        var section = new StackPanel { Spacing = compact ? 5 : 8 };
+        section.Children.Add(new TextBlock
+        {
+            Text = title,
+            FontSize = compact ? 14 : 16,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+        });
         var border = new Border
         {
-            Padding = new Thickness(12),
+            Padding = new Thickness(compact ? 8 : 12),
             Background = _themeBrushes.GetBrush("#172337"),
             BorderBrush = _themeBrushes.GetBrush("#40516A"),
             BorderThickness = new Thickness(1),

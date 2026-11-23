@@ -169,7 +169,7 @@ public sealed partial class MachineConfigurationView : UserControl
 
     private void BuildForm()
     {
-        var groups = new Grid { ColumnSpacing = 16, MinWidth = 940 };
+        var groups = new Grid { ColumnSpacing = 8 };
         for (var index = 0; index < CategoryTitles.Count; index++)
         {
             groups.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -187,37 +187,40 @@ public sealed partial class MachineConfigurationView : UserControl
         for (var column = 0; column < slots.Length; column++)
         {
             var (category, entries) = slots[column];
-            var group = new StackPanel { Spacing = 8, MinWidth = 160 };
+            var group = new StackPanel { Spacing = 6, MinWidth = 180 };
             group.Children.Add(new TextBlock
             {
                 Text = CategoryTitles[category],
                 Foreground = Brush(CategoryColors[category]),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+                FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+                FontSize = 12
             });
 
             foreach (var (label, parameter) in entries)
             {
-                var row = new StackPanel { Spacing = 3 };
+                var row = new Grid { ColumnSpacing = 5, MinHeight = 38 };
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(68) });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+                row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 var labelBlock = new TextBlock
                 {
                     Text = label,
                     Foreground = Brush(CategoryColors[category]),
-                    FontSize = 12
+                    FontSize = 11,
+                    VerticalAlignment = VerticalAlignment.Center
                 };
-                var pickerRow = new Grid { ColumnSpacing = 6 };
-                pickerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-                pickerRow.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
                 var icon = new Border
                 {
-                    Width = 30,
-                    Height = 22,
+                    Width = 24,
+                    Height = 20,
                     Background = Brush(CategoryColors[category]),
                     CornerRadius = new CornerRadius(2),
+                    VerticalAlignment = VerticalAlignment.Center,
                     Child = new TextBlock
                     {
                         Text = "▼",
-                        FontSize = 10,
+                        FontSize = 9,
                         Foreground = Brush("#162033"),
                         HorizontalAlignment = HorizontalAlignment.Center,
                         VerticalAlignment = VerticalAlignment.Center
@@ -225,17 +228,18 @@ public sealed partial class MachineConfigurationView : UserControl
                 };
                 var picker = new ComboBox
                 {
-                    MinWidth = 110,
+                    MinWidth = 80,
+                    Height = 32,
                     HorizontalAlignment = HorizontalAlignment.Stretch,
+                    VerticalAlignment = VerticalAlignment.Center,
                     Tag = new MaterialPickerTag(category, parameter)
                 };
                 picker.SelectionChanged += MaterialPicker_SelectionChanged;
-                Grid.SetColumn(icon, 0);
-                Grid.SetColumn(picker, 1);
-                pickerRow.Children.Add(icon);
-                pickerRow.Children.Add(picker);
+                Grid.SetColumn(icon, 1);
+                Grid.SetColumn(picker, 2);
                 row.Children.Add(labelBlock);
-                row.Children.Add(pickerRow);
+                row.Children.Add(icon);
+                row.Children.Add(picker);
                 group.Children.Add(row);
                 _materialPickers.Add($"{category}:{parameter}", picker);
             }
@@ -252,7 +256,7 @@ public sealed partial class MachineConfigurationView : UserControl
 
     private Border BuildAdjustmentGroup(string title, string parameterPrefix, Dictionary<string, NumberBox> inputs)
     {
-        var layout = new Grid { ColumnSpacing = 16, RowSpacing = 8 };
+        var layout = new Grid { ColumnSpacing = 8, RowSpacing = 5 };
         for (var column = 0; column < 4; column++)
         {
             layout.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
@@ -271,7 +275,8 @@ public sealed partial class MachineConfigurationView : UserControl
             {
                 Text = $"Agregado {index}:",
                 VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brush("#E6EDF7")
+                Foreground = Brush("#E6EDF7"),
+                FontSize = 11
             });
             var number = new NumberBox
             {
@@ -280,14 +285,15 @@ public sealed partial class MachineConfigurationView : UserControl
                 SmallChange = 0.1,
                 SpinButtonPlacementMode = NumberBoxSpinButtonPlacementMode.Inline,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                MinWidth = 72
+                MinWidth = 60,
+                Height = 32
             };
             Grid.SetColumn(number, 1);
             var percent = new TextBlock { Text = "%", VerticalAlignment = VerticalAlignment.Center, Foreground = Brush("#E6EDF7") };
             Grid.SetColumn(percent, 2);
             row.Children.Add(number);
             row.Children.Add(percent);
-            var cell = new Border { Child = row, Padding = new Thickness(4, 2, 4, 2) };
+            var cell = new Border { Child = row, Padding = new Thickness(2) };
             Grid.SetRow(cell, (index - 1) / 4);
             Grid.SetColumn(cell, (index - 1) % 4);
             layout.Children.Add(cell);
@@ -298,7 +304,7 @@ public sealed partial class MachineConfigurationView : UserControl
         section.Children.Add(new TextBlock { Text = title, Foreground = Brush("#E6EDF7"), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         section.Children.Add(new Border
         {
-            Padding = new Thickness(10),
+            Padding = new Thickness(8),
             BorderThickness = new Thickness(1),
             BorderBrush = Brush("#40516A"),
             Child = layout
@@ -308,7 +314,11 @@ public sealed partial class MachineConfigurationView : UserControl
 
     private UIElement BuildMachineGroup()
     {
-        var content = new StackPanel { Spacing = 8 };
+        var content = new Grid { ColumnSpacing = 8, RowSpacing = 4 };
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        content.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         var machineName = new TextBox { Header = "Nombre de la Máquina", MaxLength = 255 };
         _textInputs.Add("Mq", machineName);
         content.Children.Add(machineName);
@@ -317,6 +327,8 @@ public sealed partial class MachineConfigurationView : UserControl
         AddBooleanOption(options, "Habilitar Humedades", "MU");
         AddBooleanOption(options, "Habilitar Absorciones", "OS");
         AddBooleanOption(options, "Habilitar Botón Carga/Descarga", "DC");
+        Grid.SetRow(options, 1);
+        Grid.SetColumnSpan(options, 2);
         content.Children.Add(options);
 
         var imagePath = new TextBox { Header = "Archivo de imagen", MaxLength = 255 };
@@ -326,16 +338,18 @@ public sealed partial class MachineConfigurationView : UserControl
         pathRow.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
         var browseButton = new Button { Content = "Examinar...", Tag = imagePath };
         browseButton.Click += BrowseImage_Click;
+        Grid.SetColumn(imagePath, 0);
         Grid.SetColumn(browseButton, 1);
+        Grid.SetColumn(pathRow, 1);
         pathRow.Children.Add(imagePath);
         pathRow.Children.Add(browseButton);
         content.Children.Add(pathRow);
 
-        var panel = new StackPanel { Spacing = 4 };
+        var panel = new StackPanel { Spacing = 3 };
         panel.Children.Add(new TextBlock { Text = "Tipo de Máquina", Foreground = Brush("#E6EDF7"), FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         panel.Children.Add(new Border
         {
-            Padding = new Thickness(10),
+            Padding = new Thickness(8),
             BorderThickness = new Thickness(1),
             BorderBrush = Brush("#40516A"),
             Child = content

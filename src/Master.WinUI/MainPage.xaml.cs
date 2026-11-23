@@ -646,7 +646,7 @@ public sealed partial class MainPage : Page
         }
         else if (_isMessagesConfigurationOpen)
         {
-            SizeImagesOnConfigurationForm(e.NewSize);
+            SizeMessagesConfigurationForm(e.NewSize);
         }
         else if (_isAdditionalConfigurationOpen)
         {
@@ -1469,7 +1469,7 @@ public sealed partial class MainPage : Page
                 }
                 else if (_isMessagesConfigurationOpen)
                 {
-                    SizeImagesOnConfigurationForm(new Windows.Foundation.Size(ActualWidth, ActualHeight));
+                    SizeMessagesConfigurationForm(new Windows.Foundation.Size(ActualWidth, ActualHeight));
                 }
                 else if (_isAdditionalConfigurationOpen)
                 {
@@ -1653,6 +1653,12 @@ public sealed partial class MainPage : Page
     {
         ConfigurationFormBorder.Width = Math.Min(1760, Math.Max(0, availableSize.Width - 24));
         ConfigurationFormBorder.Height = Math.Min(1050, Math.Max(0, availableSize.Height - 24));
+    }
+
+    private void SizeMessagesConfigurationForm(Windows.Foundation.Size availableSize)
+    {
+        ConfigurationFormBorder.Width = Math.Min(1120, Math.Max(0, availableSize.Width - 48));
+        ConfigurationFormBorder.Height = Math.Min(440, Math.Max(0, availableSize.Height - 48));
     }
 
     private void SizeOrdersConfigurationForm(Windows.Foundation.Size availableSize)
