@@ -594,7 +594,14 @@ public sealed partial class MainPage : Page
             if ((_lastPlcConnectionState != status.State || _lastPlcStatusDetail != status.Detail)
                 && _processState == PlantProcessState.Idle)
             {
-                ModuleStatusText.Text = $"Estado PLC: {status.Detail}";
+                if (status.State == PlcConnectionState.Connected)
+                {
+                    SetModuleProcessStatus("PLC conectado");
+                }
+                else
+                {
+                    SetModuleErrorStatus($"Sesión iniciada • PLC sin comunicación: {status.Detail}");
+                }
                 _lastPlcConnectionState = status.State;
                 _lastPlcStatusDetail = status.Detail;
             }
@@ -2061,7 +2068,7 @@ public sealed partial class MainPage : Page
             _dashboardFormulaValues = selectedRecipe!.Values;
             _batchSeenActive = false;
             RefreshDashboardMaterials();
-            ModuleStatusText.Text = "Receta preparada para cargarse";
+            SetModuleProcessStatus("Receta preparada para cargarse");
             _remissionBeforeProcess ??= RemissionRows.Select(row => row.Valor).ToArray();
             _activeRemission = new ActiveRemission(
                 remissionNumber.Text.Trim(),
@@ -2085,6 +2092,7 @@ public sealed partial class MainPage : Page
                 selectedRecipe.Values);
             _processState = PlantProcessState.Prepared;
             _plcLinkLostDuringProcess = false;
+            SetModuleProcessStatus("Receta preparada para cargarse");
             UpdateProcessActionButtons();
             programDialog?.Hide();
         };
@@ -2371,7 +2379,7 @@ public sealed partial class MainPage : Page
         _processCommandBusy = true;
         _batchSeenActive = false;
         _processState = PlantProcessState.StartingLoad;
-        ModuleStatusText.Text = "Enviando la receta e iniciando la carga en el PLC...";
+        SetModuleProcessStatus("Máquina cargando");
         UpdateProcessActionButtons();
 
         PlcProcessResult result;
@@ -2391,13 +2399,13 @@ public sealed partial class MainPage : Page
         if (result.Success)
         {
             _processState = PlantProcessState.Loading;
-            ModuleStatusText.Text = $"Carga en curso. {result.Message}";
+            SetModuleProcessStatus("Máquina cargando");
         }
         else if (result.OutcomeUncertain)
         {
             // El comando pudo haberse enviado: se vigila el PLC y el operador puede cancelar.
             _processState = PlantProcessState.Loading;
-            ModuleStatusText.Text = $"Carga SIN CONFIRMAR: {result.Message}";
+            SetModuleProcessStatus("Máquina cargando");
         }
         else
         {
@@ -2438,7 +2446,7 @@ public sealed partial class MainPage : Page
         var remission = _activeRemission.Remission;
         _processCommandBusy = true;
         _processState = PlantProcessState.StartingDischarge;
-        ModuleStatusText.Text = "Enviando la orden de descarga al PLC...";
+        SetModuleProcessStatus("Máquina descargando");
         UpdateProcessActionButtons();
 
         PlcProcessResult result;
@@ -2458,12 +2466,12 @@ public sealed partial class MainPage : Page
         if (result.Success)
         {
             _processState = PlantProcessState.Downloading;
-            ModuleStatusText.Text = $"Descarga en curso. {result.Message}";
+            SetModuleProcessStatus("Máquina descargando");
         }
         else if (result.OutcomeUncertain)
         {
             _processState = PlantProcessState.Downloading;
-            ModuleStatusText.Text = $"Descarga SIN CONFIRMAR: {result.Message}";
+            SetModuleProcessStatus("Máquina descargando");
         }
         else
         {
@@ -2648,6 +2656,24 @@ public sealed partial class MainPage : Page
         return lines;
     }
 
+    private void SetModuleProcessStatus(string message)
+    {
+        StatusPanel.Background = _themeBrushes.GetBrush("#163226");
+        StatusPanel.BorderBrush = _themeBrushes.GetBrush("#72D49A");
+        StatusPanel.BorderThickness = new Thickness(1);
+        ModuleStatusText.Text = message;
+        ModuleStatusText.Foreground = _themeBrushes.GetBrush("#72D49A");
+    }
+
+    private void SetModuleErrorStatus(string message)
+    {
+        StatusPanel.Background = _themeBrushes.GetBrush("#3A1F24");
+        StatusPanel.BorderBrush = _themeBrushes.GetBrush("#FF8A80");
+        StatusPanel.BorderThickness = new Thickness(1);
+        ModuleStatusText.Text = message;
+        ModuleStatusText.Foreground = _themeBrushes.GetBrush("#FF8A80");
+    }
+
     private void UpdateProcessActionButtons()
     {
         var hasPermission = HasModulePermission("Carga Manual") && HasActionPermission("Carga Manual", "Alta");
@@ -2703,13 +2729,17 @@ public sealed partial class MainPage : Page
             if (processActive)
             {
                 _plcLinkLostDuringProcess = true;
-                ModuleStatusText.Text =
+                SetModuleErrorStatus(
                     $"Comunicación con el PLC interrumpida: {plcInterruption}. " +
-                    "El PLC continúa su secuencia por su cuenta; usa Cancelar si es necesario.";
+                    "El PLC continúa su secuencia por su cuenta; usa Cancelar si es necesario.");
             }
             else if (_processState == PlantProcessState.Prepared)
             {
-                ModuleStatusText.Text = $"Flujo detenido: {plcInterruption}.";
+                SetModuleErrorStatus($"Flujo detenido: {plcInterruption}.");
+            }
+            else
+            {
+                SetModuleErrorStatus($"Sesión iniciada • PLC sin comunicación: {plcInterruption}");
             }
         }
         else
@@ -2717,7 +2747,24 @@ public sealed partial class MainPage : Page
             if (_plcLinkLostDuringProcess && processActive)
             {
                 _plcLinkLostDuringProcess = false;
-                ModuleStatusText.Text = "Comunicación con el PLC restablecida.";
+                switch (_processState)
+                {
+                    case PlantProcessState.StartingLoad or PlantProcessState.Loading:
+                        SetModuleProcessStatus("Máquina cargando");
+                        break;
+                    case PlantProcessState.LoadReceived:
+                        SetModuleProcessStatus("Fin de carga recibida");
+                        break;
+                    case PlantProcessState.StartingDischarge or PlantProcessState.Downloading:
+                        SetModuleProcessStatus("Máquina descargando");
+                        break;
+                    case PlantProcessState.AwaitingReport:
+                        SetModuleProcessStatus("Descarga completa; lista para guardar PDF");
+                        break;
+                    default:
+                        ModuleStatusText.Text = "Comunicación con el PLC restablecida.";
+                        break;
+                }
             }
             else if (!wasPlcFlowReady && _processState == PlantProcessState.Prepared)
             {
@@ -2744,14 +2791,14 @@ public sealed partial class MainPage : Page
                 case PlantProcessState.Loading
                     when TryReadSignal(status, "tag:bitFinCarga") == true && batchConsistent:
                     _processState = PlantProcessState.LoadReceived;
-                    ModuleStatusText.Text = "Fin de carga recibido del PLC. Listo para descargar.";
+                    SetModuleProcessStatus("Fin de carga recibida");
                     break;
 
                 case PlantProcessState.Downloading
                     when (TryReadSignal(status, "tag:bitFinBacha") == true && batchConsistent)
                         || (_batchSeenActive && batchActive == false):
                     _processState = PlantProcessState.AwaitingReport;
-                    ModuleStatusText.Text = "Descarga completa; guarda el PDF para finalizar.";
+                    SetModuleProcessStatus("Descarga completa; lista para guardar PDF");
                     break;
 
                 case PlantProcessState.Loading or PlantProcessState.LoadReceived
@@ -2761,6 +2808,33 @@ public sealed partial class MainPage : Page
                     ModuleStatusText.Text =
                         "El PLC detuvo la bacha antes de completarse (cancelación o paro en el PLC). " +
                         "La receta sigue preparada.";
+                    break;
+            }
+        }
+
+        if (plcFlowReady)
+        {
+            switch (_processState)
+            {
+                case PlantProcessState.Prepared:
+                    SetModuleProcessStatus("Receta preparada para cargarse");
+                    break;
+                case PlantProcessState.StartingLoad:
+                case PlantProcessState.Loading:
+                    SetModuleProcessStatus("Máquina cargando");
+                    break;
+                case PlantProcessState.LoadReceived:
+                    SetModuleProcessStatus("Fin de carga recibida");
+                    break;
+                case PlantProcessState.StartingDischarge:
+                case PlantProcessState.Downloading:
+                    SetModuleProcessStatus("Máquina descargando");
+                    break;
+                case PlantProcessState.AwaitingReport:
+                    SetModuleProcessStatus("Descarga completa; lista para guardar PDF");
+                    break;
+                case PlantProcessState.Complete:
+                    SetModuleProcessStatus("Remisión completa");
                     break;
             }
         }
@@ -2805,7 +2879,7 @@ public sealed partial class MainPage : Page
             await File.WriteAllBytesAsync(file.Path, _reportExportService.BuildPdf(report));
             _processState = PlantProcessState.Complete;
             _remissionBeforeProcess = null;
-            ModuleStatusText.Text = "Remision Completa";
+            SetModuleProcessStatus("Remisión completa");
             RemissionPanel.IsExpanded = true;
             UpdateProcessActionButtons();
         }
