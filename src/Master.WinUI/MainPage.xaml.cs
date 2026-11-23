@@ -94,6 +94,12 @@ public sealed partial class MainPage : Page
     private bool _isDashboardResizeActive;
     private double _dashboardResizeStartY;
     private double _dashboardPanelsStartHeight;
+    private Border? _draggingFormBorder;
+    private Microsoft.UI.Xaml.Media.TranslateTransform? _formDragTransform;
+    private Windows.Foundation.Point _formDragStartPoint;
+    private Windows.Foundation.Rect _formDragStartBounds;
+    private double _formDragStartTranslateX;
+    private double _formDragStartTranslateY;
     private bool _isPlantToolsResizeActive;
     private double _plantToolsResizeStartX;
     private double _plantToolsResizeStartWidth;
@@ -832,6 +838,85 @@ public sealed partial class MainPage : Page
     private void DashboardPanelsResizeHandle_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
     {
         _isDashboardResizeActive = false;
+    }
+
+    private void FormDrag_PointerPressed(object sender, PointerRoutedEventArgs e)
+    {
+        if (e.OriginalSource is not DependencyObject source)
+        {
+            return;
+        }
+
+        for (var element = source; element is not null; element = Microsoft.UI.Xaml.Media.VisualTreeHelper.GetParent(element))
+        {
+            if (element is Microsoft.UI.Xaml.Controls.Primitives.ButtonBase)
+            {
+                return;
+            }
+
+            if (element is not Border { Tag: "DraggableForm" } border)
+            {
+                continue;
+            }
+
+            var pointerPosition = e.GetCurrentPoint(MainPageRoot).Position;
+            var formOrigin = border.TransformToVisual(MainPageRoot).TransformPoint(new Windows.Foundation.Point(0, 0));
+            if (pointerPosition.Y < formOrigin.Y || pointerPosition.Y > formOrigin.Y + 56)
+            {
+                return;
+            }
+
+            _draggingFormBorder = border;
+            _formDragTransform = border.RenderTransform as Microsoft.UI.Xaml.Media.TranslateTransform
+                ?? new Microsoft.UI.Xaml.Media.TranslateTransform();
+            border.RenderTransform = _formDragTransform;
+            _formDragStartPoint = pointerPosition;
+            _formDragStartTranslateX = _formDragTransform.X;
+            _formDragStartTranslateY = _formDragTransform.Y;
+            _formDragStartBounds = new Windows.Foundation.Rect(formOrigin.X, formOrigin.Y, border.ActualWidth, border.ActualHeight);
+            MainPageRoot.CapturePointer(e.Pointer);
+            e.Handled = true;
+            return;
+        }
+    }
+
+    private void FormDrag_PointerMoved(object sender, PointerRoutedEventArgs e)
+    {
+        if (_draggingFormBorder is null || _formDragTransform is null)
+        {
+            return;
+        }
+
+        var pointerPosition = e.GetCurrentPoint(MainPageRoot).Position;
+        var minimumX = -_formDragStartBounds.X;
+        var maximumX = MainPageRoot.ActualWidth - _formDragStartBounds.Right;
+        var minimumY = -_formDragStartBounds.Y;
+        var maximumY = MainPageRoot.ActualHeight - _formDragStartBounds.Bottom;
+        var deltaX = maximumX < minimumX ? 0 : Math.Clamp(pointerPosition.X - _formDragStartPoint.X, minimumX, maximumX);
+        var deltaY = maximumY < minimumY ? 0 : Math.Clamp(pointerPosition.Y - _formDragStartPoint.Y, minimumY, maximumY);
+
+        _formDragTransform.X = _formDragStartTranslateX + deltaX;
+        _formDragTransform.Y = _formDragStartTranslateY + deltaY;
+        e.Handled = true;
+    }
+
+    private void FormDrag_PointerReleased(object sender, PointerRoutedEventArgs e)
+    {
+        if (_draggingFormBorder is null)
+        {
+            return;
+        }
+
+        _draggingFormBorder = null;
+        _formDragTransform = null;
+        MainPageRoot.ReleasePointerCapture(e.Pointer);
+        e.Handled = true;
+    }
+
+    private void FormDrag_PointerCaptureLost(object sender, PointerRoutedEventArgs e)
+    {
+        _draggingFormBorder = null;
+        _formDragTransform = null;
     }
 
     private void DashboardPanelsScrollViewer_SizeChanged(object sender, SizeChangedEventArgs e)
@@ -5875,6 +5960,9 @@ public sealed partial class MainPage : Page
     private void BuildFormulaEditor(IReadOnlyDictionary<string, string> values)
     {
         FormulaEditorConfigurationHost.Children.Clear();
+        FormulaEditorConfigurationHost.RowDefinitions.Clear();
+        FormulaEditorConfigurationHost.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        FormulaEditorConfigurationHost.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
         FormulaEditorAdditionalHost.Children.Clear();
         _formulaEditorInputs.Clear();
         _formulaMaterialStates.Clear();
@@ -5882,24 +5970,42 @@ public sealed partial class MainPage : Page
         var formulaTypePanel = CreateFormulaGroup("Tipo de Fórmula");
         AddFormulaTextField(formulaTypePanel, "Cod_Formula", values, "Código");
         AddFormulaTextField(formulaTypePanel, "Descripcion", values, "Descripción");
+        Grid.SetRow(formulaTypePanel, 0);
         FormulaEditorConfigurationHost.Children.Add(formulaTypePanel);
 
-        var materialColumns = new Grid { ColumnSpacing = 10 };
-        materialColumns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-        materialColumns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        var materialColumns = new Grid { ColumnSpacing = 8 };
+        for (var index = 0; index < 3; index++)
+        {
+            materialColumns.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        }
 
-        var leftMaterials = new StackPanel { Spacing = 10 };
-        leftMaterials.Children.Add(CreateFormulaMaterialGroup("Material por metro cúbico - Agregados", "Agregado", "A", 8, "Kg.", values));
-        leftMaterials.Children.Add(CreateFormulaMaterialGroup("Cemento (por almacén)", "Cemento", "C", 5, "Kg.", values));
-        var rightMaterials = new StackPanel { Spacing = 10 };
-        rightMaterials.Children.Add(CreateFormulaMaterialGroup("Material por metro cúbico - Aditivos", "Aditivo", "D", 6, "Lt.", values));
-        rightMaterials.Children.Add(CreateFormulaMaterialGroup("Agua (por almacén)", "Agua", "Agua", 3, "Lt.", values));
-        rightMaterials.Children.Add(CreateFormulaMaterialGroup("Fibra (por almacén)", "Fibra", "Fibra", 3, "Kg.", values));
+        var aggregateColumn = CreateFormulaMaterialGroup("Material por metro cúbico - Agregados", "Agregado", "A", 8, "Kg.", values);
 
-        Grid.SetColumn(leftMaterials, 0);
-        Grid.SetColumn(rightMaterials, 1);
-        materialColumns.Children.Add(leftMaterials);
-        materialColumns.Children.Add(rightMaterials);
+        var cementColumn = new Grid { RowSpacing = 6 };
+        cementColumn.RowDefinitions.Add(new RowDefinition { Height = new GridLength(5, GridUnitType.Star) });
+        cementColumn.RowDefinitions.Add(new RowDefinition { Height = new GridLength(3, GridUnitType.Star) });
+        var cementGroup = CreateFormulaMaterialGroup("Cemento (por almacén)", "Cemento", "C", 5, "Kg.", values);
+        var waterGroup = CreateFormulaMaterialGroup("Agua (por almacén)", "Agua", "Agua", 3, "Lt.", values);
+        Grid.SetRow(waterGroup, 1);
+        cementColumn.Children.Add(cementGroup);
+        cementColumn.Children.Add(waterGroup);
+
+        var additivesColumn = new Grid { RowSpacing = 6 };
+        additivesColumn.RowDefinitions.Add(new RowDefinition { Height = new GridLength(6, GridUnitType.Star) });
+        additivesColumn.RowDefinitions.Add(new RowDefinition { Height = new GridLength(3, GridUnitType.Star) });
+        var additivesGroup = CreateFormulaMaterialGroup("Material por metro cúbico - Aditivos", "Aditivo", "D", 6, "Lt.", values);
+        var fiberGroup = CreateFormulaMaterialGroup("Fibra (por almacén)", "Fibra", "Fibra", 3, "Kg.", values);
+        Grid.SetRow(fiberGroup, 1);
+        additivesColumn.Children.Add(additivesGroup);
+        additivesColumn.Children.Add(fiberGroup);
+
+        Grid.SetColumn(aggregateColumn, 0);
+        Grid.SetColumn(cementColumn, 1);
+        Grid.SetColumn(additivesColumn, 2);
+        materialColumns.Children.Add(aggregateColumn);
+        materialColumns.Children.Add(cementColumn);
+        materialColumns.Children.Add(additivesColumn);
+        Grid.SetRow(materialColumns, 1);
         FormulaEditorConfigurationHost.Children.Add(materialColumns);
 
         var additionalData = CreateFormulaGroup("Datos Adicionales");
@@ -5915,17 +6021,17 @@ public sealed partial class MainPage : Page
 
     private StackPanel CreateFormulaGroup(string title)
     {
-        var panel = new StackPanel { Spacing = 8 };
+        var panel = new StackPanel { Spacing = 4 };
         panel.Children.Add(new TextBlock { Text = title, FontWeight = Microsoft.UI.Text.FontWeights.SemiBold });
         var border = new Border
         {
             Background = _themeBrushes.GetBrush("#172337"),
             BorderBrush = _themeBrushes.GetBrush("#40516A"),
             BorderThickness = new Thickness(1),
-            Padding = new Thickness(10),
+            Padding = new Thickness(6),
             Child = panel
         };
-        var wrapper = new StackPanel { Spacing = 8 };
+        var wrapper = new StackPanel { Spacing = 4 };
         wrapper.Children.Add(border);
         wrapper.Tag = panel;
         return wrapper;
@@ -5948,7 +6054,7 @@ public sealed partial class MainPage : Page
         GetFormulaGroupContent(group).Children.Add(row);
     }
 
-    private StackPanel CreateFormulaMaterialGroup(
+    private Border CreateFormulaMaterialGroup(
         string title,
         string labelPrefix,
         string fieldPrefix,
@@ -5956,12 +6062,19 @@ public sealed partial class MainPage : Page
         string unit,
         IReadOnlyDictionary<string, string> values)
     {
-        var group = CreateFormulaGroup(title);
+        var content = new Grid { RowSpacing = 4 };
+        content.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
+        content.Children.Add(new TextBlock
+        {
+            Text = title,
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold
+        });
         for (var index = 1; index <= count; index++)
         {
+            content.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
             var materialField = fieldPrefix == "Agua" ? (index == 1 ? "Agua" : $"Agua{index}") : $"{fieldPrefix}{index}";
             var quantityField = $"{materialField}C";
-            var row = new Grid { ColumnSpacing = 6, Margin = new Thickness(0, 2, 0, 2) };
+            var row = new Grid { ColumnSpacing = 6 };
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(84) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(78) });
             row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(28) });
@@ -5982,7 +6095,9 @@ public sealed partial class MainPage : Page
                 ItemsSource = _formulaMaterialOptions.GetValueOrDefault(fieldPrefix, Array.Empty<string>()),
                 Foreground = _themeBrushes.GetBrush("#F1F5F9"),
                 Background = _themeBrushes.GetBrush("#111B2B"),
-                Tag = materialField
+                Tag = materialField,
+                Height = 32,
+                VerticalAlignment = VerticalAlignment.Center
             };
             UpdateFormulaMaterialPicker(materialPicker, materialField, values);
             materialPicker.SelectionChanged += FormulaMaterialPicker_SelectionChanged;
@@ -6007,11 +6122,20 @@ public sealed partial class MainPage : Page
             row.Children.Add(unitLabel);
             row.Children.Add(materialPicker);
             row.Children.Add(materialState);
-            GetFormulaGroupContent(group).Children.Add(row);
+            Grid.SetRow(row, index);
+            content.Children.Add(row);
             _formulaEditorInputs.Add(materialField, materialPicker);
         }
 
-        return group;
+        return new Border
+        {
+            Background = _themeBrushes.GetBrush("#172337"),
+            BorderBrush = _themeBrushes.GetBrush("#40516A"),
+            BorderThickness = new Thickness(1),
+            Padding = new Thickness(6),
+            Child = content,
+            VerticalAlignment = VerticalAlignment.Stretch
+        };
     }
 
     private void FormulaMaterialPicker_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -6092,7 +6216,9 @@ public sealed partial class MainPage : Page
             MaxLength = FormulaService.GetFieldMaxLength(fieldName),
             Foreground = _themeBrushes.GetBrush("#F1F5F9"),
             Background = _themeBrushes.GetBrush("#111B2B"),
-            Tag = fieldName
+            Tag = fieldName,
+            Height = 32,
+            VerticalAlignment = VerticalAlignment.Center
         };
         _formulaEditorInputs[fieldName] = input;
         return input;

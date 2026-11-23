@@ -22,7 +22,15 @@
         </Style>
     </Page.Resources>
 
-    <Grid x:Name="MainPageRoot" Background="{ThemeResource Palette0B1220}" SizeChanged="Page_SizeChanged" KeyDown="MainPage_KeyDown">
+    <Grid
+        x:Name="MainPageRoot"
+        Background="{ThemeResource Palette0B1220}"
+        SizeChanged="Page_SizeChanged"
+        KeyDown="MainPage_KeyDown"
+        PointerPressed="FormDrag_PointerPressed"
+        PointerMoved="FormDrag_PointerMoved"
+        PointerReleased="FormDrag_PointerReleased"
+        PointerCaptureLost="FormDrag_PointerCaptureLost">
         <Grid x:Name="DashboardShell" Visibility="Collapsed">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
@@ -518,7 +526,7 @@
         </Grid>
 
         <Grid x:Name="InventoryFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
-            <Border MaxWidth="1200" MaxHeight="900" Margin="8" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Stretch" VerticalAlignment="Center">
+            <Border Tag="DraggableForm" MaxWidth="1200" MaxHeight="900" Margin="8" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Stretch" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -694,7 +702,7 @@
         </Grid>
 
         <Grid x:Name="ReportFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
-            <Border MaxWidth="1600" MaxHeight="1000" Margin="20" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Border Tag="DraggableForm" MaxWidth="1600" MaxHeight="1000" Margin="20" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="36" />
@@ -886,7 +894,7 @@
         </Grid>
 
         <Grid x:Name="FormulaFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
-            <Border Width="1500" MaxWidth="1600" Height="620" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Tag="DraggableForm" Width="1500" MaxWidth="1600" Height="620" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -968,7 +976,7 @@
             </Border>
         </Grid>
         <Grid x:Name="FormulaEditorOverlay" Grid.RowSpan="4" Background="{ThemeResource PaletteB3000000}" Visibility="Collapsed">
-            <Border Width="1500" MaxWidth="1600" Height="820" MaxHeight="950" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Tag="DraggableForm" MaxWidth="1600" Margin="32" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                 <Grid RowSpacing="8">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -988,12 +996,10 @@
                         <Button x:Name="FormulaEditorConfigurationTabButton" Content="Configuración de Fórmulas" Click="FormulaEditorConfigurationTab_Click" Background="{ThemeResource Palette0078D4}" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" Padding="12,6" />
                         <Button x:Name="FormulaEditorAdditionalTabButton" Content="Datos Adicionales" Click="FormulaEditorAdditionalTab_Click" Background="{ThemeResource Palette26364D}" Foreground="{ThemeResource PaletteF1F5F9}" BorderThickness="0" Padding="12,6" />
                     </StackPanel>
-                    <ScrollViewer Grid.Row="3" Padding="16" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                        <StackPanel>
-                            <StackPanel x:Name="FormulaEditorConfigurationHost" Spacing="12" />
-                            <StackPanel x:Name="FormulaEditorAdditionalHost" Spacing="12" Visibility="Collapsed" />
-                        </StackPanel>
-                    </ScrollViewer>
+                    <Grid Grid.Row="3" Padding="10">
+                        <Grid x:Name="FormulaEditorConfigurationHost" RowSpacing="8" />
+                        <StackPanel x:Name="FormulaEditorAdditionalHost" Spacing="8" Visibility="Collapsed" />
+                    </Grid>
                     <StackPanel Grid.Row="4" Padding="12,0,12,8">
                         <InfoBar x:Name="FormulaEditorStatusInfoBar" IsOpen="False" IsClosable="True" />
                     </StackPanel>
@@ -1001,7 +1007,7 @@
             </Border>
         </Grid>
         <Grid x:Name="SupplierFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
-            <Border Width="1500" MaxWidth="1600" MaxHeight="600" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Tag="DraggableForm" Width="1500" MaxWidth="1600" MaxHeight="600" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1080,7 +1086,7 @@
             </Border>
         </Grid>
         <Grid x:Name="SupplierEditorOverlay" Grid.RowSpan="4" Background="{ThemeResource PaletteB3000000}" Visibility="Collapsed">
-            <Border Width="760" MaxWidth="900" Height="700" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Tag="DraggableForm" Width="760" MaxWidth="900" Height="700" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1147,7 +1153,7 @@
             </Border>
         </Grid>
         <Grid x:Name="ClientFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
-            <Border Width="1600" MaxWidth="1600" Height="380" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Tag="DraggableForm" Width="1600" MaxWidth="1600" Height="380" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1226,7 +1232,7 @@
             </Border>
         </Grid>
         <Grid x:Name="ClientEditorOverlay" Grid.RowSpan="4" Background="{ThemeResource PaletteB3000000}" Visibility="Collapsed">
-            <Border Width="720" MaxWidth="900" Height="750" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Tag="DraggableForm" Width="720" MaxWidth="900" Height="750" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1293,7 +1299,7 @@
             </Border>
         </Grid>
         <Grid x:Name="TruckFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
-            <Border Width="1600" MaxWidth="1600" Height="600" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Tag="DraggableForm" Width="1600" MaxWidth="1600" Height="600" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1393,7 +1399,7 @@
             </Border>
         </Grid>
         <Grid x:Name="TruckEditorOverlay" Grid.RowSpan="4" Background="{ThemeResource PaletteB3000000}" Visibility="Collapsed">
-            <Border Width="560" MaxWidth="760" Height="500" MaxHeight="700" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Tag="DraggableForm" Width="560" MaxWidth="760" Height="500" MaxHeight="700" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1443,7 +1449,7 @@
             </Border>
         </Grid>
         <Grid x:Name="OperatorEditorOverlay" Grid.RowSpan="4" Background="{ThemeResource PaletteB3000000}" Visibility="Collapsed">
-            <Border Width="560" MaxWidth="760" Height="420" MaxHeight="600" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Tag="DraggableForm" Width="560" MaxWidth="760" Height="420" MaxHeight="600" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1481,7 +1487,7 @@
             </Border>
         </Grid>
         <Grid x:Name="OrderFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
-            <Border Width="1500" MaxWidth="1600" Height="600" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <Border Tag="DraggableForm" Width="1500" MaxWidth="1600" Height="600" MaxHeight="900" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1558,7 +1564,7 @@
             </Border>
         </Grid>
         <Grid x:Name="OrderEditorOverlay" Grid.RowSpan="4" Background="{ThemeResource PaletteB3000000}" Visibility="Collapsed">
-            <Border MaxWidth="900" MaxHeight="950" Margin="16" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Border Tag="DraggableForm" MaxWidth="900" MaxHeight="950" Margin="16" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1646,7 +1652,7 @@
             </Border>
         </Grid>
         <Grid x:Name="ManualLoadOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
-            <Border MaxWidth="1200" MaxHeight="850" Margin="12" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Border Tag="DraggableForm" MaxWidth="1200" MaxHeight="850" Margin="12" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="6" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
                 <Grid>
                     <Grid.RowDefinitions>
                         <RowDefinition Height="32" />
@@ -1797,6 +1803,7 @@
         <Grid x:Name="ConfigurationFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
             <Border
                 x:Name="ConfigurationFormBorder"
+                Tag="DraggableForm"
                 Margin="12"
                 Background="{ThemeResource Palette111C2D}"
                 BorderBrush="{ThemeResource Palette0078D4}"
@@ -1810,6 +1817,7 @@
         <Grid x:Name="SecurityFormOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
             <Border
                 x:Name="SecurityFormBorder"
+                Tag="DraggableForm"
                 Margin="12"
                 Background="White"
                 BorderBrush="{ThemeResource Palette0078D4}"
@@ -1822,7 +1830,7 @@
         </Grid>
 
         <Grid x:Name="MachineConfigurationOverlay" Grid.RowSpan="4" Background="{ThemeResource Palette99000000}" Visibility="Collapsed">
-            <Border Margin="12" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8">
+            <Border Tag="DraggableForm" Margin="12" Background="{ThemeResource Palette111C2D}" BorderBrush="{ThemeResource Palette0078D4}" BorderThickness="1" CornerRadius="8">
                 <local:MachineConfigurationView x:Name="MachineConfigurationView" />
             </Border>
         </Grid>
