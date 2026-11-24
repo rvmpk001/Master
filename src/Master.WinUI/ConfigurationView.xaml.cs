@@ -102,11 +102,15 @@ public sealed partial class ConfigurationView : UserControl
     private readonly Dictionary<TreeViewNode, PlcTagRecord> _plcTagsByNode = new();
     private readonly StackPanel _orderScheduleRows = new();
     private readonly List<OrderScheduleFields> _orderScheduleFieldControls = new();
+    private readonly List<OrderScheduleRecord> _orderSchedules = new();
     private readonly OrderScheduleConfigurationService _orderScheduleConfigurationService = new();
     private ComboBox? _orderDischargeTypeSelector;
     private ComboBox? _orderProductSelector;
     private ComboBox? _orderUseSelector;
+    private ListView? _orderScheduleList;
     private TextBox? _orderConditionsField;
+    private int _selectedOrderScheduleIndex = -1;
+    private bool _updatingOrderScheduleList;
     private TextBox? _orderNumberField;
     private CheckBox? _orderIncludeCompanyName;
     private CheckBox? _orderPrintLinesAndTitles;
@@ -1031,34 +1035,89 @@ public sealed partial class ConfigurationView : UserControl
     {
         try
         {
-            var schedules = await _orderScheduleConfigurationService.GetSchedulesAsync();
-            _orderScheduleRows.Children.Clear();
-            _orderScheduleFieldControls.Clear();
-
-            if (schedules.Count > 0)
+            var storedSchedules = await _orderScheduleConfigurationService.GetSchedulesAsync();
+            var storedShiftSchedules = storedSchedules
+                .Where(schedule => schedule.Position.HasValue)
+                .ToArray();
+            var schedules = new List<OrderScheduleRecord>();
+            var legacyScheduleCounts = storedShiftSchedules
+                .GroupBy(schedule => (schedule.Position, schedule.StartTime, schedule.EndTime))
+                .ToDictionary(group => group.Key, group => group.Count());
+            var notesFromStandaloneRecords = storedSchedules
+                .Where(schedule => !schedule.Position.HasValue && !string.IsNullOrWhiteSpace(schedule.Description))
+                .Select(schedule => schedule.Description)
+                .ToArray();
+            var unmatchedLegacySchedules = new List<OrderScheduleRecord>();
+            foreach (var storedSchedule in storedShiftSchedules)
             {
-                AddOrderScheduleRow(schedules[0]);
+                var rowNotes = new List<string>();
+                foreach (var descriptionLine in storedSchedule.Description
+                    .Split(new[] { "\r\n", "\n", "\r" }, StringSplitOptions.None))
+                {
+                    if (!TryParseLegacyOrderSchedule(descriptionLine, out var legacySchedule))
+                    {
+                        if (!string.IsNullOrWhiteSpace(descriptionLine))
+                        {
+                            rowNotes.Add(descriptionLine);
+                        }
+
+                        continue;
+                    }
+
+                    var key = (legacySchedule.Position, legacySchedule.StartTime, legacySchedule.EndTime);
+                    if (legacyScheduleCounts.TryGetValue(key, out var count) && count > 0)
+                    {
+                        legacyScheduleCounts[key] = count - 1;
+                    }
+                    else
+                    {
+                        unmatchedLegacySchedules.Add(legacySchedule);
+                    }
+                }
+
+                var rowDescription = string.Join(Environment.NewLine, rowNotes).Trim();
+                if (notesFromStandaloneRecords.Length > 0)
+                {
+                    var standaloneDescription = string.Join(Environment.NewLine, notesFromStandaloneRecords).Trim();
+                    if (!string.IsNullOrWhiteSpace(standaloneDescription)
+                        && !string.Equals(rowDescription, standaloneDescription, StringComparison.Ordinal))
+                    {
+                        rowDescription = string.IsNullOrWhiteSpace(rowDescription)
+                            ? standaloneDescription
+                            : $"{standaloneDescription}{Environment.NewLine}{rowDescription}";
+                    }
+                }
+
+                schedules.Add(storedSchedule with { Description = rowDescription });
             }
 
-            _orderConditionsField!.Text = schedules.FirstOrDefault()?.Description ?? string.Empty;
+            var fallbackDescription = schedules
+                .Select(schedule => schedule.Description)
+                .FirstOrDefault(description => !string.IsNullOrWhiteSpace(description))
+                ?? string.Join(Environment.NewLine, notesFromStandaloneRecords).Trim();
+            schedules.AddRange(unmatchedLegacySchedules.Select(schedule =>
+                schedule with { Description = fallbackDescription }));
+
             if (schedules.Count == 0)
             {
-                AddOrderScheduleRow(new OrderScheduleRecord(
+                schedules.Add(new OrderScheduleRecord(
                     1,
-                    string.Empty,
+                    string.Join(Environment.NewLine, notesFromStandaloneRecords).Trim(),
                     new TimeSpan(13, 20, 0),
                     new TimeSpan(13, 20, 0)));
-                ShowStatus(
-                    "dbo.Horarios no tiene turnos configurados; agrega la descripción antes de guardar.",
-                    InfoBarSeverity.Warning);
-                return;
             }
 
+            _orderConditionsField!.Text = schedules[0].Description;
+            SetOrderSchedules(schedules, 0);
             ShowStatus(
                 schedules.Count > 1
-                    ? "Se cargó el primer turno de dbo.Horarios. Al guardar se conservará únicamente ese turno."
-                    : "Turnos, horas y condiciones cargados desde dbo.Horarios.",
-                schedules.Count > 1 ? InfoBarSeverity.Warning : InfoBarSeverity.Success);
+                    ? $"Se cargaron {schedules.Count} turnos desde dbo.Horarios."
+                    : storedSchedules.Count == 0
+                        ? "dbo.Horarios no tiene turnos configurados."
+                        : "Turnos, horas y observaciones cargados desde dbo.Horarios.",
+            storedSchedules.Count == 0
+                    ? InfoBarSeverity.Warning
+                    : InfoBarSeverity.Success);
         }
         catch (SqlException exception)
         {
@@ -2836,6 +2895,16 @@ public sealed partial class ConfigurationView : UserControl
         _orderScheduleRows.Spacing = 8;
         _orderScheduleRows.HorizontalAlignment = HorizontalAlignment.Stretch;
         _orderScheduleFieldControls.Clear();
+        _orderScheduleList = new ListView
+        {
+            Header = "Turnos agregados",
+            SelectionMode = ListViewSelectionMode.Single,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            MinHeight = 76,
+            MaxHeight = 180
+        };
+        _orderScheduleList.SelectionChanged += OrderScheduleList_SelectionChanged;
+        schedulesHost.Children.Add(_orderScheduleList);
         AddOrderScheduleRow(new OrderScheduleRecord(
             1,
             string.Empty,
@@ -2853,6 +2922,16 @@ public sealed partial class ConfigurationView : UserControl
             VerticalContentAlignment = VerticalAlignment.Top
         };
         schedulesHost.Children.Add(_orderConditionsField);
+        SetOrderSchedules(
+            new[]
+            {
+                new OrderScheduleRecord(
+                    1,
+                    string.Empty,
+                    new TimeSpan(13, 20, 0),
+                    new TimeSpan(13, 20, 0))
+            },
+            0);
         host.Children.Add(schedulesHost);
     }
 
@@ -2911,7 +2990,8 @@ public sealed partial class ConfigurationView : UserControl
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
         row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-        for (var index = 0; index < 4; index++)
+        row.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        for (var index = 0; index < 5; index++)
         {
             row.RowDefinitions.Add(new RowDefinition { Height = GridLength.Auto });
         }
@@ -2955,17 +3035,34 @@ public sealed partial class ConfigurationView : UserControl
         var add = new Button
         {
             Content = new SymbolIcon(Symbol.Add),
+            Tag = row,
+            Width = 44,
+            Height = 38,
             VerticalAlignment = VerticalAlignment.Bottom,
             Margin = new Thickness(0, 0, 0, 4)
         };
-        ToolTipService.SetToolTip(add, "Agregar turno, inicio y término a condiciones");
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(add, "Agregar turno a condiciones y observaciones");
+        ToolTipService.SetToolTip(add, "Agregar un turno");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(add, "Agregar turno");
         add.Click += AddOrderScheduleRow_Click;
         Grid.SetColumn(add, 3);
         row.Children.Add(add);
+        var remove = new Button
+        {
+            Content = new SymbolIcon(Symbol.Remove),
+            Tag = row,
+            Width = 44,
+            Height = 38,
+            VerticalAlignment = VerticalAlignment.Bottom,
+            Margin = new Thickness(0, 0, 0, 4)
+        };
+        ToolTipService.SetToolTip(remove, "Eliminar el turno seleccionado");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(remove, "Eliminar turno seleccionado");
+        remove.Click += RemoveOrderScheduleEntry_Click;
+        Grid.SetColumn(remove, 4);
+        row.Children.Add(remove);
         row.SizeChanged += (_, args) =>
         {
-            var columnCount = args.NewSize.Width >= 760 ? 4 : args.NewSize.Width >= 500 ? 2 : 1;
+            var columnCount = args.NewSize.Width >= 900 ? 5 : args.NewSize.Width >= 650 ? 3 : args.NewSize.Width >= 420 ? 2 : 1;
             for (var index = 0; index < row.Children.Count; index++)
             {
                 if (row.Children[index] is FrameworkElement field)
@@ -2977,9 +3074,20 @@ public sealed partial class ConfigurationView : UserControl
 
             for (var index = 0; index < row.ColumnDefinitions.Count; index++)
             {
-                row.ColumnDefinitions[index].Width = index < columnCount
-                    ? new GridLength(1, GridUnitType.Star)
-                    : new GridLength(0);
+                if (index >= columnCount)
+                {
+                    row.ColumnDefinitions[index].Width = new GridLength(0);
+                }
+                else if (columnCount == 5 && index >= 3)
+                {
+                    row.ColumnDefinitions[index].Width = GridLength.Auto;
+                }
+                else
+                {
+                    row.ColumnDefinitions[index].Width = new GridLength(
+                        index == 0 ? 1.5 : 1,
+                        GridUnitType.Star);
+                }
             }
         };
         return new OrderScheduleFields(row, shift, start, end);
@@ -2987,30 +3095,160 @@ public sealed partial class ConfigurationView : UserControl
 
     private void AddOrderScheduleRow_Click(object sender, RoutedEventArgs e)
     {
-        if (_orderScheduleFieldControls.Count != 1 || _orderConditionsField is null)
+        if (_orderScheduleFieldControls.Count != 1)
         {
-            ShowStatus("Debe existir exactamente un turno para agregarlo a las condiciones.", InfoBarSeverity.Error);
+            ShowStatus("No se pudo agregar el turno.", InfoBarSeverity.Error);
             return;
         }
 
-        var fields = _orderScheduleFieldControls[0];
-        int position;
         try
         {
-            position = ParseOrderPosition(fields.Position.Text, 1);
+            var fields = _orderScheduleFieldControls.Single();
+            var position = ParseOrderPosition(fields.Position.Text, _orderSchedules.Count + 1);
+            _orderSchedules.Add(new OrderScheduleRecord(
+                position,
+                _orderConditionsField?.Text.Trim() ?? string.Empty,
+                fields.StartTime.Time,
+                fields.EndTime.Time));
+            RefreshOrderScheduleList(_orderSchedules.Count - 1);
+            ShowStatus(
+                $"Turno agregado. Hay {_orderSchedules.Count} turnos; pulsa Guardar para conservarlos.",
+                InfoBarSeverity.Success);
         }
         catch (InvalidOperationException exception)
         {
             ShowStatus(exception.Message, InfoBarSeverity.Error);
+        }
+    }
+
+    private void RemoveOrderScheduleEntry_Click(object sender, RoutedEventArgs e)
+    {
+        if (_selectedOrderScheduleIndex < 0 || _selectedOrderScheduleIndex >= _orderSchedules.Count)
+        {
+            ShowStatus("Selecciona el turno que deseas eliminar.", InfoBarSeverity.Warning);
             return;
         }
 
-        var start = DateTime.Today.Add(fields.StartTime.Time).ToString("t", CultureInfo.CurrentCulture);
-        var end = DateTime.Today.Add(fields.EndTime.Time).ToString("t", CultureInfo.CurrentCulture);
-        var scheduleText = $"Turno {position}: {start} - {end}";
-        _orderConditionsField.Text = string.IsNullOrWhiteSpace(_orderConditionsField.Text)
-            ? scheduleText
-            : $"{_orderConditionsField.Text.TrimEnd()}{Environment.NewLine}{scheduleText}";
+        if (_orderSchedules.Count <= 1)
+        {
+            ShowStatus("Debe quedar al menos un turno configurado.", InfoBarSeverity.Warning);
+            return;
+        }
+
+        try
+        {
+            CommitSelectedOrderSchedule();
+            var removedPosition = _orderSchedules[_selectedOrderScheduleIndex].Position;
+            _orderSchedules.RemoveAt(_selectedOrderScheduleIndex);
+            var selectedIndex = Math.Min(_selectedOrderScheduleIndex, _orderSchedules.Count - 1);
+            RefreshOrderScheduleList(selectedIndex);
+            ShowStatus(
+                $"Se eliminó el turno {removedPosition}. Quedan {_orderSchedules.Count}; pulsa Guardar para conservar el cambio.",
+                InfoBarSeverity.Success);
+        }
+        catch (InvalidOperationException exception)
+        {
+            ShowStatus(exception.Message, InfoBarSeverity.Error);
+        }
+    }
+
+    private void OrderScheduleList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+    {
+        if (_updatingOrderScheduleList || _orderScheduleList is null)
+        {
+            return;
+        }
+
+        var newIndex = _orderScheduleList.SelectedIndex;
+        try
+        {
+            CommitSelectedOrderSchedule();
+        }
+        catch (InvalidOperationException exception)
+        {
+            _updatingOrderScheduleList = true;
+            _orderScheduleList.SelectedIndex = _selectedOrderScheduleIndex;
+            _updatingOrderScheduleList = false;
+            ShowStatus(exception.Message, InfoBarSeverity.Error);
+            return;
+        }
+
+        if (_selectedOrderScheduleIndex >= 0)
+        {
+            _orderScheduleList.Items[_selectedOrderScheduleIndex] = FormatOrderScheduleLine(
+                _orderSchedules[_selectedOrderScheduleIndex].Position ?? 0,
+                _orderSchedules[_selectedOrderScheduleIndex].StartTime,
+                _orderSchedules[_selectedOrderScheduleIndex].EndTime);
+        }
+
+        _selectedOrderScheduleIndex = newIndex;
+        LoadSelectedOrderScheduleIntoFields();
+    }
+
+    private void SetOrderSchedules(IEnumerable<OrderScheduleRecord> schedules, int selectedIndex)
+    {
+        _orderSchedules.Clear();
+        _orderSchedules.AddRange(schedules);
+        RefreshOrderScheduleList(selectedIndex);
+    }
+
+    private void RefreshOrderScheduleList(int selectedIndex)
+    {
+        if (_orderScheduleList is null)
+        {
+            return;
+        }
+
+        _updatingOrderScheduleList = true;
+        _orderScheduleList.Items.Clear();
+        foreach (var schedule in _orderSchedules)
+        {
+            _orderScheduleList.Items.Add(FormatOrderScheduleLine(
+                schedule.Position ?? 0,
+                schedule.StartTime,
+                schedule.EndTime));
+        }
+
+        _selectedOrderScheduleIndex = _orderSchedules.Count == 0
+            ? -1
+            : Math.Clamp(selectedIndex, 0, _orderSchedules.Count - 1);
+        _orderScheduleList.SelectedIndex = _selectedOrderScheduleIndex;
+        _updatingOrderScheduleList = false;
+        LoadSelectedOrderScheduleIntoFields();
+    }
+
+    private void LoadSelectedOrderScheduleIntoFields()
+    {
+        if (_selectedOrderScheduleIndex < 0 || _selectedOrderScheduleIndex >= _orderSchedules.Count)
+        {
+            return;
+        }
+
+        var schedule = _orderSchedules[_selectedOrderScheduleIndex];
+        var fields = _orderScheduleFieldControls.Single();
+        fields.Position.Text = schedule.Position?.ToString(CultureInfo.InvariantCulture) ?? string.Empty;
+        fields.StartTime.Time = schedule.StartTime;
+        fields.EndTime.Time = schedule.EndTime;
+        if (_orderConditionsField is not null)
+        {
+            _orderConditionsField.Text = schedule.Description;
+        }
+    }
+
+    private void CommitSelectedOrderSchedule()
+    {
+        if (_selectedOrderScheduleIndex < 0 || _selectedOrderScheduleIndex >= _orderSchedules.Count)
+        {
+            return;
+        }
+
+        var fields = _orderScheduleFieldControls.Single();
+        var position = ParseOrderPosition(fields.Position.Text, _selectedOrderScheduleIndex + 1);
+        _orderSchedules[_selectedOrderScheduleIndex] = new OrderScheduleRecord(
+            position,
+            _orderConditionsField?.Text.Trim() ?? string.Empty,
+            fields.StartTime.Time,
+            fields.EndTime.Time);
     }
 
     private void AddOrderScheduleRow(OrderScheduleRecord schedule)
@@ -3418,15 +3656,10 @@ public sealed partial class ConfigurationView : UserControl
 
                 if (canSaveSchedules)
                 {
-                    var schedules = _orderScheduleFieldControls
-                        .Select((fields, index) => new OrderScheduleRecord(
-                            ParseOrderPosition(fields.Position.Text, index + 1),
-                            _orderConditionsField?.Text.Trim() ?? string.Empty,
-                            fields.StartTime.Time,
-                            fields.EndTime.Time))
-                        .ToArray();
+                    var schedules = BuildOrderSchedulesForSave();
                     await _orderScheduleConfigurationService.SaveSchedulesAsync(schedules);
-                    savedSections.Add("turnos y condiciones guardados en dbo.Horarios");
+                    savedSections.Add(
+                        $"{schedules.Count(schedule => schedule.Position.HasValue)} turnos y observaciones guardados en dbo.Horarios");
                 }
 
                 ShowStatus(string.Join("; ", savedSections), InfoBarSeverity.Success);
@@ -3519,6 +3752,79 @@ public sealed partial class ConfigurationView : UserControl
         }
 
         return position;
+    }
+
+    private static bool TryParseLegacyOrderSchedule(string value, out OrderScheduleRecord schedule)
+    {
+        schedule = new OrderScheduleRecord(null, string.Empty, TimeSpan.Zero, TimeSpan.Zero);
+        var line = value.Trim();
+        const string prefix = "Turno ";
+        if (!line.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var positionEnd = line.IndexOf(':');
+        if (positionEnd <= prefix.Length
+            || !int.TryParse(
+                line.Substring(prefix.Length, positionEnd - prefix.Length),
+                NumberStyles.None,
+                CultureInfo.InvariantCulture,
+                out var position))
+        {
+            return false;
+        }
+
+        var timeRange = line[(positionEnd + 1)..].Trim();
+        var separator = timeRange.IndexOf(" - ", StringComparison.Ordinal);
+        if (separator < 0
+            || !DateTime.TryParse(
+                timeRange[..separator],
+                CultureInfo.CurrentCulture,
+                DateTimeStyles.None,
+                out var start)
+            || !DateTime.TryParse(
+                timeRange[(separator + 3)..],
+                CultureInfo.CurrentCulture,
+                DateTimeStyles.None,
+                out var end))
+        {
+            return false;
+        }
+
+        schedule = new OrderScheduleRecord(position, string.Empty, start.TimeOfDay, end.TimeOfDay);
+        return true;
+    }
+
+    private static string FormatOrderScheduleLine(int position, TimeSpan startTime, TimeSpan endTime)
+    {
+        var start = DateTime.Today.Add(startTime).ToString("t", CultureInfo.CurrentCulture);
+        var end = DateTime.Today.Add(endTime).ToString("t", CultureInfo.CurrentCulture);
+        return $"Turno {position}: {start} - {end}";
+    }
+
+    private OrderScheduleRecord[] BuildOrderSchedulesForSave()
+    {
+        CommitSelectedOrderSchedule();
+        RefreshOrderScheduleList(_selectedOrderScheduleIndex);
+        if (_orderSchedules.Count == 0)
+        {
+            throw new InvalidOperationException("La configuración debe contener al menos un turno.");
+        }
+
+        return _orderSchedules
+            .Select((schedule, index) =>
+            {
+                var position = schedule.Position
+                    ?? throw new InvalidOperationException($"Turno {index + 1} debe tener una posición.");
+                ParseOrderPosition(position.ToString(CultureInfo.InvariantCulture), index + 1);
+                return schedule with
+                {
+                    Position = position,
+                    Description = schedule.Description.Trim()
+                };
+            })
+            .ToArray();
     }
 
     private sealed record RemissionAlignmentOption(string Label, int Code)

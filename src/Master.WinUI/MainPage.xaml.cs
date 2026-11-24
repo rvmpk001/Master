@@ -277,6 +277,7 @@ public sealed partial class MainPage : Page
             input.TextChanged += (_, _) => ClearManualLoadMaterialHighlightWhenValid(column, input);
         }
 
+        UpdateManualLoadMaterialLabels(_dashboardMachineConfiguration);
         UpdateManualLoadMaterialInputs(null);
         AddCanvasDeleteAccelerator(Windows.System.VirtualKey.Delete);
         AddCanvasDeleteAccelerator(Windows.System.VirtualKey.Back);
@@ -3342,6 +3343,9 @@ public sealed partial class MainPage : Page
             var trucks = await _truckService.GetTrucksAsync();
             var schedules = await _orderScheduleConfigurationService.GetSchedulesAsync();
             var nextRemission = await _orderService.GetNextManualLoadRemissionAsync();
+            var machineConfiguration = await _machineConfigurationService.GetConfigurationAsync();
+            _dashboardMachineConfiguration = machineConfiguration.Values;
+            UpdateManualLoadMaterialLabels(machineConfiguration.Values);
 
             ManualLoadRecipes.Clear();
             foreach (var recipe in recipes)
@@ -3387,16 +3391,15 @@ public sealed partial class MainPage : Page
                 ManualLoadTrucks.Add(truck);
             }
 
-            foreach (var schedule in schedules)
+            for (var index = 0; index < schedules.Count; index++)
             {
-                var shiftDescription = string.Join(
-                    " ",
-                    schedule.Description
-                        .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
-                        .Select(line => line.Trim())
-                        .Where(line => !string.IsNullOrWhiteSpace(line))
-                        .Distinct(StringComparer.OrdinalIgnoreCase));
-                if (!string.IsNullOrWhiteSpace(shiftDescription))
+                var schedule = schedules[index];
+                var position = schedule.Position?.ToString(CultureInfo.InvariantCulture)
+                    ?? (index + 1).ToString(CultureInfo.InvariantCulture);
+                var start = DateTime.Today.Add(schedule.StartTime).ToString("t", CultureInfo.CurrentCulture);
+                var end = DateTime.Today.Add(schedule.EndTime).ToString("t", CultureInfo.CurrentCulture);
+                var shiftDescription = $"Turno {position}: {start} - {end}";
+                if (!ManualLoadShifts.Contains(shiftDescription, StringComparer.OrdinalIgnoreCase))
                 {
                     ManualLoadShifts.Add(shiftDescription);
                 }
@@ -3450,6 +3453,36 @@ public sealed partial class MainPage : Page
             input.IsEnabled = recipe?.MaterialSlots.Contains(slot) == true;
         }
     }
+
+    private void UpdateManualLoadMaterialLabels(IReadOnlyDictionary<string, string> configuration)
+    {
+        foreach (var (_, slot, input) in GetManualLoadMaterialInputs())
+        {
+            var parameter = GetMachineMaterialParameter(slot);
+            var materialName = configuration.GetValueOrDefault(parameter)?.Trim();
+            if (string.IsNullOrWhiteSpace(materialName)
+                || materialName.Equals("DESHABILITADA", StringComparison.OrdinalIgnoreCase))
+            {
+                materialName = GetManualLoadMaterialFallbackName(slot);
+            }
+
+            input.Header = $"CANTIDAD {materialName}";
+        }
+    }
+
+    private static string GetManualLoadMaterialFallbackName(string slot) => slot switch
+    {
+        "Agua" => "AGUA 1",
+        "Agua2" => "AGUA 2",
+        "Agua3" => "AGUA 3",
+        "Fibra1" => "FIBRA 1",
+        "Fibra2" => "FIBRA 2",
+        "Fibra3" => "FIBRA 3",
+        _ when slot.StartsWith('A') => $"AGREGADO {slot}",
+        _ when slot.StartsWith('C') => $"CEMENTO {slot}",
+        _ when slot.StartsWith('D') => $"ADITIVO {slot[1..]}",
+        _ => slot
+    };
 
     private (string Column, string Slot, TextBox Input)[] GetManualLoadMaterialInputs() =>
     [
@@ -3836,19 +3869,22 @@ public sealed partial class MainPage : Page
             return;
         }
 
-        var product = ManualLoadRemissionProductComboBox.Text.Trim();
+        var product = (ManualLoadRemissionProductComboBox.SelectedItem as string
+            ?? ManualLoadRemissionProductComboBox.Text).Trim();
         if (!RequireText(product, "Producto", ManualLoadRemissionProductComboBox))
         {
             return;
         }
 
-        var paymentCondition = ManualLoadRemissionPaymentComboBox.Text.Trim();
+        var paymentCondition = (ManualLoadRemissionPaymentComboBox.SelectedItem as string
+            ?? ManualLoadRemissionPaymentComboBox.Text).Trim();
         if (!RequireText(paymentCondition, "Condiciones de pago", ManualLoadRemissionPaymentComboBox))
         {
             return;
         }
 
-        var dischargeType = ManualLoadRemissionDischargeComboBox.Text.Trim();
+        var dischargeType = (ManualLoadRemissionDischargeComboBox.SelectedItem as string
+            ?? ManualLoadRemissionDischargeComboBox.Text).Trim();
         if (!RequireText(dischargeType, "Tipo de descarga", ManualLoadRemissionDischargeComboBox))
         {
             return;

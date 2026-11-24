@@ -39,22 +39,24 @@ public sealed class OrderScheduleConfigurationService
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(schedules);
-        if (schedules.Count != 1)
+        if (schedules.Count == 0)
         {
-            throw new InvalidOperationException("La configuración debe contener exactamente un turno.");
+            throw new InvalidOperationException("La configuración debe contener al menos un turno.");
         }
 
         for (var index = 0; index < schedules.Count; index++)
         {
             var schedule = schedules[index];
-            if (schedule.Position is not int position || position < 0)
+            if (schedule.Description.Length > 250)
             {
-                throw new InvalidOperationException($"Turno {index + 1} debe tener una posición entera mayor o igual a 0.");
+                throw new InvalidOperationException(
+                    $"La descripción del registro {index + 1} no puede superar 250 caracteres.");
             }
 
-            if (schedules.Take(index).Any(previous => previous.Position == position))
+            if (schedule.Position is not int position || position < 0)
             {
-                throw new InvalidOperationException($"La posición {position} está repetida en más de un turno.");
+                throw new InvalidOperationException(
+                    $"Turno {index + 1} debe tener una posición entera mayor o igual a 0.");
             }
 
             if (schedule.StartTime < TimeSpan.Zero || schedule.StartTime >= TimeSpan.FromDays(1)
@@ -87,7 +89,7 @@ public sealed class OrderScheduleConfigurationService
             {
                 var schedule = schedules[index];
                 await using var insertCommand = new SqlCommand(insertQuery, connection, transaction);
-                insertCommand.Parameters.Add("@Descripcion", SqlDbType.NVarChar, -1).Value =
+                insertCommand.Parameters.Add("@Descripcion", SqlDbType.NVarChar, 250).Value =
                     string.IsNullOrWhiteSpace(schedule.Description) ? DBNull.Value : schedule.Description.Trim();
                 insertCommand.Parameters.Add("@HoraInicial", SqlDbType.DateTime).Value =
                     DateTime.Today.Add(schedule.StartTime);

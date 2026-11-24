@@ -1669,8 +1669,7 @@
                     </StackPanel>
                     <TabView Grid.Row="2" IsAddTabButtonVisible="False" CanReorderTabs="False" Background="{ThemeResource Palette101B2D}">
                         <TabViewItem Header="Materiales" IsClosable="False">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                <Grid Padding="16" RowSpacing="12" ColumnSpacing="14" Background="{ThemeResource Palette101B2D}">
+                            <Grid Padding="12,8" RowSpacing="8" ColumnSpacing="12" Background="{ThemeResource Palette101B2D}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="180" />
@@ -1713,87 +1712,111 @@
                                         <TextBlock Text="PEDIDO:" VerticalAlignment="Center" Foreground="{ThemeResource PaletteE6EDF7}" />
                                         <ComboBox x:Name="ManualLoadOrderComboBox" Grid.Column="1" PlaceholderText="Selecciona pedido" ItemsSource="{x:Bind ManualLoadOrderNumbers}" SelectionChanged="ManualLoadOrder_SelectionChanged" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                     </Grid>
-                                    <Border Grid.Row="2" Grid.ColumnSpan="2" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="10" Background="{ThemeResource Palette172337}">
-                                        <Grid ColumnSpacing="14">
+                                    <Border Grid.Row="2" Grid.ColumnSpan="2" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="8" Background="{ThemeResource Palette172337}">
+                                        <Grid RowSpacing="4" ColumnSpacing="10">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
-                                            <StackPanel Spacing="8">
-                                                <TextBox x:Name="ManualLoadA1TextBox" Header="CANTIDAD GRAVA" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadA2TextBox" Header="CANTIDAD ARENA" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadA3TextBox" Header="CANTIDAD AGREGADO 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadA4TextBox" Header="CANTIDAD AGREGADO 4" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadA5TextBox" Header="CANTIDAD AGREGADO 5" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadA6TextBox" Header="CANTIDAD AGREGADO 6" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadA7TextBox" Header="CANTIDAD AGREGADO 7" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadA8TextBox" Header="CANTIDAD AGREGADO 8" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="1" Spacing="8">
-                                                <TextBox x:Name="ManualLoadC1TextBox" Header="CANTIDAD CEMENTO" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadC2TextBox" Header="CANTIDAD CEMENTO 2" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadC3TextBox" Header="CANTIDAD CEMENTO 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadC4TextBox" Header="CANTIDAD CEMENTO 4" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadC5TextBox" Header="CANTIDAD CEMENTO 5" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadWater1TextBox" Header="CANTIDAD AGUA 1" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadWater2TextBox" Header="CANTIDAD AGUA 2" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadWater3TextBox" Header="CANTIDAD AGUA 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            </StackPanel>
-                                            <StackPanel Grid.Column="2" Spacing="8">
-                                                <TextBox x:Name="ManualLoadD1TextBox" Header="CANTIDAD ADITIVO 1" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadD2TextBox" Header="CANTIDAD ADITIVO 2" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadD3TextBox" Header="CANTIDAD ADITIVO 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadD4TextBox" Header="CANTIDAD ADITIVO 4" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadD5TextBox" Header="CANTIDAD ADITIVO 5" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadD6TextBox" Header="CANTIDAD ADITIVO 6" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadFI1TextBox" Header="CANTIDAD FIBRA 1" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadFI2TextBox" Header="CANTIDAD FIBRA 2" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                                <TextBox x:Name="ManualLoadFI3TextBox" Header="CANTIDAD FIBRA 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            </StackPanel>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <TextBox x:Name="ManualLoadA1TextBox" Header="CANTIDAD GRAVA" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadA2TextBox" Grid.Column="1" Header="CANTIDAD ARENA" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadA3TextBox" Grid.Column="2" Header="CANTIDAD AGREGADO 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadA4TextBox" Grid.Column="3" Header="CANTIDAD AGREGADO 4" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadA5TextBox" Grid.Row="1" Header="CANTIDAD AGREGADO 5" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadA6TextBox" Grid.Row="1" Grid.Column="1" Header="CANTIDAD AGREGADO 6" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadA7TextBox" Grid.Row="1" Grid.Column="2" Header="CANTIDAD AGREGADO 7" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadA8TextBox" Grid.Row="1" Grid.Column="3" Header="CANTIDAD AGREGADO 8" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadC1TextBox" Grid.Row="2" Header="CANTIDAD CEMENTO" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadC2TextBox" Grid.Row="2" Grid.Column="1" Header="CANTIDAD CEMENTO 2" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadC3TextBox" Grid.Row="2" Grid.Column="2" Header="CANTIDAD CEMENTO 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadC4TextBox" Grid.Row="2" Grid.Column="3" Header="CANTIDAD CEMENTO 4" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadC5TextBox" Grid.Row="3" Header="CANTIDAD CEMENTO 5" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadWater1TextBox" Grid.Row="3" Grid.Column="1" Header="CANTIDAD AGUA 1" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadWater2TextBox" Grid.Row="3" Grid.Column="2" Header="CANTIDAD AGUA 2" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadWater3TextBox" Grid.Row="3" Grid.Column="3" Header="CANTIDAD AGUA 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadD1TextBox" Grid.Row="4" Header="CANTIDAD ADITIVO 1" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadD2TextBox" Grid.Row="4" Grid.Column="1" Header="CANTIDAD ADITIVO 2" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadD3TextBox" Grid.Row="4" Grid.Column="2" Header="CANTIDAD ADITIVO 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadD4TextBox" Grid.Row="4" Grid.Column="3" Header="CANTIDAD ADITIVO 4" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadD5TextBox" Grid.Row="5" Header="CANTIDAD ADITIVO 5" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadD6TextBox" Grid.Row="5" Grid.Column="1" Header="CANTIDAD ADITIVO 6" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadFI1TextBox" Grid.Row="5" Grid.Column="2" Header="CANTIDAD FIBRA 1" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadFI2TextBox" Grid.Row="5" Grid.Column="3" Header="CANTIDAD FIBRA 2" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadFI3TextBox" Grid.Row="6" Header="CANTIDAD FIBRA 3" Text="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
                                         </Grid>
                                     </Border>
                                     <TextBlock x:Name="ManualLoadStatusText" Grid.Row="3" Grid.ColumnSpan="2" Foreground="{ThemeResource PaletteA9B8CC}" TextWrapping="Wrap" />
-                                </Grid>
-                            </ScrollViewer>
+                            </Grid>
                         </TabViewItem>
                         <TabViewItem Header="Datos Remisión" IsClosable="False">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                                <Grid Padding="16" ColumnSpacing="12" RowSpacing="12" Background="{ThemeResource Palette101B2D}">
+                            <Grid Padding="12,8" ColumnSpacing="12" RowSpacing="8" Background="{ThemeResource Palette101B2D}">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="*" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-                                    <Border BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="10" Background="{ThemeResource Palette172337}">
-                                        <StackPanel Spacing="8">
-                                            <TextBlock Text="DATOS DE REMISIÓN" FontWeight="SemiBold" Foreground="{ThemeResource PaletteF1F5F9}" />
-                                            <ComboBox x:Name="ManualLoadRemissionOrderComboBox" Header="PEDIDO" ItemsSource="{x:Bind ManualLoadOrderNumbers}" SelectionChanged="ManualLoadRemissionOrder_SelectionChanged" PlaceholderText="Selecciona pedido activo" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <ComboBox x:Name="ManualLoadRemissionClientComboBox" Header="CLIENTE" ItemsSource="{x:Bind OrderClients}" DisplayMemberPath="Client" IsEditable="False" SelectionChanged="ManualLoadRemissionClient_SelectionChanged" PlaceholderText="Selecciona cliente" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <ComboBox x:Name="ManualLoadRemissionConstructionComboBox" Header="OBRA" ItemsSource="{x:Bind ManualLoadConstructionOptions}" IsEditable="False" PlaceholderText="Selecciona obra" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <ComboBox x:Name="ManualLoadRemissionOperatorComboBox" Header="OPERADOR" ItemsSource="{x:Bind ManualLoadOperators}" DisplayMemberPath="Name" IsEditable="False" PlaceholderText="Selecciona operador" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <TextBox x:Name="ManualLoadRemissionStatusTextBox" Header="ESTATUS" IsReadOnly="True" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <ComboBox x:Name="ManualLoadRemissionProductComboBox" Header="PRODUCTO" ItemsSource="{x:Bind OrderProducts}" IsEditable="False" PlaceholderText="Selecciona producto" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <ComboBox x:Name="ManualLoadRemissionPaymentComboBox" Header="CONDICIONES PAGO" ItemsSource="{x:Bind OrderPaymentConditions}" IsEditable="False" PlaceholderText="Selecciona condiciones" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <ComboBox x:Name="ManualLoadRemissionDischargeComboBox" Header="TIPO DESCARGA" ItemsSource="{x:Bind OrderDischargeTypes}" IsEditable="False" PlaceholderText="Selecciona tipo" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <TextBox x:Name="ManualLoadRemissionDispatcherTextBox" Header="DESPACHADOR" Text="1" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <TextBox x:Name="ManualLoadRemissionTextBox" Header="REMISIÓN" MaxLength="50" IsReadOnly="True" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <ComboBox x:Name="ManualLoadRemissionTruckComboBox" Header="CAMIÓN" ItemsSource="{x:Bind ManualLoadTrucks}" DisplayMemberPath="Unit" PlaceholderText="Selecciona camión" SelectionChanged="ManualLoadRemissionTruck_SelectionChanged" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                        </StackPanel>
+                                    <Border BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="8" Background="{ThemeResource Palette172337}">
+                                        <Grid RowSpacing="6" ColumnSpacing="10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Grid.ColumnSpan="2" Text="DATOS DE REMISIÓN" FontWeight="SemiBold" Foreground="{ThemeResource PaletteF1F5F9}" />
+                                            <ComboBox x:Name="ManualLoadRemissionOrderComboBox" Grid.Row="1" Header="PEDIDO" ItemsSource="{x:Bind ManualLoadOrderNumbers}" SelectionChanged="ManualLoadRemissionOrder_SelectionChanged" PlaceholderText="Selecciona pedido activo" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionClientComboBox" Grid.Row="1" Grid.Column="1" Header="CLIENTE" ItemsSource="{x:Bind OrderClients}" DisplayMemberPath="Client" IsEditable="False" SelectionChanged="ManualLoadRemissionClient_SelectionChanged" PlaceholderText="Selecciona cliente" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionConstructionComboBox" Grid.Row="2" Header="OBRA" ItemsSource="{x:Bind ManualLoadConstructionOptions}" IsEditable="False" PlaceholderText="Selecciona obra" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionOperatorComboBox" Grid.Row="2" Grid.Column="1" Header="OPERADOR" ItemsSource="{x:Bind ManualLoadOperators}" DisplayMemberPath="Name" IsEditable="False" PlaceholderText="Selecciona operador" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadRemissionStatusTextBox" Grid.Row="3" Header="ESTATUS" IsReadOnly="True" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionProductComboBox" Grid.Row="3" Grid.Column="1" Header="PRODUCTO" ItemsSource="{x:Bind OrderProducts}" IsEditable="False" PlaceholderText="Selecciona producto" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionPaymentComboBox" Grid.Row="4" Header="CONDICIONES PAGO" ItemsSource="{x:Bind OrderPaymentConditions}" IsEditable="False" PlaceholderText="Selecciona condiciones" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionDischargeComboBox" Grid.Row="4" Grid.Column="1" Header="TIPO DESCARGA" ItemsSource="{x:Bind OrderDischargeTypes}" IsEditable="False" PlaceholderText="Selecciona tipo" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadRemissionDispatcherTextBox" Grid.Row="5" Header="DESPACHADOR" Text="1" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadRemissionTextBox" Grid.Row="5" Grid.Column="1" Header="REMISIÓN" MaxLength="50" IsReadOnly="True" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <ComboBox x:Name="ManualLoadRemissionTruckComboBox" Grid.Row="6" Header="CAMIÓN" ItemsSource="{x:Bind ManualLoadTrucks}" DisplayMemberPath="Unit" PlaceholderText="Selecciona camión" SelectionChanged="ManualLoadRemissionTruck_SelectionChanged" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                        </Grid>
                                     </Border>
-                                    <Border Grid.Column="1" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="10" Background="{ThemeResource Palette172337}">
-                                        <StackPanel Spacing="8">
+                                    <Border Grid.Column="1" BorderBrush="{ThemeResource Palette40516A}" BorderThickness="1" Padding="8" Background="{ThemeResource Palette172337}">
+                                        <Grid RowSpacing="6">
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                                <RowDefinition Height="Auto" />
+                                            </Grid.RowDefinitions>
                                             <TextBlock Text="ESTATUS" FontWeight="SemiBold" Foreground="{ThemeResource PaletteF1F5F9}" />
-                                            <NumberBox x:Name="ManualLoadOrderedQuantityNumberBox" Header="PEDIDOS (M³)" Value="0" Minimum="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <NumberBox x:Name="ManualLoadSuppliedQuantityNumberBox" Header="SURTIDOS (M³)" Value="0" Minimum="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <NumberBox x:Name="ManualLoadToSupplyQuantityNumberBox" Header="X SURTIR (M³)" Value="0" Minimum="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <TextBox x:Name="ManualLoadRemissionObservationsTextBox" Header="OBSERVACIONES" AcceptsReturn="True" Height="90" TextWrapping="Wrap" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                            <DatePicker x:Name="ManualLoadActualRemissionDatePicker" Header="FECHA REMISIÓN REAL" Foreground="{ThemeResource PaletteF1F5F9}" />
-                                            <TimePicker x:Name="ManualLoadActualRemissionTimePicker" Header="HORA REMISIÓN REAL" Foreground="{ThemeResource PaletteF1F5F9}" />
-                                            <ComboBox x:Name="ManualLoadRemissionShiftComboBox" Header="TURNO" ItemsSource="{x:Bind ManualLoadShifts}" PlaceholderText="Selecciona turno" IsEnabled="False" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
-                                        </StackPanel>
+                                            <NumberBox x:Name="ManualLoadOrderedQuantityNumberBox" Grid.Row="1" Header="PEDIDOS (M³)" Value="0" Minimum="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <NumberBox x:Name="ManualLoadSuppliedQuantityNumberBox" Grid.Row="2" Header="SURTIDOS (M³)" Value="0" Minimum="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <NumberBox x:Name="ManualLoadToSupplyQuantityNumberBox" Grid.Row="3" Header="X SURTIR (M³)" Value="0" Minimum="0" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <TextBox x:Name="ManualLoadRemissionObservationsTextBox" Grid.Row="4" Header="OBSERVACIONES" AcceptsReturn="True" Height="72" TextWrapping="Wrap" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                            <DatePicker x:Name="ManualLoadActualRemissionDatePicker" Grid.Row="5" Header="FECHA REMISIÓN REAL" Foreground="{ThemeResource PaletteF1F5F9}" />
+                                            <TimePicker x:Name="ManualLoadActualRemissionTimePicker" Grid.Row="6" Header="HORA REMISIÓN REAL" Foreground="{ThemeResource PaletteF1F5F9}" />
+                                            <ComboBox x:Name="ManualLoadRemissionShiftComboBox" Grid.Row="7" Header="TURNO" ItemsSource="{x:Bind ManualLoadShifts}" PlaceholderText="Selecciona turno" IsEnabled="False" Foreground="{ThemeResource PaletteF1F5F9}" Background="{ThemeResource Palette111B2B}" />
+                                        </Grid>
                                     </Border>
                                 </Grid>
-                            </ScrollViewer>
                         </TabViewItem>
                     </TabView>
                     <InfoBar x:Name="ManualLoadStatusInfoBar" Grid.Row="3" Margin="12,0,12,8" IsOpen="False" IsClosable="True" />
